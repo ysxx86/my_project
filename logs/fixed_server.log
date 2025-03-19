@@ -1,0 +1,8 @@
+2025-03-19 18:05:58,841 - 服务器启动器 - INFO - 服务器进程已启动，PID: 11748
+2025-03-19 18:06:00,947 - 服务器启动器 - ERROR - 启动服务器时出错: 'utf-8' codec can't decode byte 0xbf in position 68: invalid start byte
+2025-03-19 18:06:00,949 - 服务器启动器 - ERROR - Traceback (most recent call last):
+  File "C:\Users\kmduyy\my_project\start_fixed_server.py", line 66, in start_server
+    for line in process.stdout:
+  File "<frozen codecs>", line 322, in decode
+UnicodeDecodeError: 'utf-8' codec can't decode byte 0xbf in position 68: invalid start byte
+

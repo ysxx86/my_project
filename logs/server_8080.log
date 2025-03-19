@@ -1,0 +1,8 @@
+2025-03-19 18:05:17,816 - utils.comment_processor - INFO - ReportLab库已成功导入
+2025-03-19 18:05:17,819 - utils.pdf_exporter - INFO - PDF导出模块: ReportLab库已成功导入
+2025-03-19 18:05:17,825 - server - INFO - 服务器启动
+2025-03-19 18:05:17,831 - server - INFO - 初始化数据库
+2025-03-19 18:05:17,834 - server - INFO - 现有数据库列: ['id', 'name', 'gender', 'class', 'height', 'weight', 'chest_circumference', 'vital_capacity', 'dental_caries', 'vision_left', 'vision_right', 'physical_test_status', 'comments', 'created_at', 'updated_at', 'daof', 'yuwen', 'shuxue', 'yingyu', 'laodong', 'tiyu', 'yinyue', 'meishu', 'kexue', 'zonghe', 'xinxi', 'shufa', 'semester']
+2025-03-19 18:05:17,835 - server - INFO - 数据库初始化完成
+2025-03-19 18:05:17,955 - 服务器启动器 - ERROR - 加载应用程序时出错: View function mapping is overwriting an existing endpoint function: download_template
+2025-03-19 18:05:17,958 - 服务器启动器 - ERROR - 无法加载应用程序，无法启动服务器
