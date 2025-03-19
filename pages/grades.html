@@ -132,9 +132,9 @@
         
         /* 固定表头样式 */
         .table-responsive.grades-table {
-            height: calc(100vh - 250px);
+            height: calc(100vh - 200px);
             overflow-y: auto;
-            margin-bottom: 20px; /* 添加底部间距 */
+            margin-bottom: 20px;
         }
         
         .grades-table thead tr th {
@@ -251,6 +251,16 @@
         }
         .notification-info .notification-icon {
             color: #3498db;
+        }
+        /* 修改底部导航栏样式，而不是完全隐藏 */
+        .navbar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: #fff;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
         }
     </style>
 </head>

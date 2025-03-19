@@ -337,6 +337,18 @@ def confirm_import():
     
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
+    # 清空学生表中的所有记录 - 根据用户需求，导入时只保留当前班级的学生
+    try:
+        logger.info("导入前清空学生表中的所有记录")
+        cursor.execute('DELETE FROM students')
+        logger.info(f"已清空学生表，准备导入 {len(students)} 名新学生")
+    except Exception as clear_error:
+        logger.error(f"清空学生表时出错: {str(clear_error)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'清空数据库时出错: {str(clear_error)}'
+        }), 500
+    
     success_count = 0
     error_count = 0
     updated_count = 0
