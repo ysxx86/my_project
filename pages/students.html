@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学生管理 - 班主任管理系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="../css/boxicons-local.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+            padding: 20px;
+        }
+        .page-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #3498db;
+        }
+        .action-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .student-card {
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            background-color: #fff;
+            padding: 15px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+            height: 100%;
+            position: relative;
+        }
+        .student-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        }
+        .student-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 10px;
+            overflow: hidden;
+            border: 2px solid #3498db;
+        }
+        .student-avatar i {
+            font-size: 2rem;
+            color: #3498db;
+        }
+        .student-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+            text-align: center;
+            margin-bottom: 5px;
+        }
+        .student-id {
+            color: #666;
+            font-size: 0.9rem;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .student-info {
+            font-size: 0.85rem;
+            color: #555;
+            margin-bottom: 5px;
+        }
+        .student-actions {
+            display: flex;
+            justify-content: center;
+            margin-top: 10px;
+        }
+        .student-actions button {
+            margin: 0 3px;
+            padding: 4px 8px;
+            font-size: 0.8rem;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 50px 0;
+            color: #666;
+        }
+        .empty-state i {
+            font-size: 4rem;
+            color: #ccc;
+            margin-bottom: 20px;
+        }
+        .empty-state h3 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+        .empty-state p {
+            font-size: 1rem;
+            margin-bottom: 20px;
+        }
+        .card-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .male {
+            background-color: #e1f5fe;
+            color: #0288d1;
+        }
+        .female {
+            background-color: #fce4ec;
+            color: #d81b60;
+        }
+        .import-area {
+            border: 2px dashed #ccc;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+        .import-area:hover {
+            border-color: #3498db;
+        }
+        .import-area i {
+            font-size: 2.5rem;
+            color: #3498db;
+            margin-bottom: 15px;
+        }
+        .import-area h3 {
+            font-size: 1.3rem;
+            margin-bottom: 10px;
+        }
+        .import-area p {
+            color: #666;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <h1 class="page-title">学生管理</h1>
+        
+        <div class="action-bar">
+            <div>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#importModal">
+                    <i class='bx bx-import'></i> 导入学生名单
+                </button>
+                <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addStudentModal">
+                    <i class='bx bx-user-plus'></i> 添加学生
+                </button>
+            </div>
+            <div class="input-group" style="max-width: 300px;">
+                <input type="text" class="form-control" placeholder="搜索学生..." id="searchStudent">
+                <button class="btn btn-outline-secondary" type="button">
+                    <i class='bx bx-search'></i>
+                </button>
+            </div>
+        </div>
+        
+        <!-- 学生卡片区域 -->
+        <div class="row" id="studentCards">
+            <!-- 示例学生卡片 -->
+            <div class="col-md-3 col-lg-2 col-xl-1-5 mb-4">
+                <div class="student-card">
+                    <span class="card-badge male">男</span>
+                    <div class="student-avatar">
+                        <i class='bx bx-user'></i>
+                    </div>
+                    <h3 class="student-name">张三</h3>
+                    <div class="student-id">学号: 20230001</div>
+                    <div class="student-info"><i class='bx bx-calendar'></i> 出生日期: 2010-01-15</div>
+                    <div class="student-info"><i class='bx bx-phone'></i> 家长电话: 138****1234</div>
+                    <div class="student-actions">
+                        <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#commentModal" data-student-id="20230001" data-student-name="张三">
+                            <i class='bx bx-comment'></i> 评语
+                        </button>
+                        <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editStudentModal" data-student-id="20230001">
+                            <i class='bx bx-edit'></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteStudentModal" data-student-id="20230001" data-student-name="张三">
+                            <i class='bx bx-trash'></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3 col-lg-2 col-xl-1-5 mb-4">
+                <div class="student-card">
+                    <span class="card-badge female">女</span>
+                    <div class="student-avatar">
+                        <i class='bx bx-user'></i>
+                    </div>
+                    <h3 class="student-name">李四</h3>
+                    <div class="student-id">学号: 20230002</div>
+                    <div class="student-info"><i class='bx bx-calendar'></i> 出生日期: 2010-03-22</div>
+                    <div class="student-info"><i class='bx bx-phone'></i> 家长电话: 139****5678</div>
+                    <div class="student-actions">
+                        <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#commentModal" data-student-id="20230002" data-student-name="李四">
+                            <i class='bx bx-comment'></i> 评语
+                        </button>
+                        <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editStudentModal" data-student-id="20230002">
+                            <i class='bx bx-edit'></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteStudentModal" data-student-id="20230002" data-student-name="李四">
+                            <i class='bx bx-trash'></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 更多学生卡片 -->
+            <!-- 空状态 -->
+            <div class="col-12 d-none" id="emptyState">
+                <div class="empty-state">
+                    <i class='bx bx-user-x'></i>
+                    <h3>暂无学生信息</h3>
+                    <p>您可以导入学生名单或手动添加学生</p>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#importModal">
+                        <i class='bx bx-import'></i> 导入学生名单
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 导入学生模态框 -->
+    <div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="importModalLabel">导入学生名单</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="import-area">
+                        <i class='bx bx-cloud-upload'></i>
+                        <h3>拖拽文件到此处或点击上传</h3>
+                        <p>支持Excel文件格式 (.xlsx, .xls)</p>
+                        <input type="file" id="importFile" class="d-none" accept=".xlsx, .xls">
+                        <div class="d-flex justify-content-center">
+                            <button class="btn btn-primary me-2" onclick="document.getElementById('importFile').click()">
+                                <i class='bx bx-upload'></i> 选择文件
+                            </button>
+                            <button class="btn btn-outline-secondary" id="downloadTemplateBtn">
+                                <i class='bx bx-download'></i> 下载模板
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 预览区域 -->
+                    <div id="previewContainer" class="mt-4"></div>
+                    
+                    <!-- 存储导入数据的隐藏字段 -->
+                    <input type="hidden" id="importData" value="">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="confirmImportBtn" onclick="importStudents()" disabled>确认导入</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 添加学生模态框 -->
+    <div class="modal fade" id="addStudentModal" tabindex="-1" aria-labelledby="addStudentModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addStudentModalLabel">添加学生</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addStudentForm">
+                        <div class="mb-3">
+                            <label for="studentId" class="form-label">学号</label>
+                            <input type="text" class="form-control" id="studentId" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="studentName" class="form-label">姓名</label>
+                            <input type="text" class="form-control" id="studentName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">性别</label>
+                            <div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="gender" id="genderMale" value="男">
+                                    <label class="form-check-label">男</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="gender" id="genderFemale" value="女">
+                                    <label class="form-check-label">女</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="studentClass" class="form-label">班级</label>
+                            <input type="text" class="form-control" id="studentClass">
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="studentHeight" class="form-label">身高(cm)</label>
+                                <input type="number" class="form-control" id="studentHeight">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="studentWeight" class="form-label">体重(kg)</label>
+                                <input type="number" class="form-control" id="studentWeight">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="studentChest" class="form-label">胸围(cm)</label>
+                                <input type="number" class="form-control" id="studentChest">
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="studentVisionLeft" class="form-label">视力左</label>
+                                <input type="text" class="form-control" id="studentVisionLeft">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="studentVisionRight" class="form-label">视力右</label>
+                                <input type="text" class="form-control" id="studentVisionRight">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="studentVital" class="form-label">肺活量</label>
+                            <input type="number" class="form-control" id="studentVital">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="studentDental" class="form-label">龋齿情况</label>
+                            <select class="form-select" id="studentDental">
+                                <option value="">请选择</option>
+                                <option value="无">无</option>
+                                <option value="有">有</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="studentPhysical" class="form-label">体测情况</label>
+                            <select class="form-select" id="studentPhysical">
+                                <option value="">请选择</option>
+                                <option value="优秀">优秀</option>
+                                <option value="良好">良好</option>
+                                <option value="合格">合格</option>
+                                <option value="不合格">不合格</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="addStudentBtn">添加学生</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑学生模态框 -->
+    <div class="modal fade" id="editStudentModal" tabindex="-1" aria-labelledby="editStudentModalLabel">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="editStudentModalLabel">编辑学生信息</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editStudentForm">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="editStudentId" class="form-label">学号</label>
+                                <input type="text" class="form-control" id="editStudentId" readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="editStudentName" class="form-label">姓名</label>
+                                <input type="text" class="form-control" id="editStudentName" required>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">性别</label>
+                                <div class="d-flex">
+                                    <div class="form-check me-3">
+                                        <input class="form-check-input" type="radio" name="editGender" id="editGenderMale" value="男" checked>
+                                        <label class="form-check-label" for="editGenderMale">男</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="editGender" id="editGenderFemale" value="女">
+                                        <label class="form-check-label" for="editGenderFemale">女</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="editStudentClass" class="form-label">班级</label>
+                                <input type="text" class="form-control" id="editStudentClass">
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label for="editStudentHeight" class="form-label">身高 (cm)</label>
+                                <input type="number" class="form-control" id="editStudentHeight">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="editStudentWeight" class="form-label">体重 (kg)</label>
+                                <input type="number" class="form-control" id="editStudentWeight">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="editStudentChest" class="form-label">胸围 (cm)</label>
+                                <input type="number" class="form-control" id="editStudentChest">
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label for="editStudentVisionLeft" class="form-label">视力左</label>
+                                <input type="text" class="form-control" id="editStudentVisionLeft">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="editStudentVisionRight" class="form-label">视力右</label>
+                                <input type="text" class="form-control" id="editStudentVisionRight">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="editStudentVital" class="form-label">肺活量 (ml)</label>
+                                <input type="number" class="form-control" id="editStudentVital">
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="editStudentDental" class="form-label">龋齿情况</label>
+                                <input type="text" class="form-control" id="editStudentDental">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="editStudentPhysical" class="form-label">体测情况</label>
+                                <input type="text" class="form-control" id="editStudentPhysical">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="saveEditedStudent()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 评语模态框 -->
+    <div class="modal fade" id="commentModal" tabindex="-1" aria-labelledby="commentModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title" id="commentModalLabel">学生评语</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="commentForm">
+                        <input type="hidden" id="commentStudentId">
+                        <div class="mb-3">
+                            <label class="form-label">学生姓名</label>
+                            <div class="form-control bg-light" id="commentStudentName"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="commentContent" class="form-label">评语内容</label>
+                            <textarea class="form-control" id="commentContent" rows="5" placeholder="请输入评语内容..."></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-success" onclick="saveComment()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加Toast容器 -->
+    <div id="toastContainer" class="toast-container position-fixed bottom-0 end-0 p-3">
+        <!-- 动态生成的通知将被添加到这里 -->
+    </div>
+
+    <!-- JavaScript库 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- 自定义脚本 -->
+    <script src="../js/data.js"></script>
+    <script src="../js/students.js"></script>
+</body>
+</html>

@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>导出报告 - 班主任管理系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="../css/boxicons-local.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+            padding: 20px;
+        }
+        .page-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #3498db;
+        }
+        .export-card {
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            background-color: #fff;
+            padding: 20px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+        .export-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        }
+        .export-icon {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+            color: #3498db;
+        }
+        .export-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+        }
+        .export-desc {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+        }
+        .template-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .template-card:hover {
+            border-color: #3498db;
+            background-color: #f8f9fa;
+        }
+        .template-card.selected {
+            border-color: #3498db;
+            background-color: #e3f2fd;
+        }
+        .template-preview {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            border: 1px solid #e0e0e0;
+        }
+        .student-list {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 10px;
+        }
+        .student-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .student-item:last-child {
+            border-bottom: none;
+        }
+        .student-checkbox {
+            margin-right: 10px;
+        }
+        .student-avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background-color: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            overflow: hidden;
+            border: 1px solid #3498db;
+        }
+        .student-avatar i {
+            font-size: 1rem;
+            color: #3498db;
+        }
+        .student-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 0;
+        }
+        .student-id {
+            color: #666;
+            font-size: 0.8rem;
+        }
+        .progress-area {
+            margin-top: 20px;
+        }
+        .export-options {
+            margin-bottom: 20px;
+        }
+        .report-preview {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .report-header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        .report-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        .report-subtitle {
+            font-size: 1rem;
+            color: #666;
+        }
+        .report-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        .report-section {
+            margin-bottom: 20px;
+        }
+        .report-section-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+        .report-table th, .report-table td {
+            border: 1px solid #e0e0e0;
+            padding: 8px;
+            text-align: center;
+        }
+        .report-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <h1 class="page-title">导出报告</h1>
+        
+        <div class="row">
+            <div class="col-md-4">
+                <div class="export-card">
+                    <div class="export-icon">
+                        <i class='bx bx-file'></i>
+                    </div>
+                    <h2 class="export-title">选择报告模板</h2>
+                    <p class="export-desc">选择一个适合的报告模板，用于生成学生成绩综合报告单。</p>
+                    
+                    <div class="template-card selected" data-template="template1">
+                        <img src="../img/report-template.jpg" alt="学生综合素质发展报告单" class="template-preview">
+                        <h3 class="h5">学生综合素质发展报告单</h3>
+                        <p class="small text-muted">包含学生基本信息、各学科成绩、综合评语等内容</p>
+                    </div>
+                    
+                    <div class="template-card" data-template="template2">
+                        <div class="d-flex align-items-center justify-content-center bg-light" style="height: 200px; border-radius: 6px; margin-bottom: 10px;">
+                            <i class='bx bx-plus' style="font-size: 3rem; color: #aaa;"></i>
+                        </div>
+                        <h3 class="h5">上传自定义模板</h3>
+                        <p class="small text-muted">上传您自己设计的Word模板文件</p>
+                        <input type="file" id="templateUpload" class="d-none" accept=".docx">
+                        <button class="btn btn-sm btn-outline-primary w-100" onclick="document.getElementById('templateUpload').click()">
+                            <i class='bx bx-upload'></i> 上传模板
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="export-card">
+                    <div class="export-icon">
+                        <i class='bx bx-user-check'></i>
+                    </div>
+                    <h2 class="export-title">选择学生</h2>
+                    <p class="export-desc">选择需要导出报告的学生。</p>
+                    
+                    <div class="export-options">
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" id="selectAllStudents" checked>
+                            <label class="form-check-label" for="selectAllStudents">全选</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="sortOption" id="sortById" checked>
+                            <label class="form-check-label" for="sortById">按学号排序</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="sortOption" id="sortByName">
+                            <label class="form-check-label" for="sortByName">按姓名排序</label>
+                        </div>
+                    </div>
+                    
+                    <div class="student-list">
+                        <div class="student-item">
+                            <input type="checkbox" class="form-check-input student-checkbox" checked>
+                            <div class="student-avatar">
+                                <i class='bx bx-user'></i>
+                            </div>
+                            <div>
+                                <div class="student-name">张三</div>
+                                <div class="student-id">学号: 20230001</div>
+                            </div>
+                        </div>
+                        
+                        <div class="student-item">
+                            <input type="checkbox" class="form-check-input student-checkbox" checked>
+                            <div class="student-avatar">
+                                <i class='bx bx-user'></i>
+                            </div>
+                            <div>
+                                <div class="student-name">李四</div>
+                                <div class="student-id">学号: 20230002</div>
+                            </div>
+                        </div>
+                        
+                        <div class="student-item">
+                            <input type="checkbox" class="form-check-input student-checkbox" checked>
+                            <div class="student-avatar">
+                                <i class='bx bx-user'></i>
+                            </div>
+                            <div>
+                                <div class="student-name">王五</div>
+                                <div class="student-id">学号: 20230003</div>
+                            </div>
+                        </div>
+                        
+                        <!-- 更多学生项 -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="export-card">
+                    <div class="export-icon">
+                        <i class='bx bx-cog'></i>
+                    </div>
+                    <h2 class="export-title">导出选项</h2>
+                    <p class="export-desc">设置导出报告的相关选项。</p>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">学期信息</label>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <select class="form-select" id="schoolYear">
+                                    <option value="2022-2023">2022-2023学年</option>
+                                    <option value="2023-2024" selected>2023-2024学年</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <select class="form-select" id="semester">
+                                    <option value="1" selected>第一学期</option>
+                                    <option value="2">第二学期</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">包含内容</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="includeBasicInfo" checked>
+                            <label class="form-check-label" for="includeBasicInfo">学生基本信息</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="includeGrades" checked>
+                            <label class="form-check-label" for="includeGrades">学科成绩</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="includeComments" checked>
+                            <label class="form-check-label" for="includeComments">综合评语</label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">文件命名格式</label>
+                        <select class="form-select" id="fileNameFormat">
+                            <option value="id_name" selected>学号_姓名</option>
+                            <option value="name_id">姓名_学号</option>
+                            <option value="id">仅学号</option>
+                            <option value="name">仅姓名</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">班主任信息</label>
+                        <input type="text" class="form-control" id="teacherName" placeholder="班主任姓名">
+                    </div>
+                    
+                    <button class="btn btn-primary w-100" id="exportBtn">
+                        <i class='bx bx-export'></i> 开始导出
+                    </button>
+                    
+                    <div class="progress-area d-none">
+                        <div class="progress mb-2">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+                        </div>
+                        <div class="small text-center">正在导出报告，请稍候...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 预览模态框 -->
+    <div class="modal fade" id="previewModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">报告预览</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="report-preview">
+                        <!-- 预览内容将由JavaScript动态生成 -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                    <button type="button" class="btn btn-primary" id="exportFromPreviewBtn">
+                        <i class='bx bx-export'></i> 导出
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 导出进度模态框 -->
+    <div class="modal fade" id="exportProgressModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">正在导出报告</h5>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-3">
+                        <div class="mb-2">正在导出 <span id="currentCount">0</span> / <span id="totalCount">0</span></div>
+                        <div class="progress">
+                            <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <p>当前学生: <span id="currentStudentName">-</span></p>
+                        <p class="text-muted small">请勿关闭此窗口，导出完成后将自动关闭</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 导出完成模态框 -->
+    <div class="modal fade" id="exportCompleteModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">导出完成</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center">
+                        <i class='bx bx-check-circle text-success' style="font-size: 4rem;"></i>
+                        <h4 class="mt-3">导出成功</h4>
+                        <p>成功导出 <span id="exportedCount">0</span> 份学生报告</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">确定</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 通知提示 -->
+    <div class="toast" id="notificationToast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header">
+            <i class='bx bx-info-circle me-2'></i>
+            <strong class="me-auto">提示</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body">
+            操作成功
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../js/data.js"></script>
+    <script src="../js/export.js"></script>
+    <script>
+        // 显示通知提示
+        function showNotification(message, type = 'success') {
+            const toast = document.getElementById('notificationToast');
+            const toastBody = toast.querySelector('.toast-body');
+            toastBody.textContent = message;
+            
+            // 设置通知类型
+            toast.classList.remove('bg-success', 'bg-danger', 'bg-info', 'text-white');
+            const icon = toast.querySelector('.toast-header i');
+            icon.classList.remove('bx-info-circle', 'bx-check-circle', 'bx-error-circle');
+            
+            switch(type) {
+                case 'error':
+                    toast.classList.add('bg-danger', 'text-white');
+                    icon.classList.add('bx-error-circle');
+                    break;
+                case 'info':
+                    toast.classList.add('bg-info', 'text-white');
+                    icon.classList.add('bx-info-circle');
+                    break;
+                default:
+                    toast.classList.add('bg-success', 'text-white');
+                    icon.classList.add('bx-check-circle');
+            }
+            
+            // 显示通知
+            const bsToast = new bootstrap.Toast(toast);
+            bsToast.show();
+        }
+        
+        // 绑定预览中的导出按钮
+        document.getElementById('exportFromPreviewBtn').addEventListener('click', function() {
+            // 关闭预览模态框
+            const previewModal = bootstrap.Modal.getInstance(document.getElementById('previewModal'));
+            previewModal.hide();
+            
+            // 触发导出
+            document.getElementById('exportBtn').click();
+        });
+    </script>
+</body>
+</html>

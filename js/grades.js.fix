@@ -1,0 +1,83 @@
+// 处理粘贴的文本
+function processPastedText(text) {
+    // 分行处理文本
+    const lines = text.trim().split('\n');
+    
+    // 获取选中列的所有成绩选择框
+    const gradeSelects = document.querySelectorAll(`[data-subject="${selectedSubject}"]`);
+    
+    // 如果没有相关成绩选择框，则退出
+    if (gradeSelects.length === 0) {
+        showNotification(`未找到"${selectedSubject}"的成绩选择框`, 'error');
+        return;
+    }
+    
+    // 验证有效的等级
+    const validGrades = ['优', '良', '差'];
+    
+    // 记录要更新的数据
+    const updatedGrades = {};
+    let validUpdatesCount = 0;
+    let errorsCount = 0;
+    
+    // 逐行处理数据
+    for (let i = 0; i < Math.min(lines.length, gradeSelects.length); i++) {
+        const value = lines[i].trim();
+        const select = gradeSelects[i];
+        const studentId = select.getAttribute('data-student-id');
+        
+        // 处理成绩值（可能需要根据实际情况调整）
+        let gradeValue = value;
+        
+        // 大9分制转上优良差
+        if (value.match(/^[0-9]+$/)) {
+            const numValue = parseInt(value, 10);
+            if (numValue >= 85) gradeValue = '优';
+            else if (numValue >= 75) gradeValue = '良';
+            else gradeValue = '差';
+        } 
+        // 字母等级转换
+        else if (value.toUpperCase() === 'A') {
+            gradeValue = '优';
+        } else if (value.toUpperCase() === 'B') {
+            gradeValue = '良';
+        } else if (value.toUpperCase() === 'C') {
+            gradeValue = '差';
+        }
+        
+        // 检查是否是有效的等级
+        if (validGrades.includes(gradeValue)) {
+            // 更新选择框
+            select.value = gradeValue;
+            
+            // 更新选择框类
+            select.className = 'form-select form-select-sm grade-select';
+            if (gradeValue === '优') {
+                select.classList.add('grade-a');
+            } else if (gradeValue === '良') {
+                select.classList.add('grade-b');
+            } else if (gradeValue === '差') {
+                select.classList.add('grade-c');
+            }
+            
+            // 添加到要保存的数据中
+            if (!updatedGrades[studentId]) {
+                updatedGrades[studentId] = {};
+            }
+            updatedGrades[studentId][selectedSubject] = gradeValue;
+            validUpdatesCount++;
+        } else {
+            console.warn(`无效的成绩等级: ${value}`);
+            errorsCount++;
+        }
+    }
+    
+    // 如果没有有效更新，显示错误
+    if (validUpdatesCount === 0) {
+        showNotification(`无效的数据格式，请确保复制的内容包含有效的成绩等级（优、良、差或相应的数字分数）`, 'error');
+        return;
+    }
+    
+    // 保存更新的成绩
+    saveUpdatedGrades(updatedGrades, validUpdatesCount, errorsCount);
+}

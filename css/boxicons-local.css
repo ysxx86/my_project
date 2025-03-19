@@ -1,0 +1,109 @@
+/* Boxicons 本地版本 */
+@font-face {
+  font-family: 'boxicons';
+  font-weight: normal;
+  font-style: normal;
+  src: url('../fonts/boxicons.woff2') format('woff2');
+}
+
+.bx {
+  font-family: 'boxicons' !important;
+  font-weight: normal;
+  font-style: normal;
+  font-variant: normal;
+  line-height: 1;
+  display: inline-block;
+  text-transform: none;
+  speak: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 以下是常用图标的映射 */
+.bx-user:before {
+  content: "\eb44";
+}
+
+.bx-user-plus:before {
+  content: "\eb48";
+}
+
+.bx-import:before {
+  content: "\ea3b";
+}
+
+.bx-export:before {
+  content: "\ea2e";
+}
+
+.bx-edit:before {
+  content: "\ea25";
+}
+
+.bx-trash:before {
+  content: "\eb39";
+}
+
+.bx-calendar:before {
+  content: "\e9de";
+}
+
+.bx-phone:before {
+  content: "\eadd";
+}
+
+.bx-comment:before {
+  content: "\ea07";
+}
+
+.bx-search:before {
+  content: "\ead3";
+}
+
+.bx-file:before {
+  content: "\ea2f";
+}
+
+.bx-check:before {
+  content: "\e9ed";
+}
+
+.bx-error-circle:before {
+  content: "\ea29";
+}
+
+.bx-info-circle:before {
+  content: "\ea3c";
+}
+
+.bx-check-circle:before {
+  content: "\e9ec";
+}
+
+.bx-cloud-upload:before {
+  content: "\ea06";
+}
+
+.bx-download:before {
+  content: "\ea1d";
+}
+
+.bx-file-blank:before {
+  content: "\ea30";
+}
+
+.bx-upload:before {
+  content: "\eb3b";
+}
+
+.bx-plus:before {
+  content: "\eaee";
+}
+
+.bx-cog:before {
+  content: "\ea08";
+}
+
+.bx-user-check:before {
+  content: "\eb45";
+} 

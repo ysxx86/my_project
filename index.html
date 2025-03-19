@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>班主任管理系统</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/boxicons-local.css" rel="stylesheet">
+</head>
+<body>
+    <!-- 状态栏 -->
+    <div class="status-bar">
+        <div class="status-bar-left">
+            <span>9:41</span>
+        </div>
+        <div class="status-bar-center">
+            <div class="notch"></div>
+        </div>
+        <div class="status-bar-right">
+            <span><i class='bx bx-signal-5'></i></span>
+            <span><i class='bx bx-wifi'></i></span>
+            <span><i class='bx bxs-battery'></i></span>
+        </div>
+    </div>
+
+    <!-- 应用头部 -->
+    <header class="app-header">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col">
+                    <div class="app-logo">
+                        <img src="img/logo.png" alt="泉州东海湾实验学校" class="img-fluid">
+                        <h1>班主任管理系统</h1>
+                    </div>
+                </div>
+                <div class="col-auto">
+                    <div class="user-info" id="userInfo">
+                        <span>未登录</span>
+                        <button class="btn btn-primary btn-sm ms-2" id="loginBtn">登录</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="app-main">
+        <div class="container-fluid">
+            <div class="row">
+                <!-- 侧边栏导航 -->
+                <div class="col-md-2">
+                    <nav class="sidebar">
+                        <ul class="nav flex-column">
+                            <li class="nav-item">
+                                <a class="nav-link active" href="#home" data-bs-toggle="tab" data-iframe="pages/home.html">
+                                    <i class='bx bx-home'></i> 首页
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#students" data-bs-toggle="tab" data-iframe="pages/students.html">
+                                    <i class='bx bx-user'></i> 学生管理
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#comments" data-bs-toggle="tab" data-iframe="pages/comments.html">
+                                    <i class='bx bx-message-square-detail'></i> 评语管理
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#grades" data-bs-toggle="tab" data-iframe="pages/grades.html">
+                                    <i class='bx bx-bar-chart-alt-2'></i> 成绩管理
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#export" data-bs-toggle="tab" data-iframe="pages/export.html">
+                                    <i class='bx bx-export'></i> 导出报告
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#settings" data-bs-toggle="tab" data-iframe="pages/settings.html">
+                                    <i class='bx bx-cog'></i> 系统设置
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+                
+                <!-- 内容显示区 -->
+                <div class="col-md-10">
+                    <div class="content-area">
+                        <div class="tab-content" id="mainContent">
+                            <div class="tab-pane fade show active" id="home">
+                                <iframe src="pages/home.html" frameborder="0" class="content-iframe"></iframe>
+                            </div>
+                            <div class="tab-pane fade" id="students">
+                                <iframe src="pages/students.html" frameborder="0" class="content-iframe"></iframe>
+                            </div>
+                            <div class="tab-pane fade" id="comments">
+                                <iframe src="pages/comments.html" frameborder="0" class="content-iframe"></iframe>
+                            </div>
+                            <div class="tab-pane fade" id="grades">
+                                <iframe src="pages/grades.html" frameborder="0" class="content-iframe"></iframe>
+                            </div>
+                            <div class="tab-pane fade" id="export">
+                                <iframe src="pages/export.html" frameborder="0" class="content-iframe"></iframe>
+                            </div>
+                            <div class="tab-pane fade" id="settings">
+                                <iframe src="pages/settings.html" frameborder="0" class="content-iframe"></iframe>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- App导航栏（底部Tab Bar） -->
+    <footer class="app-footer">
+        <div class="container-fluid">
+            <div class="tab-bar">
+                <a href="#home" class="tab-item active" data-bs-toggle="tab" data-iframe="pages/home.html">
+                    <i class='bx bx-home'></i>
+                    <span>首页</span>
+                </a>
+                <a href="#students" class="tab-item" data-bs-toggle="tab" data-iframe="pages/students.html">
+                    <i class='bx bx-user'></i>
+                    <span>学生</span>
+                </a>
+                <a href="#comments" class="tab-item" data-bs-toggle="tab" data-iframe="pages/comments.html">
+                    <i class='bx bx-message-square-detail'></i>
+                    <span>评语</span>
+                </a>
+                <a href="#grades" class="tab-item" data-bs-toggle="tab" data-iframe="pages/grades.html">
+                    <i class='bx bx-bar-chart-alt-2'></i>
+                    <span>成绩</span>
+                </a>
+                <a href="#export" class="tab-item" data-bs-toggle="tab" data-iframe="pages/export.html">
+                    <i class='bx bx-export'></i>
+                    <span>导出</span>
+                </a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- 登录/注册模态框 -->
+    <div class="modal fade" id="loginModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">登录</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="loginForm">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">用户名</label>
+                            <input type="text" class="form-control" id="username" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="password" class="form-label">密码</label>
+                            <input type="password" class="form-control" id="password" required>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <button type="submit" class="btn btn-primary">登录</button>
+                            <button type="button" class="btn btn-outline-secondary" id="registerBtn">注册</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 注册模态框 -->
+    <div class="modal fade" id="registerModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">注册</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="registerForm">
+                        <div class="mb-3">
+                            <label for="regUsername" class="form-label">用户名</label>
+                            <input type="text" class="form-control" id="regUsername" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="regPassword" class="form-label">密码</label>
+                            <input type="password" class="form-control" id="regPassword" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="confirmPassword" class="form-label">确认密码</label>
+                            <input type="password" class="form-control" id="confirmPassword" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="teacherName" class="form-label">教师姓名</label>
+                            <input type="text" class="form-control" id="teacherName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="teacherClass" class="form-label">所带班级</label>
+                            <input type="text" class="form-control" id="teacherClass" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">注册</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
