@@ -224,7 +224,7 @@ def health_check():
 
 # 下载模板API
 @app.route('/api/template', methods=['GET'])
-def download_template():
+def download_student_template_file():
     template_path = os.path.join(TEMPLATE_FOLDER, 'student_template.xlsx')
     if not os.path.exists(template_path):
         create_student_template()
@@ -337,6 +337,19 @@ def confirm_import():
     
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
+    
+    # 清空学生表中的所有记录 - 根据用户需求，导入时只保留当前班级的学生
+    try:
+        logger.info("导入前清空学生表中的所有记录")
+        cursor.execute('DELETE FROM students')
+        logger.info(f"已清空学生表，准备导入 {len(students)} 名新学生")
+    except Exception as clear_error:
+        logger.error(f"清空学生表时出错: {str(clear_error)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'清空数据库时出错: {str(clear_error)}'
+        }), 500
+        
     success_count = 0
     error_count = 0
     updated_count = 0
@@ -379,19 +392,14 @@ def confirm_import():
                     if raw_value is None or raw_value == '' or raw_value == 'null' or raw_value == 'undefined':
                         params[field] = None
                     else:
-                        # 尝试转换为浮点数
+                        # 如果是字符串，处理可能的特殊格式
+                        if isinstance(raw_value, str):
+                            # 替换逗号为点号(小数点)
+                            raw_value = raw_value.replace(',', '.')
+                            
+                        # 转换为浮点数
                         try:
-                            # 如果是字符串，处理可能的特殊格式
-                            if isinstance(raw_value, str):
-                                # 替换逗号为点号(小数点)
-                                raw_value = raw_value.replace(',', '.')
-                            
-                            # 转换为浮点数
-                            value = float(raw_value)
-                            # 特别处理0值
-                            params[field] = 0.0 if value == 0 else value
-                            
-                            logger.info(f"字段 {field} 原始值: {raw_value} ({type(raw_value).__name__}) -> 转换值: {params[field]} ({type(params[field]).__name__})")
+                            params[field] = float(raw_value)
                         except (ValueError, TypeError) as e:
                             params[field] = None
                             logger.warning(f"无法转换字段 {field} 的值 {raw_value}: {str(e)}")
@@ -1269,3 +1277,8 @@ def download_template():
         'status': 'ok',
         'url': url_for('download_student_template')
     })
+
+@app.route('/download/student_template')
+def download_student_template():
+    template_path = os.path.join(TEMPLATE_FOLDER, 'student_template.xlsx')
+    return send_from_directory(TEMPLATE_FOLDER, 'student_template.xlsx')

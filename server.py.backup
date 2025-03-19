@@ -224,7 +224,7 @@ def health_check():
 
 # 下载模板API
 @app.route('/api/template', methods=['GET'])
-def download_student_template_file():
+def download_template():
     template_path = os.path.join(TEMPLATE_FOLDER, 'student_template.xlsx')
     if not os.path.exists(template_path):
         create_student_template()
@@ -337,20 +337,7 @@ def confirm_import():
     
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
-    
-    # 清空学生表中的所有记录 - 根据用户需求，导入时只保留当前班级的学生
-    try:
-        logger.info("导入前清空学生表中的所有记录")
-        cursor.execute('DELETE FROM students')
-        logger.info(f"已清空学生表，准备导入 {len(students)} 名新学生")
-    except Exception as clear_error:
-        logger.error(f"清空学生表时出错: {str(clear_error)}")
-        return jsonify({
-            'status': 'error',
-            'message': f'清空数据库时出错: {str(clear_error)}'
-        }), 500
-        
-success_count = 0
+    success_count = 0
     error_count = 0
     updated_count = 0
     inserted_count = 0
@@ -1265,12 +1252,12 @@ if __name__ == '__main__':
     is_production = os.environ.get('FLASK_ENV') == 'production'
     if is_production:
         # 生产环境设置
-        app.run(host='0.0.0.0', port=8082)
+        app.run(host='0.0.0.0', port=8080)
     else:
         # 开发环境设置
         app.debug = True
         app.config['PROPAGATE_EXCEPTIONS'] = True
-        app.run(host='0.0.0.0', port=8082) 
+        app.run(host='0.0.0.0', port=8080) 
 
 @app.route('/api/template')
 def download_template():
@@ -1282,8 +1269,3 @@ def download_template():
         'status': 'ok',
         'url': url_for('download_student_template')
     })
-
-@app.route('/download/student_template')
-def download_student_template():
-    template_path = os.path.join(TEMPLATE_FOLDER, 'student_template.xlsx')
-    return send_from_directory(TEMPLATE_FOLDER, 'student_template.xlsx')
