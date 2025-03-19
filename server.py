@@ -1252,12 +1252,12 @@ if __name__ == '__main__':
     is_production = os.environ.get('FLASK_ENV') == 'production'
     if is_production:
         # 生产环境设置
-        app.run(host='0.0.0.0', port=8082)
+        app.run(host='0.0.0.0', port=8080)
     else:
         # 开发环境设置
         app.debug = True
         app.config['PROPAGATE_EXCEPTIONS'] = True
-        app.run(host='0.0.0.0', port=8082) 
+        app.run(host='0.0.0.0', port=8080) 
 
 @app.route('/api/template')
 def download_template():
