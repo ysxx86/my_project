@@ -14,7 +14,7 @@
   line-height: 1;
   display: inline-block;
   text-transform: none;
-  speak: none;
+  /* 移除过时的speak属性 */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -29,7 +29,7 @@
 }
 
 .bx-import:before {
-  content: "\ea3b";
+  content: "\eb96";
 }
 
 .bx-export:before {
@@ -106,4 +106,12 @@
 
 .bx-user-check:before {
   content: "\eb45";
-} 
+}
+
+.bx-message-square-detail:before {
+  content: "\ed2a";
+}
+
+.bx-bar-chart-alt-2:before {
+  content: "\ea3a";
+}
