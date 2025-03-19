@@ -1,0 +1,4 @@
+2025-03-19 17:57:37,489 - 开发服务器 - INFO - flask 已安装
+2025-03-19 17:57:37,491 - 开发服务器 - INFO - 启动Flask开发服务器: C:\Users\kmduyy\AppData\Local\Programs\Python\Python311-32\python.exe -m flask run --host=0.0.0.0 --port=8080
+2025-03-19 17:57:37,495 - 开发服务器 - INFO - Flask开发服务器已启动，PID: 11688
+2025-03-19 17:57:40,777 - 开发服务器 - ERROR - 启动Flask开发服务器时出错: 'utf-8' codec can't decode byte 0xbf in position 68: invalid start byte
