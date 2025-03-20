@@ -1789,7 +1789,7 @@ function showAICommentAssistant(studentId, studentName) {
                         <div class="api-info-bar text-end mb-3">
                             <small class="text-muted">
                                 <i class='bx bx-info-circle'></i> 您正在使用青柠半夏提供的Deepseek API，您也可以
-                                <a href="/pages/settings.html" class="text-primary">使用自己API，点击修改</a>
+                                <a href="/pages/settings.html#ai-settings-section" class="text-primary">使用自己API，点击修改</a>
                             </small>
                         </div>
                         
