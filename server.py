@@ -1190,6 +1190,99 @@ def delete_student_grade(student_id):
         app.logger.error(f'删除学生成绩时出错: {str(e)}')
         return jsonify({'status': 'error', 'message': f'删除学生成绩失败: {str(e)}'})
 
+# 预览成绩导入
+@app.route('/api/grades/preview-import', methods=['POST'])
+def preview_grades_import():
+    try:
+        semester = request.form.get('semester', '上学期')
+        app.logger.info(f"收到预览成绩导入请求，学期: {semester}")
+        
+        if 'file' not in request.files:
+            app.logger.error("未提供文件")
+            return jsonify({'status': 'error', 'message': '没有上传文件'}), 400
+        
+        file = request.files['file']
+        app.logger.info(f"上传的文件名: {file.filename}")
+        
+        if file.filename == '':
+            app.logger.error("未选择文件")
+            return jsonify({'status': 'error', 'message': '未选择文件'}), 400
+        
+        if not file.filename.endswith(('.xlsx', '.xls')):
+            app.logger.error("文件格式不正确")
+            return jsonify({'status': 'error', 'message': '只能上传Excel (.xlsx/.xls) 文件'}), 400
+        
+        # 创建上传目录
+        if not os.path.exists(UPLOAD_FOLDER):
+            app.logger.info(f"创建上传目录: {UPLOAD_FOLDER}")
+            os.makedirs(UPLOAD_FOLDER)
+        
+        # 保存文件
+        timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+        saved_filename = f"{timestamp}_{secure_filename(file.filename)}"
+        file_path = os.path.join(UPLOAD_FOLDER, saved_filename)
+        file.save(file_path)
+        app.logger.info(f"保存文件到: {file_path}")
+        
+        # 确认文件是否成功保存
+        if not os.path.exists(file_path):
+            app.logger.error(f"文件保存失败: {file_path}")
+            return jsonify({'status': 'error', 'message': '文件保存失败'}), 500
+        
+        app.logger.info(f"文件大小: {os.path.getsize(file_path)} 字节")
+        
+        # 调用预览功能
+        app.logger.info("开始预览成绩导入")
+        result = grades_manager.preview_grades_from_excel(file_path, semester)
+        
+        if result['status'] == 'ok':
+            app.logger.info(f"成功预览成绩: {result['message']}")
+            return jsonify(result)
+        else:
+            app.logger.error(f"预览成绩失败: {result['message']}")
+            return jsonify(result), 400
+            
+    except Exception as e:
+        app.logger.error(f'预览成绩导入时出错: {str(e)}')
+        app.logger.error(traceback.format_exc())
+        return jsonify({
+            'status': 'error', 
+            'message': f'预览成绩导入失败: {str(e)}'
+        }), 500
+
+# 确认导入成绩
+@app.route('/api/grades/confirm-import', methods=['POST'])
+def confirm_grades_import():
+    try:
+        data = request.json
+        app.logger.info(f"收到确认导入成绩请求")
+        
+        if not data or 'file_path' not in data:
+            app.logger.error("请求缺少文件路径")
+            return jsonify({'status': 'error', 'message': '缺少文件路径参数'}), 400
+        
+        file_path = data['file_path']
+        semester = data.get('semester', '上学期')
+        
+        # 导入成绩
+        app.logger.info(f"开始导入成绩，文件路径: {file_path}, 学期: {semester}")
+        success, message = grades_manager.import_grades_from_excel(file_path, semester)
+        
+        if success:
+            app.logger.info(f"成功导入成绩: {message}")
+            return jsonify({'status': 'ok', 'message': message})
+        else:
+            app.logger.error(f"导入成绩失败: {message}")
+            return jsonify({'status': 'error', 'message': message}), 400
+    
+    except Exception as e:
+        app.logger.error(f'确认导入成绩时出错: {str(e)}')
+        app.logger.error(traceback.format_exc())
+        return jsonify({
+            'status': 'error', 
+            'message': f'确认导入成绩失败: {str(e)}'
+        }), 500
+
 # 导入学生成绩
 @app.route('/api/grades/import', methods=['POST'])
 def import_grades():
@@ -1230,16 +1323,16 @@ def import_grades():
         
         app.logger.info(f"文件大小: {os.path.getsize(file_path)} 字节")
         
-        # 导入成绩
-        app.logger.info("开始导入成绩")
-        success, message = grades_manager.import_grades_from_excel(file_path, semester)
+        # 调用预览功能而不是直接导入
+        app.logger.info("改为使用预览功能")
+        result = grades_manager.preview_grades_from_excel(file_path, semester)
         
-        if success:
-            app.logger.info(f"成功导入成绩: {message}")
-            return jsonify({'status': 'ok', 'message': message})
+        if result['status'] == 'ok':
+            app.logger.info(f"成功预览成绩: {result['message']}")
+            return jsonify(result)
         else:
-            app.logger.error(f"导入成绩失败: {message}")
-            return jsonify({'status': 'error', 'message': message})
+            app.logger.error(f"预览成绩失败: {result['message']}")
+            return jsonify(result), 400
             
     except Exception as e:
         app.logger.error(f'导入成绩时出错: {str(e)}')

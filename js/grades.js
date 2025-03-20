@@ -53,21 +53,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // 绑定导入成绩确认按钮事件
-    const confirmImportGrades = document.getElementById('confirmImportGrades');
-    if (confirmImportGrades) {
-        confirmImportGrades.addEventListener('click', function() {
-            importGrades();
-        });
-    }
-    
-    // 绑定下载模板按钮事件
-    const downloadTemplateBtn = document.getElementById('downloadTemplateBtn');
-    if (downloadTemplateBtn) {
-        downloadTemplateBtn.addEventListener('click', function() {
-            window.location.href = '/api/grades/template';
-        });
-    }
+    // 初始化成绩导入功能
+    initGradesImport();
     
     // 绑定成绩选择框变化事件 - 使用事件委托
     document.addEventListener('change', function(e) {
@@ -412,8 +399,99 @@ function updateGrade(selectElement) {
 
 // 导入成绩
 function importGrades() {
+    // 获取文件路径
+    const filePath = document.getElementById('importFilePath').value;
+    if (!filePath) {
+        showNotification('无效的文件路径，请重新上传文件', 'error');
+        return;
+    }
+    
+    const semesterInput = document.getElementById('importSemester');
+    if (!semesterInput || !semesterInput.value) {
+        showNotification('请选择学期', 'warning');
+        return;
+    }
+    
+    const semester = semesterInput.value;
+    
+    // 显示确认导入按钮加载状态
+    const importBtn = document.getElementById('confirmImportGrades');
+    importBtn.disabled = true;
+    const originalBtnText = importBtn.innerHTML;
+    importBtn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 导入中...`;
+    
+    // 显示加载状态
+    document.getElementById('previewContent').innerHTML += `
+        <div class="alert alert-info mt-3">
+            <i class='bx bx-loader-alt bx-spin'></i> 正在导入数据，请稍候...
+        </div>
+    `;
+    
+    // 发送确认导入请求
+    fetch('/api/grades/confirm-import', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            file_path: filePath,
+            semester: semester
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        // 恢复按钮状态
+        importBtn.disabled = false;
+        importBtn.innerHTML = originalBtnText;
+        
+        if (data.status === 'ok') {
+            showNotification(data.message || '成功导入成绩', 'success');
+            
+            // 关闭模态框
+            const modal = bootstrap.Modal.getInstance(document.getElementById('importGradesModal'));
+            if (modal) modal.hide();
+            
+            // 重置模态框
+            resetImportModal();
+            
+            // 如果导入的学期与当前选择的学期相同，刷新数据
+            if (semester === currentSemester) {
+                loadGrades();
+            }
+        } else {
+            showNotification(data.message || '导入成绩失败', 'error');
+            
+            // 在预览区域显示错误
+            document.getElementById('previewContent').innerHTML += `
+                <div class="alert alert-danger mt-3">
+                    <i class='bx bx-error-circle'></i> 导入失败: ${data.message || '未知错误'}
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('导入成绩时出错:', error);
+        importBtn.disabled = false;
+        importBtn.innerHTML = originalBtnText;
+        
+        showNotification('导入成绩时发生错误', 'error');
+        
+        // 在预览区域显示错误
+        document.getElementById('previewContent').innerHTML += `
+            <div class="alert alert-danger mt-3">
+                <i class='bx bx-error-circle'></i> 导入失败: ${error.message}
+            </div>
+        `;
+    });
+}
+
+// 预览成绩导入
+function previewGradesImport() {
     const fileInput = document.getElementById('gradeFile');
     const semesterInput = document.getElementById('importSemester');
+    const previewArea = document.getElementById('previewArea');
+    const previewContent = document.getElementById('previewContent');
+    const confirmImportBtn = document.getElementById('confirmImportGrades');
     
     if (!fileInput || !fileInput.files.length) {
         showNotification('请选择要导入的Excel文件', 'warning');
@@ -433,70 +511,164 @@ function importGrades() {
     formData.append('file', file);
     formData.append('semester', semester);
     
-    // 显示导入中状态
-    const importBtn = document.getElementById('confirmImportGrades');
-    const originalBtnText = importBtn.innerHTML;
-    importBtn.disabled = true;
-    importBtn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 导入中...`;
+    // 显示加载中状态
+    previewContent.innerHTML = `
+        <div class="text-center p-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">上传中...</span>
+            </div>
+            <p class="mt-3">正在上传并解析文件，请稍候...</p>
+        </div>
+    `;
     
-    // 发送请求
-    fetch('/api/grades/import', {
+    // 禁用确认导入按钮
+    confirmImportBtn.disabled = true;
+    
+    // 发送预览请求
+    fetch('/api/grades/preview-import', {
         method: 'POST',
         body: formData
     })
     .then(response => response.json())
     .then(data => {
-        // 恢复按钮状态
-        importBtn.disabled = false;
-        importBtn.innerHTML = originalBtnText;
-        
         if (data.status === 'ok') {
-            showNotification(data.message || '成功导入成绩', 'success');
+            // 显示预览内容
+            previewContent.innerHTML = data.html_preview;
             
-            // 关闭模态框
-            const modal = bootstrap.Modal.getInstance(document.getElementById('importGradesModal'));
-            if (modal) modal.hide();
+            // 保存文件路径
+            document.getElementById('importFilePath').value = data.file_path;
             
-            // 如果导入的学期与当前选择的学期相同，刷新数据
-            if (semester === currentSemester) {
-                loadGrades();
-            } else {
-                // 否则切换到导入的学期
-                const semesterSelect = document.getElementById('semesterSelect');
-                if (semesterSelect) {
-                    // 检查是否已有该学期选项
-                    let found = false;
-                    for (const option of semesterSelect.options) {
-                        if (option.value === semester) {
-                            semesterSelect.value = semester;
-                            found = true;
-                            break;
-                        }
-                    }
-                    
-                    // 如果没有，添加该选项
-                    if (!found) {
-                        const option = document.createElement('option');
-                        option.value = semester;
-                        option.textContent = semester;
-                        semesterSelect.appendChild(option);
-                        semesterSelect.value = semester;
-                    }
-                    
-                    // 触发change事件
-                    semesterSelect.dispatchEvent(new Event('change'));
-                }
-            }
+            // 启用确认导入按钮
+            confirmImportBtn.disabled = false;
         } else {
-            showNotification(data.message || '导入成绩失败', 'error');
+            // 显示错误
+            previewContent.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class='bx bx-error-circle'></i> ${data.message || '预览成绩导入失败'}
+                </div>
+            `;
+            confirmImportBtn.disabled = true;
         }
     })
     .catch(error => {
-        console.error('导入成绩时出错:', error);
-        importBtn.disabled = false;
-        importBtn.innerHTML = originalBtnText;
-        showNotification('导入成绩时发生错误', 'error');
+        console.error('预览成绩导入时出错:', error);
+        previewContent.innerHTML = `
+            <div class="alert alert-danger">
+                <i class='bx bx-error-circle'></i> 预览成绩导入时发生错误: ${error.message}
+            </div>
+        `;
+        confirmImportBtn.disabled = true;
     });
+}
+
+// 重置导入模态框
+function resetImportModal() {
+    // 清空文件输入
+    document.getElementById('gradeFile').value = '';
+    
+    // 清空文件名显示
+    const fileNameDisplay = document.getElementById('selectedFileName');
+    if (fileNameDisplay) {
+        fileNameDisplay.textContent = '';
+    }
+    
+    // 清空预览内容
+    document.getElementById('previewContent').innerHTML = '';
+    
+    // 清空隐藏字段
+    document.getElementById('importFilePath').value = '';
+    
+    // 禁用确认导入按钮
+    document.getElementById('confirmImportGrades').disabled = true;
+}
+
+// 初始化成绩导入相关事件
+function initGradesImport() {
+    // 文件选择事件
+    const fileInput = document.getElementById('gradeFile');
+    if (fileInput) {
+        fileInput.addEventListener('change', function(e) {
+            // 选择文件后自动触发预览
+            const file = e.target.files[0];
+            if (file) {
+                // 显示文件名
+                const fileNameDisplay = document.getElementById('selectedFileName');
+                if (fileNameDisplay) {
+                    fileNameDisplay.textContent = file.name;
+                }
+                
+                // 检查文件类型
+                if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+                    showNotification('只支持Excel文件格式 (.xlsx, .xls)', 'error');
+                    return;
+                }
+                
+                // 自动触发预览
+                previewGradesImport();
+            }
+        });
+    }
+    
+    // 下载模板按钮事件
+    document.getElementById('downloadTemplateBtn').addEventListener('click', function() {
+        window.open('/api/grades/template', '_blank');
+    });
+    
+    // 确认导入按钮事件
+    document.getElementById('confirmImportGrades').addEventListener('click', importGrades);
+    
+    // 模态框关闭时重置
+    document.getElementById('importGradesModal').addEventListener('hidden.bs.modal', resetImportModal);
+    
+    // 绑定拖放区域事件
+    const importArea = document.querySelector('.import-area');
+    if (importArea) {
+        importArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.classList.add('drag-over');
+        });
+        
+        importArea.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.classList.remove('drag-over');
+        });
+        
+        importArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.classList.remove('drag-over');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                const fileInput = document.getElementById('gradeFile');
+                fileInput.files = files;
+                
+                // 显示文件名
+                const fileNameDisplay = document.getElementById('selectedFileName');
+                if (fileNameDisplay) {
+                    fileNameDisplay.textContent = files[0].name;
+                }
+                
+                // 检查文件类型
+                if (!files[0].name.endsWith('.xlsx') && !files[0].name.endsWith('.xls')) {
+                    showNotification('只支持Excel文件格式 (.xlsx, .xls)', 'error');
+                    return;
+                }
+                
+                // 自动触发预览
+                previewGradesImport();
+            }
+        });
+        
+        // 点击导入区域也可以触发文件选择
+        importArea.addEventListener('click', function(e) {
+            if (e.target.tagName !== 'BUTTON') {
+                document.getElementById('gradeFile').click();
+            }
+        });
+    }
 }
 
 // 导出成绩
@@ -509,7 +681,7 @@ function exportGrades() {
 // 一键将所有学生的所有科目成绩设为"优"
 function setAllGradesExcellent() {
     // 显示确认对话框
-    if (confirm('确定要将当前学期所有学生的所有科目成绩设为“优”吗？')) {
+    if (confirm('确定要将当前学期所有学生的所有科目成绩设为"优"吗？')) {
         // 显示加载中的提示
         showNotification('正在设置所有成绩...', 'info');
         
@@ -889,7 +1061,7 @@ function processPastedText(text) {
     console.log(`准备粘贴到列: ${selectedSubject}`);
     console.log(`粘贴的行数: ${lines.length}`);
     
-    // 像“体育”这样的中文科目名字，需要查询对应的科目代码（如“tiyu”）
+    // 像"体育"这样的中文科目名字，需要查询对应的科目代码（如"tiyu"）
     // 如果选中的是中文科目名，则尝试转换为对应的科目代码
     let subjectToSearch = selectedSubject;
     let subjectChineseName = selectedSubject;

@@ -270,21 +270,7 @@ class GradesManager:
             cursor = conn.cursor()
             
             # 获取列名映射
-            column_mapping = {
-                '学号': 'student_id',
-                '道法': 'daof',
-                '语文': 'yuwen',
-                '数学': 'shuxue',
-                '英语': 'yingyu',
-                '劳动': 'laodong',
-                '体育': 'tiyu',
-                '音乐': 'yinyue',
-                '美术': 'meishu',
-                '科学': 'kexue',
-                '综合': 'zonghe',
-                '信息': 'xinxi',
-                '书法': 'shufa'
-            }
+            column_mapping = self._get_column_mapping()
             
             # 允许的成绩值
             allowed_grades = ['优', '良', '及格', '待及格', '差', '']
@@ -358,6 +344,211 @@ class GradesManager:
             print(f"导入成绩时出错: {e}")
             print(traceback.format_exc())  # 打印完整的错误堆栈
             return False, f"导入成绩时出错: {str(e)}"
+    
+    def preview_grades_from_excel(self, file_path, semester="上学期"):
+        """从Excel文件预览成绩导入，不实际导入数据库"""
+        try:
+            # 检查文件路径
+            if not file_path or not os.path.exists(file_path):
+                print(f"文件路径无效或文件不存在: {file_path}")
+                return {
+                    'status': 'error',
+                    'message': f"文件路径无效或文件不存在: {file_path}"
+                }
+                
+            print(f"准备预览成绩文件: {file_path}, 文件大小: {os.path.getsize(file_path)} 字节")
+            
+            # 读取Excel文件
+            df = pd.read_excel(file_path)
+            print(f"成功读取Excel文件，包含 {len(df)} 行数据")
+            
+            # 确保有必要的列
+            required_columns = ['学号']
+            for col in required_columns:
+                if col not in df.columns:
+                    return {
+                        'status': 'error',
+                        'message': f"Excel文件缺少必要的列: {col}"
+                    }
+            
+            # 获取列名映射
+            column_mapping = self._get_column_mapping()
+            
+            # 允许的成绩值
+            allowed_grades = ['优', '良', '及格', '待及格', '差', '']
+            
+            # 从数据库获取学生信息
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute('SELECT id, name, class FROM students')
+            students_dict = {row[0]: {'name': row[1], 'class': row[2]} for row in cursor.fetchall()}
+            conn.close()
+            
+            # 转换Excel数据为预览数据
+            preview_data = []
+            valid_count = 0
+            invalid_count = 0
+            warnings = []
+            
+            for i, row in df.iterrows():
+                try:
+                    student_id = str(row['学号']).strip()
+                    
+                    # 检查学生是否存在
+                    if student_id not in students_dict:
+                        warnings.append(f"警告: 学号 {student_id} 不在系统中")
+                        invalid_count += 1
+                        continue
+                    
+                    # 创建学生成绩记录
+                    student_grade = {
+                        'student_id': student_id,
+                        'student_name': students_dict[student_id]['name'],
+                        'class': students_dict[student_id]['class'],
+                        'semester': semester
+                    }
+                    
+                    # 添加各科目成绩
+                    for excel_col, db_col in column_mapping.items():
+                        if excel_col in df.columns and excel_col != '学号':
+                            value = str(row[excel_col]) if pd.notna(row[excel_col]) else ''
+                            
+                            # 验证成绩值是否在允许的范围内
+                            if value and excel_col != '学号' and value not in allowed_grades:
+                                warnings.append(f"警告: 学号 {student_id} 的 {excel_col} 成绩 '{value}' 不符合要求，应为：{', '.join(allowed_grades[:-1])}")
+                                value = ''  # 在预览中标记为空
+                            
+                            student_grade[db_col] = value
+                    
+                    preview_data.append(student_grade)
+                    valid_count += 1
+                except Exception as e:
+                    warnings.append(f"处理学号 {student_id} 的成绩时出错: {str(e)}")
+                    invalid_count += 1
+            
+            # 生成HTML预览
+            html_preview = self._generate_grades_preview_html(preview_data, warnings)
+            
+            return {
+                'status': 'ok',
+                'message': f'成功解析 {valid_count} 条成绩记录，{invalid_count} 条无效记录',
+                'grades': preview_data,
+                'html_preview': html_preview,
+                'warnings': warnings,
+                'file_path': file_path
+            }
+            
+        except Exception as e:
+            print(f"预览成绩时出错: {e}")
+            print(traceback.format_exc())
+            return {
+                'status': 'error',
+                'message': f"预览成绩时出错: {str(e)}"
+            }
+    
+    def _generate_grades_preview_html(self, grades_data, warnings=None):
+        """生成成绩预览的HTML表格"""
+        print("生成成绩预览HTML表格")
+        
+        # 定义科目名称字典
+        subject_names = self.get_subject_names()
+        
+        html = """
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>学号</th>
+                        <th>姓名</th>
+                        <th>班级</th>
+                        <th>道法</th>
+                        <th>语文</th>
+                        <th>数学</th>
+                        <th>英语</th>
+                        <th>劳动</th>
+                        <th>体育</th>
+                        <th>音乐</th>
+                        <th>美术</th>
+                        <th>科学</th>
+                        <th>综合</th>
+                        <th>信息</th>
+                        <th>书法</th>
+                    </tr>
+                </thead>
+                <tbody>
+        """
+        
+        # 添加成绩数据行
+        for grade in grades_data:
+            html += f"""
+                <tr>
+                    <td>{grade.get('student_id', '-')}</td>
+                    <td>{grade.get('student_name', '-')}</td>
+                    <td>{grade.get('class', '-')}</td>
+                    <td>{grade.get('daof', '-')}</td>
+                    <td>{grade.get('yuwen', '-')}</td>
+                    <td>{grade.get('shuxue', '-')}</td>
+                    <td>{grade.get('yingyu', '-')}</td>
+                    <td>{grade.get('laodong', '-')}</td>
+                    <td>{grade.get('tiyu', '-')}</td>
+                    <td>{grade.get('yinyue', '-')}</td>
+                    <td>{grade.get('meishu', '-')}</td>
+                    <td>{grade.get('kexue', '-')}</td>
+                    <td>{grade.get('zonghe', '-')}</td>
+                    <td>{grade.get('xinxi', '-')}</td>
+                    <td>{grade.get('shufa', '-')}</td>
+                </tr>
+            """
+        
+        html += """
+                </tbody>
+            </table>
+        </div>
+        """
+        
+        # 添加警告信息（如果有）
+        if warnings and len(warnings) > 0:
+            html += """
+            <div class="alert alert-warning mt-3">
+                <h5><i class='bx bx-error'></i> 警告信息：</h5>
+                <ul>
+            """
+            
+            for warning in warnings:
+                html += f"<li>{warning}</li>"
+                
+            html += """
+                </ul>
+            </div>
+            """
+        
+        # 添加数据统计
+        html += f"""
+        <div class="alert alert-info mt-3">
+            <i class='bx bx-info-circle'></i> 共发现 {len(grades_data)} 条有效成绩数据，点击"确认导入"按钮完成导入。
+        </div>
+        """
+        
+        return html
+    
+    def _get_column_mapping(self):
+        """获取成绩Excel列名到数据库字段的映射"""
+        return {
+            '学号': 'student_id',
+            '道法': 'daof',
+            '语文': 'yuwen',
+            '数学': 'shuxue',
+            '英语': 'yingyu',
+            '劳动': 'laodong',
+            '体育': 'tiyu',
+            '音乐': 'yinyue',
+            '美术': 'meishu',
+            '科学': 'kexue',
+            '综合': 'zonghe',
+            '信息': 'xinxi',
+            '书法': 'shufa'
+        }
     
     def get_subject_names(self):
         """获取所有科目名称"""
