@@ -56,7 +56,7 @@ for package, version in REQUIRED_PACKAGES:
 print("依赖检查完成，开始导入模块...\n")
 
 # 原始的导入语句
-from flask import Flask, request, jsonify, send_from_directory, render_template, url_for, send_file
+from flask import Flask, request, jsonify, send_from_directory, render_template, url_for, send_file, make_response
 from flask_cors import CORS
 import os
 import sqlite3
@@ -83,6 +83,7 @@ except ImportError:
     
 from utils.grades_manager import GradesManager
 from utils.comment_generator import CommentGenerator
+from utils.report_exporter import ReportExporter
 
 # 设置DeepSeek API全局变量
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
@@ -1609,6 +1610,240 @@ def get_system_settings():
         "status": "ok",
         "settings": SYSTEM_SETTINGS
     })
+
+# 添加导出报告API
+@app.route('/api/export-reports', methods=['POST'])
+def api_export_reports():
+    try:
+        # 获取请求数据
+        data = request.get_json()
+        logger.info(f"收到导出报告请求: {data}")
+        
+        # 验证请求数据
+        student_ids = data.get('studentIds', [])
+        template_id = data.get('templateId', 'default')
+        settings = data.get('settings', {})
+        
+        if not student_ids:
+            return jsonify({'status': 'error', 'message': '未选择任何学生'})
+            
+        if not template_id:
+            template_id = 'default'
+            
+        logger.info(f"导出学生: {student_ids}, 模板ID: {template_id}, 设置: {settings}")
+            
+        # 使用默认设置补充缺失的设置
+        default_settings = {
+            'schoolYear': '2023-2024',
+            'semester': '1',  # 1表示第一学期，2表示第二学期
+            'fileNameFormat': 'id_name'  # id_name, name_id, id, name
+        }
+        
+        for key, value in default_settings.items():
+            if key not in settings or not settings[key]:
+                settings[key] = value
+                
+        # 初始化报告导出器
+        try:
+            from utils.report_exporter import ReportExporter
+            exporter = ReportExporter()
+            logger.info("初始化ReportExporter成功")
+        except Exception as e:
+            logger.error(f"初始化报告导出器失败: {str(e)}")
+            return jsonify({'status': 'error', 'message': f'导出报告失败: {str(e)}'})
+        
+        # 检查模板是否存在
+        template_path = exporter.get_template_path(template_id)
+        logger.info(f"模板路径: {template_path}, 模板是否存在: {os.path.exists(template_path)}")
+        if not os.path.exists(template_path):
+            return jsonify({'status': 'error', 'message': f'模板不存在: {template_id}'})
+                
+        # 查询学生数据
+        conn = get_db_connection()
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # 准备SQL查询
+        placeholders = ','.join(['?' for _ in student_ids])
+        query = f'SELECT * FROM students WHERE id IN ({placeholders})'
+        
+        # 执行查询
+        cursor.execute(query, student_ids)
+        students_rows = cursor.fetchall()
+        
+        # 转换成字典列表，确保字段非空
+        students = []
+        for row in students_rows:
+            student_dict = dict(row)
+            # 确保关键字段非空 - 这里补充空字符串而不是None
+            for key in ['id', 'name', 'gender', 'class']:
+                if key not in student_dict or student_dict[key] is None:
+                    student_dict[key] = ''
+            students.append(student_dict)
+            
+        # 如果没有找到任何学生，返回错误
+        if not students:
+            logger.error(f"未找到任何学生: {student_ids}")
+            return jsonify({'status': 'error', 'message': '未找到所选学生数据'})
+            
+        # 获取评语数据
+        comments_dict = {}
+        for student_id in student_ids:
+            student_id = str(student_id)  # 确保是字符串
+            # 评语直接从学生表中获取
+            cursor.execute('SELECT comments FROM students WHERE id = ?', (student_id,))
+            row = cursor.fetchone()
+            if row and row['comments']:
+                comments_dict[student_id] = {'content': row['comments']}
+            else:
+                comments_dict[student_id] = {'content': ''}
+        
+        # 获取成绩数据
+        grades_dict = {}
+        for student_id in student_ids:
+            student_id = str(student_id)  # 确保是字符串
+            
+            try:
+                # 尝试从grades表获取成绩
+                cursor.execute('SELECT * FROM grades WHERE student_id = ?', (student_id,))
+                grades_row = cursor.fetchone()
+                
+                if grades_row:
+                    grades = dict(grades_row)
+                    # 移除不需要的字段
+                    if 'id' in grades: del grades['id']
+                    if 'student_id' in grades: del grades['student_id']
+                    grades_dict[student_id] = {'grades': grades}
+                else:
+                    # 尝试从students表获取成绩字段
+                    cursor.execute('SELECT yuwen, shuxue, yingyu, daof, kexue, tiyu, yinyue, meishu, laodong, xinxi, zonghe, shufa FROM students WHERE id = ?', (student_id,))
+                    grades_row = cursor.fetchone()
+                    
+                    if grades_row:
+                        grades = dict(grades_row)
+                        grades_dict[student_id] = {'grades': grades}
+                    else:
+                        # 都没有成绩数据，使用空成绩
+                        grades_dict[student_id] = {'grades': {}}
+            except sqlite3.OperationalError as e:
+                # 处理表不存在或列不存在的情况
+                logger.warning(f"获取成绩时出错: {str(e)}, 将使用空成绩数据")
+                grades_dict[student_id] = {'grades': {}}
+        
+        # 关闭数据库连接
+        conn.close()
+        
+        # 生成报告
+        try:
+            from utils.report_exporter import ReportExporter
+            
+            # 检查必要依赖
+            try:
+                import docxtpl
+                import docx
+                logger.info("依赖检查: docxtpl和docx库已安装")
+            except ImportError as e:
+                logger.error(f"缺少必要依赖: {str(e)}")
+                return jsonify({
+                    'status': 'error', 
+                    'message': f'报告导出失败: 缺少必要依赖，请安装 python-docx 和 docxtpl 库'
+                })
+            
+            logger.info(f"开始生成报告，学生数量: {len(students)}")
+            logger.info(f"学生数据示例: {students[0] if students else '无'}")
+            logger.info(f"评语数据: {comments_dict}")
+            logger.info(f"成绩数据: {grades_dict}")
+            
+            exporter = ReportExporter()
+            success, result = exporter.export_reports(
+                students=students,
+                comments=comments_dict,
+                grades=grades_dict,
+                template_id=template_id,
+                settings=settings
+            )
+            
+            if not success:
+                logger.error(f"导出报告失败: {result}")
+                return jsonify({'status': 'error', 'message': f'导出报告失败: {result}'})
+            
+            # 直接返回文件
+            if os.environ.get('EXPORT_DIRECT_DOWNLOAD', '1') == '1':
+                logger.info("使用直接下载模式")
+                response = make_response(result)
+                response.headers['Content-Type'] = 'application/zip'
+                response.headers['Content-Disposition'] = f'attachment; filename=student_reports_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.zip'
+                return response
+            
+            # 保存导出文件
+            export_filename = f"student_reports_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+            export_path = os.path.join('exports', export_filename)
+            
+            # 确保exports目录存在
+            os.makedirs('exports', exist_ok=True)
+            
+            # 写入文件
+            with open(export_path, 'wb') as f:
+                f.write(result)
+            
+            logger.info(f"报告生成成功，保存为: {export_path}")
+            
+            return jsonify({
+                'status': 'ok',
+                'filename': export_filename,
+                'message': f'成功导出 {len(students)} 个学生的报告'
+            })
+            
+        except Exception as e:
+            logger.error(f"导出报告时出错: {str(e)}")
+            logger.error(traceback.format_exc())
+            return jsonify({'status': 'error', 'message': f'导出报告失败: {str(e)}'})
+    except Exception as e:
+        logger.error(f"导出报告请求处理出错: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({'status': 'error', 'message': f'导出报告失败: {str(e)}'})
+
+# 模板管理API
+@app.route('/api/templates', methods=['GET'])
+def get_templates():
+    """获取所有可用的报告模板"""
+    try:
+        exporter = ReportExporter()
+        templates = exporter.list_templates()
+        return jsonify({"status": "ok", "templates": templates})
+    except Exception as e:
+        app.logger.error(f"获取模板列表时出错: {str(e)}")
+        return jsonify({"status": "error", "message": f"获取模板列表失败: {str(e)}"})
+
+@app.route('/api/templates', methods=['POST'])
+def upload_template():
+    """上传自定义报告模板"""
+    try:
+        if 'template' not in request.files:
+            return jsonify({"status": "error", "message": "未上传模板文件"})
+            
+        template_file = request.files['template']
+        if template_file.filename == '':
+            return jsonify({"status": "error", "message": "未选择文件"})
+            
+        if not template_file.filename.endswith('.docx'):
+            return jsonify({"status": "error", "message": "请上传.docx格式的Word文档"})
+        
+        # 读取文件内容
+        template_data = template_file.read()
+        
+        # 保存模板
+        exporter = ReportExporter()
+        success, message = exporter.save_template(template_data, template_file.filename)
+        
+        if success:
+            return jsonify({"status": "ok", "message": message})
+        else:
+            return jsonify({"status": "error", "message": message})
+            
+    except Exception as e:
+        app.logger.error(f"上传模板时出错: {str(e)}")
+        return jsonify({"status": "error", "message": f"上传模板失败: {str(e)}"})
 
 # 初始化数据应用
 if __name__ == '__main__':

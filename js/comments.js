@@ -1916,11 +1916,11 @@ function generateAIComment(studentId) {
     console.log('发送评语生成请求:', requestData);
     
     // 发送请求
-    fetch('/api/generate-comment', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
+            fetch('/api/generate-comment', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
         body: JSON.stringify(requestData)
     })
     .then(response => {
@@ -1939,7 +1939,7 @@ function generateAIComment(studentId) {
             }
         });
     })
-    .then(data => {
+            .then(data => {
         console.log('评语生成结果:', data);
         
         // 隐藏加载状态
@@ -1965,12 +1965,12 @@ function generateAIComment(studentId) {
             aiCommentPreview.style.display = 'block';
             
             showNotification('评语生成成功', 'success');
-        } else {
-            // 显示错误消息
+                } else {
+                    // 显示错误消息
             showNotification(`评语生成失败: ${data.message || '未知错误'}`, 'error');
-        }
-    })
-    .catch(error => {
+                }
+            })
+            .catch(error => {
         console.error('评语生成请求出错:', error);
         document.getElementById('aiGeneratingIndicator').style.display = 'none';
         showNotification(`评语生成出错: ${error.message}`, 'error');

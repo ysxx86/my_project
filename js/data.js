@@ -159,169 +159,238 @@ function formatDate(date) {
 }
 
 // 数据操作函数
-const dataService = {
-    // 用户相关
-    getUsers: function() {
-        return users;
-    },
-    addUser: function(user) {
-        users.push(user);
-        localStorage.setItem('users', JSON.stringify(users));
-        return true;
-    },
-    validateUser: function(username, password) {
-        return users.find(u => u.username === username && u.password === password);
-    },
+const dataService = (function() {
+    // 默认导出设置
+    const DEFAULT_EXPORT_SETTINGS = {
+        schoolYear: '2024-2025',
+        semester: '第二学期',
+        includeBasicInfo: true,
+        includeGrades: true,
+        includeComments: true,
+        fileNameFormat: 'id_name',
+        schoolName: '示范小学',
+        className: '三年级二班',
+        teacherName: '张老师',
+        exportDate: formatDate(new Date())
+    };
     
-    // 学生相关
-    getStudents: function() {
-        return students;
-    },
-    getStudentById: function(id) {
-        return students.find(s => s.id === id);
-    },
-    addStudent: function(student) {
-        students.push(student);
-        localStorage.setItem('students', JSON.stringify(students));
-        return true;
-    },
-    updateStudent: function(student) {
-        const index = students.findIndex(s => s.id === student.id);
-        if (index !== -1) {
-            students[index] = student;
-            localStorage.setItem('students', JSON.stringify(students));
-            return true;
-        }
-        return false;
-    },
-    deleteStudent: function(id) {
-        const index = students.findIndex(s => s.id === id);
-        if (index !== -1) {
-            students.splice(index, 1);
-            localStorage.setItem('students', JSON.stringify(students));
-            
-            // 同时删除该学生的评语和成绩
-            this.deleteComment(id);
-            this.deleteGrade(id);
-            return true;
-        }
-        return false;
-    },
-    importStudents: function(newStudents) {
-        // 合并学生数据，以学号为唯一标识
-        newStudents.forEach(newStudent => {
-            const index = students.findIndex(s => s.id === newStudent.id);
-            if (index !== -1) {
-                students[index] = newStudent; // 更新已存在的学生
-            } else {
-                students.push(newStudent); // 添加新学生
+    // 本地存储键名
+    const STORAGE_KEYS = {
+        EXPORT_SETTINGS: 'export_settings',
+        STUDENTS: 'students',
+        COMMENTS: 'comments',
+        GRADES: 'grades',
+        SUBJECTS: 'subjects'
+    };
+    
+    // 获取导出设置
+    function getExportSettings() {
+        try {
+            const settingsJson = localStorage.getItem(STORAGE_KEYS.EXPORT_SETTINGS);
+            if (settingsJson) {
+                const settings = JSON.parse(settingsJson);
+                return { ...DEFAULT_EXPORT_SETTINGS, ...settings };
             }
-        });
-        localStorage.setItem('students', JSON.stringify(students));
-        return true;
-    },
-    
-    // 评语相关
-    getComments: function() {
-        return comments;
-    },
-    getCommentByStudentId: function(studentId) {
-        return comments.find(c => c.studentId === studentId);
-    },
-    addComment: function(comment) {
-        comments.push(comment);
-        localStorage.setItem('comments', JSON.stringify(comments));
-        return true;
-    },
-    updateComment: function(comment) {
-        const index = comments.findIndex(c => c.studentId === comment.studentId);
-        if (index !== -1) {
-            comments[index] = comment;
-            localStorage.setItem('comments', JSON.stringify(comments));
-            return true;
-        } else {
-            return this.addComment(comment);
+        } catch (error) {
+            console.error('获取导出设置失败:', error);
         }
-    },
-    deleteComment: function(studentId) {
-        const index = comments.findIndex(c => c.studentId === studentId);
-        if (index !== -1) {
-            comments.splice(index, 1);
-            localStorage.setItem('comments', JSON.stringify(comments));
-            return true;
-        }
-        return false;
-    },
-    
-    // 学科相关
-    getSubjects: function() {
-        return subjects;
-    },
-    addSubject: function(subject) {
-        if (!subjects.includes(subject)) {
-            subjects.push(subject);
-            localStorage.setItem('subjects', JSON.stringify(subjects));
-            return true;
-        }
-        return false;
-    },
-    removeSubject: function(subject) {
-        const index = subjects.indexOf(subject);
-        if (index > -1) {
-            subjects.splice(index, 1);
-            localStorage.setItem('subjects', JSON.stringify(subjects));
-            return true;
-        }
-        return false;
-    },
-    
-    // 成绩相关
-    getGrades: function() {
-        return grades;
-    },
-    getGradeByStudentId: function(studentId) {
-        return grades.find(g => g.studentId === studentId);
-    },
-    updateStudentSubjectGrade: function(studentId, subject, value) {
-        // 查找学生成绩记录
-        let studentGrade = grades.find(g => g.studentId === studentId);
-        
-        // 如果不存在，创建新记录
-        if (!studentGrade) {
-            studentGrade = {
-                studentId,
-                grades: {},
-                updateDate: formatDate(new Date())
-            };
-            grades.push(studentGrade);
-        }
-        
-        // 更新成绩
-        studentGrade.grades[subject] = value;
-        studentGrade.updateDate = formatDate(new Date());
-        
-        // 保存到本地存储
-        localStorage.setItem('grades', JSON.stringify(grades));
-        return true;
-    },
-    deleteGrade: function(studentId) {
-        const index = grades.findIndex(g => g.studentId === studentId);
-        if (index !== -1) {
-            grades.splice(index, 1);
-            localStorage.setItem('grades', JSON.stringify(grades));
-            return true;
-        }
-        return false;
-    },
-    
-    // 导出设置相关
-    getExportSettings: function() {
-        return exportSettings;
-    },
-    updateExportSettings: function(settings) {
-        // 合并设置
-        exportSettings = { ...exportSettings, ...settings };
-        localStorage.setItem('exportSettings', JSON.stringify(exportSettings));
-        return true;
+        return { ...DEFAULT_EXPORT_SETTINGS };
     }
-};
+    
+    // 保存导出设置
+    function saveExportSettings(settings) {
+        try {
+            const mergedSettings = { ...DEFAULT_EXPORT_SETTINGS, ...settings };
+            localStorage.setItem(STORAGE_KEYS.EXPORT_SETTINGS, JSON.stringify(mergedSettings));
+            return true;
+        } catch (error) {
+            console.error('保存导出设置失败:', error);
+            return false;
+        }
+    }
+    
+    // 更新导出设置
+    function updateExportSettings(newSettings) {
+        const currentSettings = getExportSettings();
+        const mergedSettings = { ...currentSettings, ...newSettings };
+        return saveExportSettings(mergedSettings);
+    }
+    
+    // 获取学生数据
+    function getStudents() {
+        try {
+            const studentsJson = localStorage.getItem(STORAGE_KEYS.STUDENTS);
+            if (studentsJson) {
+                return JSON.parse(studentsJson);
+            }
+        } catch (error) {
+            console.error('获取学生数据失败:', error);
+        }
+        return [];
+    }
+    
+    // 设置学生数据
+    function setStudents(students) {
+        try {
+            localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+            return true;
+        } catch (error) {
+            console.error('保存学生数据失败:', error);
+            return false;
+        }
+    }
+    
+    // 获取单个学生信息
+    function getStudentById(studentId) {
+        const students = getStudents();
+        return students.find(student => student.id === studentId) || null;
+    }
+    
+    // 获取评语数据
+    function getComments() {
+        try {
+            const commentsJson = localStorage.getItem(STORAGE_KEYS.COMMENTS);
+            if (commentsJson) {
+                return JSON.parse(commentsJson);
+            }
+        } catch (error) {
+            console.error('获取评语数据失败:', error);
+        }
+        return [];
+    }
+    
+    // 根据学生ID获取评语
+    function getCommentByStudentId(studentId) {
+        const comments = getComments();
+        return comments.find(comment => comment.studentId === studentId) || null;
+    }
+    
+    // 获取成绩数据
+    function getGrades() {
+        try {
+            const gradesJson = localStorage.getItem(STORAGE_KEYS.GRADES);
+            if (gradesJson) {
+                return JSON.parse(gradesJson);
+            }
+        } catch (error) {
+            console.error('获取成绩数据失败:', error);
+        }
+        return [];
+    }
+    
+    // 根据学生ID获取成绩
+    function getGradeByStudentId(studentId) {
+        const grades = getGrades();
+        return grades.find(grade => grade.studentId === studentId) || null;
+    }
+    
+    // 获取科目列表
+    function getSubjects() {
+        try {
+            const subjectsJson = localStorage.getItem(STORAGE_KEYS.SUBJECTS);
+            if (subjectsJson) {
+                return JSON.parse(subjectsJson);
+            }
+        } catch (error) {
+            console.error('获取科目列表失败:', error);
+        }
+        return [
+            { id: 'yuwen', name: '语文' },
+            { id: 'shuxue', name: '数学' },
+            { id: 'yingyu', name: '英语' },
+            { id: 'daof', name: '道法' },
+            { id: 'kexue', name: '科学' },
+            { id: 'tiyu', name: '体育' },
+            { id: 'yinyue', name: '音乐' },
+            { id: 'meishu', name: '美术' },
+            { id: 'laodong', name: '劳动' },
+            { id: 'xinxi', name: '信息' },
+            { id: 'zonghe', name: '综合' },
+            { id: 'shufa', name: '书法' }
+        ];
+    }
+    
+    // 从服务器获取数据
+    async function fetchFromServer(endpoint) {
+        try {
+            const response = await fetch(`/api/${endpoint}`);
+            if (!response.ok) {
+                console.warn(`服务器返回错误: ${response.status}，未能获取${endpoint}数据`);
+                return { status: 'error', message: `服务器返回错误: ${response.status}` };
+            }
+            return await response.json();
+        } catch (error) {
+            console.error(`从服务器获取${endpoint}失败:`, error);
+            return { status: 'error', message: error.message };
+        }
+    }
+    
+    // 从服务器同步数据
+    async function syncDataFromServer() {
+        try {
+            // 获取学生数据
+            const studentsData = await fetchFromServer('students');
+            if (studentsData && (studentsData.status === 'ok')) {
+                const students = Array.isArray(studentsData.data) ? studentsData.data : 
+                                 (Array.isArray(studentsData.students) ? studentsData.students : []);
+                if (students.length > 0) {
+                    setStudents(students);
+                    
+                    // 直接从学生数据中提取评语
+                    const comments = students
+                        .filter(student => student.comments)
+                        .map(student => ({
+                            studentId: student.id,
+                            studentName: student.name,
+                            content: student.comments || ''
+                        }));
+                    
+                    if (comments.length > 0) {
+                        localStorage.setItem(STORAGE_KEYS.COMMENTS, JSON.stringify(comments));
+                        console.log('已从学生数据中提取评语，共', comments.length, '条');
+                    }
+                }
+            }
+            
+            // 获取成绩数据 - 修改为以静默方式处理错误
+            try {
+                const gradesData = await fetchFromServer('grades');
+                if (gradesData && (gradesData.status === 'ok')) {
+                    const grades = Array.isArray(gradesData.data) ? gradesData.data : 
+                                   (Array.isArray(gradesData.grades) ? gradesData.grades : []);
+                    if (grades.length > 0) {
+                        localStorage.setItem(STORAGE_KEYS.GRADES, JSON.stringify(grades));
+                    }
+                }
+            } catch (gradeError) {
+                console.warn('获取成绩数据失败，将使用本地数据:', gradeError);
+            }
+            
+            return true;
+        } catch (error) {
+            console.warn('同步服务器数据失败，将使用本地数据:', error);
+            return false;
+        }
+    }
+    
+    // 尝试立即同步数据
+    syncDataFromServer().catch(error => {
+        console.warn('初始化数据同步失败，将使用本地数据:', error);
+    });
+    
+    // 暴露公共接口
+    return {
+        getExportSettings,
+        saveExportSettings,
+        updateExportSettings,
+        getStudents,
+        setStudents,
+        getStudentById,
+        getComments,
+        getCommentByStudentId,
+        getGrades,
+        getGradeByStudentId,
+        getSubjects,
+        syncDataFromServer
+    };
+})();

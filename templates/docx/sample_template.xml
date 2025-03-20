@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- 
+这是一个简化的Word XML示例，展示了报告模板的基本结构
+实际使用时，请在Word中创建文档，并使用占位符标记需要替换的内容
+-->
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <!-- 标题 -->
+    <w:p>
+      <w:r>
+        <w:t>{学校名称}</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:r>
+        <w:t>学生综合素质发展报告单</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:r>
+        <w:t>{学年}学年第{学期}学期</w:t>
+      </w:r>
+    </w:p>
+    
+    <!-- 学生基本信息 -->
+    <w:p>
+      <w:r>
+        <w:t>姓名：{姓名}    学号：{学号}</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:r>
+        <w:t>班级：{班级}    性别：{性别}</w:t>
+      </w:r>
+    </w:p>
+    
+    <!-- 评语部分 -->
+    <w:p>
+      <w:r>
+        <w:t>评语：</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:r>
+        <w:t>{评语}</w:t>
+      </w:r>
+    </w:p>
+    
+    <!-- 成绩部分 -->
+    <w:p>
+      <w:r>
+        <w:t>成绩情况：</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:r>
+        <w:t>语文：{语文} 数学：{数学} 英语：{英语}</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:r>
+        <w:t>总分：{总分} 平均分：{平均分} 排名：{排名}</w:t>
+      </w:r>
+    </w:p>
+    
+    <!-- 签名部分 -->
+    <w:p>
+      <w:r>
+        <w:t>班主任：{教师姓名}</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:r>
+        <w:t>日期：{日期}</w:t>
+      </w:r>
+    </w:p>
+  </w:body>
+</w:document>
+
+<!-- 
+注意：这只是一个简化的XML结构示例，不能直接作为Word文档使用
+请按照templates/docx/report_template_instructions.md中的指导创建实际的Word模板
+--> 

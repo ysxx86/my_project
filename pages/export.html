@@ -4,8 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>导出报告 - 班主任管理系统</title>
+    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="../css/boxicons-local.css" rel="stylesheet">
+    <link href="../css/main.css" rel="stylesheet">
+    <!-- Document libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.4/pizzip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.37.11/docxtemplater.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         body {
             font-family: 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
@@ -185,22 +191,24 @@
                     <h2 class="export-title">选择报告模板</h2>
                     <p class="export-desc">选择一个适合的报告模板，用于生成学生成绩综合报告单。</p>
                     
-                    <div class="template-card selected" data-template="template1">
-                        <img src="../img/report-template.jpg" alt="学生综合素质发展报告单" class="template-preview">
-                        <h3 class="h5">学生综合素质发展报告单</h3>
-                        <p class="small text-muted">包含学生基本信息、各学科成绩、综合评语等内容</p>
+                    <div id="templateContainer" class="row">
+                        <div class="col-12">
+                            <div class="template-card selected" data-template-id="default">
+                                <img src="../img/report-template.jpg" alt="学生综合素质发展报告单" class="template-preview">
+                                <h3 class="h5">学生综合素质发展报告单</h3>
+                                <p class="small text-muted">包含学生基本信息、各学科成绩、综合评语等内容</p>
+                            </div>
+                        </div>
                     </div>
                     
-                    <div class="template-card" data-template="template2">
-                        <div class="d-flex align-items-center justify-content-center bg-light" style="height: 200px; border-radius: 6px; margin-bottom: 10px;">
-                            <i class='bx bx-plus' style="font-size: 3rem; color: #aaa;"></i>
-                        </div>
-                        <h3 class="h5">上传自定义模板</h3>
-                        <p class="small text-muted">上传您自己设计的Word模板文件</p>
+                    <div class="mt-3">
                         <input type="file" id="templateUpload" class="d-none" accept=".docx">
-                        <button class="btn btn-sm btn-outline-primary w-100" onclick="document.getElementById('templateUpload').click()">
-                            <i class='bx bx-upload'></i> 上传模板
+                        <button class="btn btn-outline-primary w-100" id="uploadTemplateBtn">
+                            <i class='bx bx-upload'></i> 上传自定义模板
                         </button>
+                        <div id="templateInfo" class="mt-2 d-none">
+                            <small class="text-success">已选择模板: <span id="templateName">未选择</span></small>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -229,40 +237,8 @@
                     </div>
                     
                     <div class="student-list">
-                        <div class="student-item">
-                            <input type="checkbox" class="form-check-input student-checkbox" checked>
-                            <div class="student-avatar">
-                                <i class='bx bx-user'></i>
-                            </div>
-                            <div>
-                                <div class="student-name">张三</div>
-                                <div class="student-id">学号: 20230001</div>
-                            </div>
-                        </div>
-                        
-                        <div class="student-item">
-                            <input type="checkbox" class="form-check-input student-checkbox" checked>
-                            <div class="student-avatar">
-                                <i class='bx bx-user'></i>
-                            </div>
-                            <div>
-                                <div class="student-name">李四</div>
-                                <div class="student-id">学号: 20230002</div>
-                            </div>
-                        </div>
-                        
-                        <div class="student-item">
-                            <input type="checkbox" class="form-check-input student-checkbox" checked>
-                            <div class="student-avatar">
-                                <i class='bx bx-user'></i>
-                            </div>
-                            <div>
-                                <div class="student-name">王五</div>
-                                <div class="student-id">学号: 20230003</div>
-                            </div>
-                        </div>
-                        
-                        <!-- 更多学生项 -->
+                        <!-- 学生列表将通过JavaScript动态生成 -->
+                        <div class="text-center p-3">正在加载学生数据...</div>
                     </div>
                 </div>
             </div>
@@ -282,6 +258,7 @@
                                 <select class="form-select" id="schoolYear">
                                     <option value="2022-2023">2022-2023学年</option>
                                     <option value="2023-2024" selected>2023-2024学年</option>
+                                    <option value="2024-2025">2024-2025学年</option>
                                 </select>
                             </div>
                             <div class="col-6">
@@ -362,42 +339,39 @@
         </div>
     </div>
     
-    <!-- 导出进度模态框 -->
-    <div class="modal fade" id="exportProgressModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <!-- 导出进度模态窗口 -->
+    <div class="modal fade" id="progressModal" tabindex="-1" aria-labelledby="progressModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">正在导出报告</h5>
+                    <h5 class="modal-title" id="progressModalLabel">导出进度</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="text-center mb-3">
-                        <div class="mb-2">正在导出 <span id="currentCount">0</span> / <span id="totalCount">0</span></div>
-                        <div class="progress">
-                            <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
-                        </div>
+                    <p id="progressText">正在导出报告，请稍候...</p>
+                    <div class="progress">
+                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
                     </div>
-                    <div class="text-center">
-                        <p>当前学生: <span id="currentStudentName">-</span></p>
-                        <p class="text-muted small">请勿关闭此窗口，导出完成后将自动关闭</p>
-                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
                 </div>
             </div>
         </div>
     </div>
     
-    <!-- 导出完成模态框 -->
-    <div class="modal fade" id="exportCompleteModal" tabindex="-1" aria-hidden="true">
+    <!-- 导出完成模态窗口 -->
+    <div class="modal fade" id="exportCompleteModal" tabindex="-1" aria-labelledby="exportCompleteModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">导出完成</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <h5 class="modal-title" id="exportCompleteModalLabel">导出完成</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
                 </div>
                 <div class="modal-body">
                     <div class="text-center">
-                        <i class='bx bx-check-circle text-success' style="font-size: 4rem;"></i>
-                        <h4 class="mt-3">导出成功</h4>
-                        <p>成功导出 <span id="exportedCount">0</span> 份学生报告</p>
+                        <i class="bx bx-check-circle text-success" style="font-size: 3rem;"></i>
+                        <p class="mt-3">成功导出 <span id="exportedCount">0</span> 份学生报告！</p>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -422,7 +396,112 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script src="../js/data.js"></script>
     <script src="../js/export.js"></script>
+    <script src="../js/template-upload.js"></script>
     <script>
+        // 加载docx库
+        async function loadDocxLibraries() {
+            if (typeof PizZip === 'undefined') {
+                const pizzipScript = document.createElement('script');
+                pizzipScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.4/pizzip.min.js';
+                document.head.appendChild(pizzipScript);
+                
+                await new Promise(resolve => pizzipScript.onload = resolve);
+            }
+            
+            if (typeof Docxtemplater === 'undefined') {
+                const docxtemplaterScript = document.createElement('script');
+                docxtemplaterScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.37.11/docxtemplater.js';
+                document.head.appendChild(docxtemplaterScript);
+                
+                await new Promise(resolve => docxtemplaterScript.onload = resolve);
+            }
+
+            // 将函数挂载到全局对象以便export.js可以访问
+            window.loadDocxLibraries = loadDocxLibraries;
+            
+            return { PizZip, Docxtemplater };
+        }
+        
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', async function() {
+            // 加载docx库
+            try {
+                await loadDocxLibraries();
+                console.log('Docx库加载成功');
+            } catch (error) {
+                console.error('加载Docx库失败:', error);
+                showNotification('加载Docx库失败，导出功能可能不可用', 'error');
+            }
+            
+            // 初始化导出设置
+            initExportSettings();
+            
+            // 初始化学生列表
+            initStudentList();
+            
+            // 初始化模板上传
+            initTemplateUpload();
+            
+            // 绑定导出按钮事件
+            document.getElementById('exportBtn').addEventListener('click', exportReports);
+            
+            // 绑定上传模板按钮事件
+            document.getElementById('uploadTemplateBtn').addEventListener('click', function() {
+                document.getElementById('templateUpload').click();
+            });
+            
+            // 页面加载时检查可用模板并获取模板列表
+            try {
+                // 检查默认模板是否存在
+                const response = await fetch('/api/templates');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.status === 'ok' && data.templates && data.templates.length > 0) {
+                        // 更新模板卡片
+                        const templateContainer = document.getElementById('templateContainer');
+                        if (templateContainer) {
+                            // 清空现有模板
+                            templateContainer.innerHTML = '';
+                            
+                            // 添加可用模板
+                            data.templates.forEach(template => {
+                                const card = document.createElement('div');
+                                card.className = 'col-md-4 mb-3';
+                                card.innerHTML = `
+                                    <div class="card template-card" data-template-id="${template.id}">
+                                        <div class="card-body">
+                                            <h5 class="card-title">${template.name}</h5>
+                                            <p class="card-text">
+                                                <small class="text-muted">${template.type === 'system' ? '系统模板' : '自定义模板'}</small>
+                                            </p>
+                                        </div>
+                                    </div>
+                                `;
+                                templateContainer.appendChild(card);
+                                
+                                // 绑定点击事件
+                                const templateCard = card.querySelector('.template-card');
+                                templateCard.addEventListener('click', function() {
+                                    selectTemplate(this);
+                                });
+                            });
+                            
+                            // 选中第一个模板
+                            const firstTemplate = templateContainer.querySelector('.template-card');
+                            if (firstTemplate) {
+                                selectTemplate(firstTemplate);
+                            }
+                        }
+                    } else {
+                        // 未找到模板，显示警告
+                        showNotification('未找到可用的报告模板，请先上传模板', 'warning');
+                    }
+                }
+            } catch (error) {
+                console.error('加载模板列表失败:', error);
+            }
+        });
+        
         // 显示通知提示
         function showNotification(message, type = 'success') {
             const toast = document.getElementById('notificationToast');
@@ -463,5 +542,178 @@
             document.getElementById('exportBtn').click();
         });
     </script>
+    <!-- 添加模板使用说明 -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">模板使用说明</h5>
+        </div>
+        <div class="card-body">
+            <p>在Word模板中，您可以使用以下格式的标记，系统将自动替换为对应的学生信息：</p>
+            <p><strong>占位符格式：</strong> 使用中文方括号，例如 <code>【姓名】</code></p>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">基本信息</h6>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>学号</span>
+                                    <code>【学号】</code>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>姓名</span>
+                                    <code>【姓名】</code>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>性别</span>
+                                    <code>【性别】</code>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>班级</span>
+                                    <code>【班级】</code>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>出生日期</span>
+                                    <code>【出生日期】</code>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>身高</span>
+                                    <code>【身高】</code>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>体重</span>
+                                    <code>【体重】</code>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>肺活量</span>
+                                    <code>【肺活量】</code>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>视力左</span>
+                                    <code>【视力左】</code>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>视力右</span>
+                                    <code>【视力右】</code>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>体测情况</span>
+                                    <code>【体测情况】</code>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">班级信息</h6>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>班级</span>
+                                    <code>【班级】</code>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>学年</span>
+                                    <code>【学年】</code>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>学期</span>
+                                    <code>【学期】</code>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>开学时间</span>
+                                    <code>【开学时间】</code>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>日期</span>
+                                    <code>【日期】</code>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>教师姓名</span>
+                                    <code>【教师姓名】</code>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>班主任</span>
+                                    <code>【班主任】</code>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>学校名称</span>
+                                    <code>【学校名称】</code>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">评语与成绩</h6>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>评语</span>
+                                    <code>【评语】</code>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>道法</span>
+                                    <code>【道法】</code>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>语文</span>
+                                    <code>【语文】</code>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>数学</span>
+                                    <code>【数学】</code>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>英语</span>
+                                    <code>【英语】</code>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>体育</span>
+                                    <code>【体育】</code>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>美术</span>
+                                    <code>【美术】</code>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>科学</span>
+                                    <code>【科学】</code>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>劳动</span>
+                                    <code>【劳动】</code>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>书法</span>
+                                    <code>【书法】</code>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>信息</span>
+                                    <code>【信息】</code>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>综合</span>
+                                    <code>【综合】</code>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="alert alert-info mt-3 mb-0">
+                <i class="bx bx-info-circle me-2"></i>
+                <strong>提示：</strong> 在Word模板中使用上述标记时，请确保标记的前后没有多余的空格。模板将自动替换这些标记为对应的学生信息。请使用中文方括号【】格式的占位符。
+            </div>
+        </div>
+    </div>
 </body>
 </html>
