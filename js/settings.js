@@ -15,6 +15,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (resetDatabaseBtn) {
         resetDatabaseBtn.addEventListener('click', resetDatabase);
     }
+    
+    // 初始化设置
+    loadSettings();
+    
+    // 绑定事件监听
+    bindEventListeners();
 });
 
 // 加载数据库信息
@@ -96,52 +102,94 @@ function resetDatabase() {
     });
 }
 
-// 显示通知消息
-function showToast(title, message, type) {
-    // 检查是否有父窗口提供的通知函数
-    if (window.parent && window.parent.showToast) {
-        window.parent.showToast(title, message, type);
-        return;
-    }
+// 加载设置
+function loadSettings() {
+    // 加载DeepSeek API密钥
+    const apiKey = localStorage.getItem('deepseekApiKey') || '';
+    document.getElementById('deepseekApiKey').value = apiKey;
     
-    // 如果没有父窗口提供的函数，则自己实现
+    // 其他设置加载...
+}
+
+// 绑定事件监听
+function bindEventListeners() {
+    // 保存DeepSeek API设置
+    document.getElementById('saveDeepseekApiBtn').addEventListener('click', function() {
+        const apiKey = document.getElementById('deepseekApiKey').value.trim();
+        localStorage.setItem('deepseekApiKey', apiKey);
+        
+        // 如果有API端点，也可以发送到服务器
+        fetch('/api/settings/deepseek', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ api_key: apiKey })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                showToast('DeepSeek API设置已保存', 'success');
+            } else {
+                showToast('保存设置失败: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('保存API设置出错:', error);
+            // 即使服务器请求失败，也保存在本地
+            showToast('已保存到本地，但同步到服务器失败', 'warning');
+        });
+    });
+    
+    // API密钥显示/隐藏切换
+    document.getElementById('toggleDeepseekKeyBtn').addEventListener('click', function() {
+        const apiKeyInput = document.getElementById('deepseekApiKey');
+        const iconElement = this.querySelector('i');
+        
+        if (apiKeyInput.type === 'password') {
+            apiKeyInput.type = 'text';
+            iconElement.classList.remove('bx-show');
+            iconElement.classList.add('bx-hide');
+        } else {
+            apiKeyInput.type = 'password';
+            iconElement.classList.remove('bx-hide');
+            iconElement.classList.add('bx-show');
+        }
+    });
+    
+    // 其他事件绑定...
+}
+
+// 显示提示信息
+function showToast(message, type = 'info') {
+    const toastClass = type === 'error' ? 'bg-danger' : 
+                     type === 'success' ? 'bg-success' : 
+                     type === 'warning' ? 'bg-warning' : 'bg-info';
+    
+    const toastHtml = `
+        <div class="toast ${toastClass} text-white" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-body">
+                ${message}
+            </div>
+        </div>
+    `;
+    
     const toastContainer = document.getElementById('toastContainer');
     if (!toastContainer) {
-        // 创建toast容器
+        // 如果容器不存在，创建一个
         const container = document.createElement('div');
         container.id = 'toastContainer';
-        container.style.position = 'fixed';
-        container.style.top = '20px';
-        container.style.right = '20px';
+        container.className = 'position-fixed bottom-0 end-0 p-3';
         container.style.zIndex = '9999';
         document.body.appendChild(container);
     }
     
-    // 创建toast元素
-    const toast = document.createElement('div');
-    toast.className = `toast bg-${type === 'error' ? 'danger' : type} text-white`;
-    toast.setAttribute('role', 'alert');
-    toast.setAttribute('aria-live', 'assertive');
-    toast.setAttribute('aria-atomic', 'true');
+    const toastElement = document.createElement('div');
+    toastElement.innerHTML = toastHtml;
+    document.getElementById('toastContainer').appendChild(toastElement.firstChild);
     
-    toast.innerHTML = `
-        <div class="toast-header bg-${type === 'error' ? 'danger' : type} text-white">
-            <strong class="me-auto">${title}</strong>
-            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
-        </div>
-        <div class="toast-body">
-            ${message}
-        </div>
-    `;
-    
-    document.getElementById('toastContainer').appendChild(toast);
-    
-    // 显示toast
-    const bsToast = new bootstrap.Toast(toast, { delay: 5000 });
-    bsToast.show();
-    
-    // 自动删除
-    toast.addEventListener('hidden.bs.toast', function() {
-        toast.remove();
+    const toast = new bootstrap.Toast(document.getElementById('toastContainer').lastChild, {
+        delay: 3000
     });
+    toast.show();
 } 

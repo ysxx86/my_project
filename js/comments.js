@@ -10,210 +10,13 @@ let commentTemplates = {
     physical: [],
     behavior: []
 };
+let currentStudentId = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('评语管理页面初始化...');
     
-    // 确保评语模板先加载
-    loadCommentTemplates();
-    
-    // 初始化评语列表
-    initCommentList();
-    
-    // 初始化评语模板
-    loadCommentTemplates();
-    
-    // 绑定搜索事件
-    const searchInput = document.getElementById('searchStudent');
-    if (searchInput) {
-        searchInput.addEventListener('input', function() {
-            filterComments(this.value);
-        });
-    }
-    
-    // 绑定保存评语按钮事件
-    const saveCommentBtn = document.getElementById('saveCommentBtn');
-    if (saveCommentBtn) {
-        saveCommentBtn.addEventListener('click', function() {
-            saveComment();
-        });
-    }
-    
-    // 绑定批量编辑按钮事件
-    const batchEditBtn = document.getElementById('batchEditBtn');
-    if (batchEditBtn) {
-        batchEditBtn.addEventListener('click', function() {
-            showBatchEditModal();
-        });
-    }
-    
-    // 绑定批量保存按钮事件
-    const saveBatchBtn = document.getElementById('saveBatchBtn');
-    if (saveBatchBtn) {
-        saveBatchBtn.addEventListener('click', function() {
-            saveBatchComments();
-        });
-    }
-    
-    // 绑定导出评语按钮事件
-    const exportCommentsBtn = document.getElementById('exportCommentsBtn');
-    if (exportCommentsBtn) {
-        exportCommentsBtn.addEventListener('click', function() {
-            exportComments();
-        });
-    }
-    
-    // 绑定打印预览按钮事件
-    const printPreviewBtn = document.getElementById('printPreviewBtn');
-    if (printPreviewBtn) {
-        printPreviewBtn.addEventListener('click', function() {
-            showPrintPreview();
-        });
-    }
-    
-    // 绑定管理模板按钮事件
-    const manageTemplatesBtn = document.getElementById('manageTemplatesBtn');
-    if (manageTemplatesBtn) {
-        manageTemplatesBtn.addEventListener('click', function() {
-            showTemplateModal();
-        });
-    }
-    
-    // 绑定添加模板按钮事件
-    const addTemplateBtn = document.getElementById('addTemplateBtn');
-    if (addTemplateBtn) {
-        addTemplateBtn.addEventListener('click', function() {
-            addTemplate();
-        });
-    }
-    
-    // 绑定模板分类筛选按钮事件
-    const filterButtons = document.querySelectorAll('[data-filter]');
-    filterButtons.forEach(btn => {
-        btn.addEventListener('click', function() {
-            const filter = this.dataset.filter;
-            filterTemplates(filter);
-            
-            // 更新活动状态
-            filterButtons.forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
-        });
-    });
-    
-    // 监听评语文本框输入事件，更新字数统计
-    const commentText = document.getElementById('commentText');
-    if (commentText) {
-        commentText.addEventListener('input', function() {
-            updateCharCount();
-        });
-    }
-    
-    // 监听编辑评语模态框显示事件，填充表单数据
-    const editCommentModal = document.getElementById('editCommentModal');
-    if (editCommentModal) {
-        editCommentModal.addEventListener('show.bs.modal', function(e) {
-            const button = e.relatedTarget;
-            if (button) {
-            const studentId = button.getAttribute('data-student-id');
-            const studentName = button.getAttribute('data-student-name');
-            fillCommentForm(studentId, studentName);
-            }
-        });
-    }
-    
-    // 加载模板
-    loadTemplates();
-    
-    // 更新模板按钮
-    updateTemplateButtons();
-    
-    // 设置跨页面通信 - 定期检测学生数据变化
-    const checkStudentChanges = () => {
-        try {
-            // 获取当前学生数据
-            const currentStudents = JSON.stringify(dataService.getStudents());
-            // 如果与上次状态不同，则更新评语列表
-            if (window.lastStudentsState !== currentStudents) {
-                console.log('检测到学生数据变化，正在更新评语列表...');
-                window.lastStudentsState = currentStudents;
-                initCommentList();
-            }
-        } catch (error) {
-            console.error('检查学生数据变化时出错:', error);
-        }
-    };
-    
-    // 设置更高频率的检查，提高实时性（每2秒检查一次）
-    const studentChangeCheckInterval = setInterval(checkStudentChanges, 2000);
-    
-    // 页面可见性变化时立即检查 - 当用户从学生管理切回评语管理时
-    document.addEventListener('visibilitychange', function() {
-        if (!document.hidden) {
-            console.log('页面重新获得焦点，立即检查学生数据更新...');
-            checkStudentChanges();
-        }
-    });
-    
-    // 监听window消息，支持跨页面/iframe通信
-    window.addEventListener('message', function(event) {
-        if (event.data && event.data.type === 'studentDataChanged') {
-            console.log('收到学生数据变更消息，立即更新评语列表...');
-            initCommentList();
-        }
-    });
-    
-    // 处理localStorage变化
-    window.addEventListener('storage', function(e) {
-        if (e.key === 'students' || e.key === null) { // null表示清除了storage
-            console.log('检测到localStorage学生数据变化，正在更新评语列表...');
-            initCommentList();
-        }
-    });
-    
-    // 存储初始学生数据状态
-    window.lastStudentsState = JSON.stringify(dataService.getStudents());
-    
-    // 提供全局刷新方法，便于其他脚本调用
-    window.refreshCommentList = initCommentList;
-    
-    // 通知父窗口评语页面已加载，便于父窗口添加通信机制
-    if (window.parent && window.parent !== window) {
-        window.parent.postMessage({
-            type: 'commentsPageLoaded',
-            timestamp: Date.now()
-        }, '*');
-    }
-    
-    // 创建或获取全局事件总线
-    if (!window.eventBus) {
-        window.eventBus = document.createElement('div');
-    }
-    
-    // 监听学生数据变化事件
-    window.eventBus.addEventListener('studentDataChanged', function(e) {
-        console.log('通过事件总线接收到学生数据变化通知:', e.detail);
-        initCommentList();
-    });
-    
-    // 清理函数 - 在页面卸载时调用
-    const cleanup = () => {
-        console.log('评语管理页面正在卸载，清理资源...');
-        clearInterval(studentChangeCheckInterval);
-    };
-    
-    // 注册清理函数
-    window.addEventListener('beforeunload', cleanup);
-    
-    // 绑定模板过滤器事件
-    const templateFilters = document.querySelectorAll('.template-filter');
-    templateFilters.forEach(filter => {
-        filter.addEventListener('click', function() {
-            const filterType = this.dataset.filter;
-            templateFilters.forEach(f => f.classList.remove('active'));
-            this.classList.add('active');
-            renderTemplateButtons(filterType);
-        });
-    });
+    // 初始化
+    initialize();
 });
 
 // 初始化评语列表
@@ -1714,4 +1517,207 @@ function insertTemplate(content) {
 function showTemplateSelectorModal() {
     const modal = new bootstrap.Modal(document.getElementById('templateSelectorModal'));
     modal.show();
+}
+
+// 初始化评语数据
+function initialize() {
+    // 加载评语模板
+    loadCommentTemplates();
+    
+    // 初始化评语列表
+    initCommentList();
+    
+    // 绑定事件监听器
+    bindEventListeners();
+    
+    // 绑定搜索事件
+    const searchInput = document.getElementById('searchStudent');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            filterComments(this.value);
+        });
+    }
+}
+
+// 绑定事件监听器
+function bindEventListeners() {
+    // 编辑评语按钮点击事件
+    $(document).on('click', '.edit-comment-btn', function() {
+        const studentId = $(this).data('student-id');
+        const comment = $(this).data('comment');
+        
+        // 设置学生信息和评语内容
+        const studentName = $(this).closest('.card').find('.student-name').text();
+        $('#modalStudentName').text(studentName);
+        $('#modalStudentId').text('学号: ' + studentId);
+        $('#commentText').val(comment || '');
+        
+        // 清空AI评语生成区域的输入
+        $('#personalityInput').val('');
+        $('#studyPerformanceInput').val('');
+        $('#hobbiesInput').val('');
+        $('#improvementInput').val('');
+        
+        // 重置添加模式开关
+        $('#appendModeSwitch').prop('checked', false);
+        
+        // 更新字数统计
+        updateCharCount();
+        
+        // 存储当前学生ID
+        currentStudentId = studentId;
+        
+        // 显示模态框
+        $('#editCommentModal').modal('show');
+    });
+    
+    // 保存评语按钮事件
+    $('#saveCommentBtn').on('click', function() {
+        saveComment();
+    });
+    
+    // 批量编辑按钮事件
+    $('#batchEditBtn').on('click', function() {
+        showBatchEditModal();
+    });
+    
+    // 批量保存按钮事件
+    $('#saveBatchBtn').on('click', function() {
+        saveBatchComments();
+    });
+    
+    // 导出评语按钮事件
+    $('#exportCommentsBtn').on('click', function() {
+        exportComments();
+    });
+    
+    // 打印预览按钮事件
+    $('#printPreviewBtn').on('click', function() {
+        showPrintPreview();
+    });
+    
+    // 管理模板按钮事件
+    $('#manageTemplatesBtn').on('click', function() {
+        showTemplateModal();
+    });
+    
+    // 添加模板按钮事件
+    $('#addTemplateBtn').on('click', function() {
+        addTemplate();
+    });
+    
+    // 模板分类筛选按钮事件
+    $('.template-filter').on('click', function() {
+        const filter = $(this).data('filter');
+        filterTemplates(filter);
+        
+        // 更新活动状态
+        $('.template-filter').removeClass('active');
+        $(this).addClass('active');
+    });
+    
+    // 监听评语文本框输入事件，更新字数统计
+    $('#commentText').on('input', function() {
+        updateCharCount();
+    });
+    
+    // AI评语生成按钮点击事件
+    $('#generateCommentBtn').on('click', function() {
+        // 显示生成状态
+        $('#generationStatus').removeClass('d-none');
+        
+        // 获取参数
+        const params = {
+            student_id: currentStudentId,
+            personality: $('#personalityInput').val(),
+            study_performance: $('#studyPerformanceInput').val(),
+            hobbies: $('#hobbiesInput').val(),
+            improvement: $('#improvementInput').val(),
+            style: $('#styleSelect').val(),
+            tone: $('#toneSelect').val(),
+            max_length: parseInt($('#maxLengthSelect').val())
+        };
+        
+        // 调用API生成评语
+        fetch('/api/generate-comment', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(params)
+        })
+        .then(response => response.json())
+        .then(data => {
+            // 隐藏生成状态
+            $('#generationStatus').addClass('d-none');
+            
+            if (data.status === 'success') {
+                // 如果是添加模式，则在现有评语后添加
+                if ($('#appendModeSwitch').is(':checked')) {
+                    const currentText = $('#commentText').val();
+                    if (currentText && !currentText.endsWith('\n')) {
+                        $('#commentText').val(currentText + '\n' + data.comment);
+                    } else {
+                        $('#commentText').val(currentText + data.comment);
+                    }
+                } else {
+                    // 否则直接替换
+                    $('#commentText').val(data.comment);
+                }
+                
+                // 更新字数统计
+                updateCharCount();
+                
+                // 折叠AI评语助手区域
+                $('#aiGeneratorCollapse').collapse('hide');
+                
+                // 显示成功消息
+                showToast('评语生成成功！', 'success');
+            } else {
+                // 显示错误消息
+                showToast(`生成失败: ${data.message}`, 'error');
+            }
+        })
+        .catch(error => {
+            // 隐藏生成状态
+            $('#generationStatus').addClass('d-none');
+            console.error('Error generating comment:', error);
+            showToast('生成评语时出错，请重试', 'error');
+        });
+    });
+
+    // 显示/隐藏生成状态的监听
+    $('#aiGeneratorCollapse').on('hidden.bs.collapse', function () {
+        // 隐藏生成状态
+        $('#generationStatus').addClass('d-none');
+    });
+}
+
+// 显示提示信息
+function showToast(message, type = 'info') {
+    const toastClass = type === 'error' ? 'bg-danger' : 
+                      type === 'success' ? 'bg-success' : 'bg-info';
+    
+    const toastHtml = `
+        <div class="toast ${toastClass} text-white" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-body">
+                ${message}
+            </div>
+        </div>
+    `;
+    
+    const $toast = $(toastHtml);
+    $('#toastContainer').append($toast);
+    
+    $toast.toast({
+        delay: 3000,
+        autohide: true
+    });
+    
+    $toast.toast('show');
+    
+    // 自动移除
+    $toast.on('hidden.bs.toast', function() {
+        $(this).remove();
+    });
 }

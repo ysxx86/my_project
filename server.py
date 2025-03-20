@@ -18,6 +18,7 @@ from utils.excel_processor import ExcelProcessor
 from utils.comment_processor import batch_update_comments, generate_comments_pdf, generate_preview_html
 from utils.pdf_exporter import export_comments_to_pdf  # 导入PDF导出函数
 from utils.grades_manager import GradesManager
+from utils.deepseek_api import DeepSeekAPI  # 导入DeepSeek API封装
 
 # 配置日志
 logging.basicConfig(
@@ -209,6 +210,14 @@ try:
     print("成绩Excel模板创建完成")
 except Exception as e:
     print(f"创建成绩模板时出错: {str(e)}")
+
+# 全局变量
+DATABASE_FILE = os.environ.get('CLASS_MASTER_DB', 'classmaster.db')
+LOG_FILE = os.environ.get('CLASS_MASTER_LOG', 'classmaster.log')
+DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY', '')
+
+# 初始化DeepSeek API
+deepseek_api = DeepSeekAPI(DEEPSEEK_API_KEY)
 
 # 主页路由
 @app.route('/')
@@ -1372,6 +1381,119 @@ def download_grades_template():
         app.logger.error(f'下载成绩导入模板时出错: {str(e)}')
         app.logger.error(traceback.format_exc())
         return jsonify({'status': 'error', 'message': f'下载成绩导入模板失败: {str(e)}'})
+
+# AI生成评语API
+@app.route('/api/generate-comment', methods=['POST'])
+def generate_comment():
+    try:
+        # 获取请求数据
+        data = request.json
+        student_id = data.get('student_id')
+        personality = data.get('personality', '')
+        study_performance = data.get('study_performance', '')
+        hobbies = data.get('hobbies', '')
+        improvement = data.get('improvement', '')
+        style = data.get('style', '鼓励性的')
+        tone = data.get('tone', '正式的')
+        max_length = data.get('max_length', 200)
+        
+        # 检查必要字段
+        if not student_id:
+            return jsonify({
+                'status': 'error',
+                'message': '缺少学生ID'
+            }), 400
+        
+        # 获取学生信息
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT name, gender, class FROM students WHERE id = ?", (student_id,))
+            student = cursor.fetchone()
+            
+            if not student:
+                return jsonify({
+                    'status': 'error',
+                    'message': f'找不到ID为{student_id}的学生'
+                }), 404
+            
+            # 构建学生信息字典
+            student_info = {
+                'id': student_id,
+                'name': student[0],
+                'gender': student[1],
+                'class': student[2],
+                'personality': personality,
+                'study_performance': study_performance,
+                'hobbies': hobbies,
+                'improvement': improvement
+            }
+            
+            # 记录开始生成评语
+            logger.info(f'开始为学生 {student[0]}(ID: {student_id}) 生成评语')
+            
+            # 调用DeepSeek API生成评语
+            comment = deepseek_api.generate_comment(
+                student_info, 
+                style=style, 
+                tone=tone,
+                max_length=max_length
+            )
+            
+            # 记录生成成功
+            logger.info(f'成功为学生 {student[0]} 生成评语')
+            
+            return jsonify({
+                'status': 'success',
+                'comment': comment
+            })
+            
+        except Exception as e:
+            logger.error(f'生成评语时出错: {str(e)}')
+            return jsonify({
+                'status': 'error',
+                'message': f'生成评语失败: {str(e)}'
+            }), 500
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        logger.error(f'处理评语生成请求时出错: {str(e)}')
+        return jsonify({
+            'status': 'error',
+            'message': f'处理请求失败: {str(e)}'
+        }), 500
+
+# 保存DeepSeek API设置
+@app.route('/api/settings/deepseek', methods=['POST'])
+def save_deepseek_api_settings():
+    try:
+        data = request.json
+        api_key = data.get('api_key', '')
+        
+        # 更新环境变量
+        os.environ['DEEPSEEK_API_KEY'] = api_key
+        
+        # 更新全局变量
+        global DEEPSEEK_API_KEY, deepseek_api
+        DEEPSEEK_API_KEY = api_key
+        
+        # 重新初始化API
+        deepseek_api = DeepSeekAPI(api_key)
+        
+        # 记录日志
+        logger.info('DeepSeek API设置已更新')
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'API设置已保存'
+        })
+    except Exception as e:
+        logger.error(f'保存DeepSeek API设置时出错: {str(e)}')
+        return jsonify({
+            'status': 'error',
+            'message': f'保存设置失败: {str(e)}'
+        }), 500
 
 # 初始化数据应用
 if __name__ == '__main__':
