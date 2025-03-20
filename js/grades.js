@@ -565,8 +565,44 @@ function previewGradesImport() {
 
 // 重置导入模态框
 function resetImportModal() {
-    // 清空文件输入
-    document.getElementById('gradeFile').value = '';
+    console.log('重置导入模态框');
+    
+    // 完全重置文件输入
+    const fileInput = document.getElementById('gradeFile');
+    if (fileInput) {
+        // 清空文件输入的值
+        fileInput.value = '';
+        
+        // 创建一个新的输入元素来替换旧的，彻底清除文件选择状态
+        const newFileInput = document.createElement('input');
+        newFileInput.type = 'file';
+        newFileInput.id = 'gradeFile';
+        newFileInput.className = 'd-none';
+        newFileInput.accept = '.xlsx, .xls';
+        
+        // 复制事件监听器
+        newFileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const fileNameDisplay = document.getElementById('selectedFileName');
+                if (fileNameDisplay) {
+                    fileNameDisplay.textContent = file.name;
+                }
+                
+                if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+                    showNotification('只支持Excel文件格式 (.xlsx, .xls)', 'error');
+                    return;
+                }
+                
+                previewGradesImport();
+            }
+        });
+        
+        // 替换旧的元素
+        if (fileInput.parentNode) {
+            fileInput.parentNode.replaceChild(newFileInput, fileInput);
+        }
+    }
     
     // 清空文件名显示
     const fileNameDisplay = document.getElementById('selectedFileName');
@@ -575,13 +611,22 @@ function resetImportModal() {
     }
     
     // 清空预览内容
-    document.getElementById('previewContent').innerHTML = '';
+    const previewContent = document.getElementById('previewContent');
+    if (previewContent) {
+        previewContent.innerHTML = '';
+    }
     
     // 清空隐藏字段
-    document.getElementById('importFilePath').value = '';
+    const importFilePath = document.getElementById('importFilePath');
+    if (importFilePath) {
+        importFilePath.value = '';
+    }
     
     // 禁用确认导入按钮
-    document.getElementById('confirmImportGrades').disabled = true;
+    const confirmImportBtn = document.getElementById('confirmImportGrades');
+    if (confirmImportBtn) {
+        confirmImportBtn.disabled = true;
+    }
 }
 
 // 初始化成绩导入相关事件
@@ -666,9 +711,23 @@ function initGradesImport() {
         
         // 点击导入区域也可以触发文件选择
         importArea.addEventListener('click', function(e) {
-            if (e.target.tagName !== 'BUTTON') {
-                document.getElementById('gradeFile').click();
+            // 不处理按钮的点击
+            if (e.target.tagName === 'BUTTON') {
+                return;
             }
+            
+            // 检查是否已经选择了文件
+            const fileInput = document.getElementById('gradeFile');
+            const fileNameDisplay = document.getElementById('selectedFileName');
+            
+            // 如果已经选择了文件且显示了文件名，不再触发文件选择
+            if (fileInput.files.length > 0 && fileNameDisplay && fileNameDisplay.textContent) {
+                console.log('已选择文件，不再触发文件选择对话框');
+                return;
+            }
+            
+            // 否则触发文件选择
+            fileInput.click();
         });
     }
 }
