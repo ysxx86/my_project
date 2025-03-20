@@ -31,8 +31,42 @@ function handleTemplateUpload(event) {
     .then(data => {
         if (data.status === 'ok') {
             showNotification('模板上传成功', 'success');
-            // 刷新模板列表
-            fetchTemplates();
+            
+            // 显示模板名称
+            const templateNameElement = document.getElementById('templateName');
+            if (templateNameElement) {
+                templateNameElement.textContent = file.name;
+                
+                // 显示已上传模板信息
+                const uploadedTemplate = document.getElementById('uploadedTemplate');
+                if (uploadedTemplate) {
+                    uploadedTemplate.classList.remove('d-none');
+                }
+            }
+            
+            // 更新当前选中的模板ID
+            const templateContainer = document.getElementById('templateContainer');
+            if (templateContainer) {
+                const templateId = data.template_id || data.templateId || file.name.replace('.docx', '');
+                
+                // 创建一个隐藏的模板选择器
+                let hiddenTemplate = document.querySelector('.template-card.hidden-template');
+                if (!hiddenTemplate) {
+                    hiddenTemplate = document.createElement('div');
+                    hiddenTemplate.className = 'template-card hidden-template selected d-none';
+                    hiddenTemplate.dataset.templateId = templateId;
+                    templateContainer.appendChild(hiddenTemplate);
+                } else {
+                    hiddenTemplate.dataset.templateId = templateId;
+                    hiddenTemplate.classList.add('selected');
+                }
+                
+                // 触发模板选择事件
+                const event = new CustomEvent('template-selected', { 
+                    detail: { templateId: templateId } 
+                });
+                document.dispatchEvent(event);
+            }
         } else {
             showNotification('模板上传失败: ' + data.message, 'error');
         }
@@ -45,7 +79,7 @@ function handleTemplateUpload(event) {
         // 恢复按钮状态
         if (uploadBtn) {
             uploadBtn.disabled = false;
-            uploadBtn.innerHTML = '<i class="bx bx-upload"></i> 上传模板';
+            uploadBtn.innerHTML = '<i class="bx bx-upload"></i> 上传自定义模板';
         }
         
         // 清空文件输入框
@@ -53,16 +87,32 @@ function handleTemplateUpload(event) {
     });
 }
 
-// 获取可用的模板列表
+// 获取可用的模板列表 - 简化版，不再显示列表
 function fetchTemplates() {
+    // 将不再显示模板列表，只需检查是否有默认模板
     fetch('/api/templates')
         .then(response => response.json())
         .then(data => {
             if (data.status === 'ok' && data.templates) {
-                // 简化模板显示，只展示基本信息
-                updateTemplateCards(data.templates);
-            } else {
-                console.warn('获取模板列表失败:', data.message);
+                console.log('系统有可用模板:', data.templates.length);
+                
+                // 只需确保有一个隐藏的模板选择器
+                const templateContainer = document.getElementById('templateContainer');
+                if (templateContainer && data.templates.length > 0) {
+                    const defaultTemplate = data.templates[0];
+                    
+                    // 确保有一个隐藏的模板选择器
+                    let hiddenTemplate = document.querySelector('.template-card.hidden-template');
+                    if (!hiddenTemplate) {
+                        hiddenTemplate = document.createElement('div');
+                        hiddenTemplate.className = 'template-card hidden-template selected d-none';
+                        hiddenTemplate.dataset.templateId = defaultTemplate.id;
+                        templateContainer.appendChild(hiddenTemplate);
+                    } else {
+                        hiddenTemplate.dataset.templateId = defaultTemplate.id;
+                        hiddenTemplate.classList.add('selected');
+                    }
+                }
             }
         })
         .catch(error => {
@@ -70,56 +120,40 @@ function fetchTemplates() {
         });
 }
 
-// 更新模板卡片显示
+// 更新模板卡片显示 - 简化版，不再显示列表
 function updateTemplateCards(templates) {
-    console.log('更新模板卡片:', templates);
-    const templateContainer = document.getElementById('templateContainer');
-    if (!templateContainer) {
-        console.error('找不到模板容器');
+    // 不再显示模板列表，此函数保留但简化
+    console.log('有可用模板数量:', templates.length);
+}
+
+// 模板容器点击事件处理函数 - 防抖处理
+let lastClickTime = 0;
+let clickTimeout = null;
+
+function templateContainerClickHandler(event) {
+    // 阻止事件冒泡
+    event.stopPropagation();
+    
+    // 查找被点击的模板卡片
+    const templateCard = event.target.closest('.template-card');
+    if (!templateCard) return;
+    
+    // 添加防抖，避免多次快速点击触发多次
+    const now = Date.now();
+    if (now - lastClickTime < 300) {
+        // 快速点击，忽略这次点击
+        console.log('快速点击被忽略');
+        clearTimeout(clickTimeout);
         return;
     }
     
-    // 清空现有模板
-    templateContainer.innerHTML = '';
+    lastClickTime = now;
     
-    // 移除已存在的事件监听器
-    templateContainer.removeEventListener('click', templateContainerClickHandler);
-    
-    // 简化的模板卡片
-    if (templates.length > 0) {
-        templates.forEach(template => {
-            const card = document.createElement('div');
-            card.className = 'col-md-4 mb-3';
-            card.innerHTML = `
-                <div class="card template-card" data-template-id="${template.id}">
-                    <div class="card-body">
-                        <h5 class="card-title">${template.name}</h5>
-                    </div>
-                </div>
-            `;
-            templateContainer.appendChild(card);
-        });
-    } else {
-        // 没有模板时显示提示
-        templateContainer.innerHTML = '<div class="col-12 text-center">没有可用的模板，请上传模板</div>';
-    }
-    
-    // 添加单击事件处理程序
-    templateContainer.addEventListener('click', templateContainerClickHandler, { once: false });
-    
-    // 选中第一个模板
-    const firstTemplate = templateContainer.querySelector('.template-card');
-    if (firstTemplate) {
-        selectTemplate(firstTemplate, false); // 不触发事件，只更新UI
-    }
-}
-
-// 处理模板容器的点击事件
-function templateContainerClickHandler(event) {
-    const templateCard = event.target.closest('.template-card');
-    if (templateCard) {
-        selectTemplate(templateCard);
-    }
+    // 使用延迟执行，防止双击
+    clearTimeout(clickTimeout);
+    clickTimeout = setTimeout(() => {
+        selectTemplate(templateCard, true);
+    }, 50);
 }
 
 // 选择模板
@@ -145,25 +179,25 @@ function selectTemplate(templateCard, triggerEvent = true) {
     }
 }
 
-// 显示通知消息
+// 显示通知
 function showNotification(message, type = 'success') {
-    const alert = document.createElement('div');
-    alert.className = `alert alert-${type} alert-dismissible fade show fixed-top mx-auto mt-3`;
-    alert.style.maxWidth = '500px';
-    alert.style.zIndex = '9999';
-    alert.role = 'alert';
+    const notificationDiv = document.createElement('div');
+    notificationDiv.className = `alert alert-${type} notification`;
+    notificationDiv.innerHTML = message;
     
-    alert.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    `;
+    document.body.appendChild(notificationDiv);
     
-    document.body.appendChild(alert);
-    
-    // 3秒后自动关闭
+    // 显示通知
     setTimeout(() => {
-        const bsAlert = new bootstrap.Alert(alert);
-        bsAlert.close();
+        notificationDiv.classList.add('show');
+    }, 10);
+    
+    // 2秒后隐藏通知
+    setTimeout(() => {
+        notificationDiv.classList.remove('show');
+        setTimeout(() => {
+            notificationDiv.remove();
+        }, 300);
     }, 3000);
 }
 
