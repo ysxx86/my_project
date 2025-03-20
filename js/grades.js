@@ -594,7 +594,10 @@ function resetImportModal() {
                     return;
                 }
                 
-                previewGradesImport();
+                // 添加延迟处理
+                setTimeout(() => {
+                    previewGradesImport();
+                }, 100); // 添加短暂延迟，避免双击时的重复处理
             }
         });
         
@@ -651,7 +654,9 @@ function initGradesImport() {
                 }
                 
                 // 自动触发预览
-                previewGradesImport();
+                setTimeout(() => {
+                    previewGradesImport();
+                }, 100); // 添加短暂延迟，避免双击时的重复处理
             }
         });
     }
@@ -705,14 +710,16 @@ function initGradesImport() {
                 }
                 
                 // 自动触发预览
-                previewGradesImport();
+                setTimeout(() => {
+                    previewGradesImport();
+                }, 100); // 添加短暂延迟，避免双击时的重复处理
             }
         });
         
         // 点击导入区域也可以触发文件选择
         importArea.addEventListener('click', function(e) {
             // 不处理按钮的点击
-            if (e.target.tagName === 'BUTTON') {
+            if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
                 return;
             }
             
@@ -721,7 +728,7 @@ function initGradesImport() {
             const fileNameDisplay = document.getElementById('selectedFileName');
             
             // 如果已经选择了文件且显示了文件名，不再触发文件选择
-            if (fileInput.files.length > 0 && fileNameDisplay && fileNameDisplay.textContent) {
+            if (fileInput.files && fileInput.files.length > 0 && fileNameDisplay && fileNameDisplay.textContent) {
                 console.log('已选择文件，不再触发文件选择对话框');
                 return;
             }
