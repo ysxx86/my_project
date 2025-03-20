@@ -275,9 +275,18 @@ class GradesManager:
             # 允许的成绩值
             allowed_grades = ['优', '良', '及格', '待及格', '差', '']
             
+            # 成绩值标准化映射表
+            grade_mapping = {
+                '优秀': '优',
+                '良好': '良',
+                '及': '及格',
+                '待': '待及格'
+            }
+            
             # 转换Excel数据
             success_count = 0
             fail_count = 0
+            warnings = []  # 初始化warnings列表
             
             for _, row in df.iterrows():
                 try:
@@ -299,9 +308,14 @@ class GradesManager:
                             value = str(row[excel_col]) if pd.notna(row[excel_col]) else ''
                             
                             # 验证成绩值是否在允许的范围内
-                            if value and excel_col != '学号' and value not in allowed_grades:
-                                print(f"警告: {student_id} 的 {excel_col} 成绩 '{value}' 不符合要求，应为：{', '.join(allowed_grades[:-1])}，已自动清空")
-                                value = ''  # 不符合要求的成绩将被清空
+                            if value and excel_col != '学号':
+                                # 尝试标准化成绩值
+                                if value in grade_mapping:
+                                    value = grade_mapping[value]
+                                
+                                if value not in allowed_grades:
+                                    warnings.append(f"警告: 学号 {student_id} 的 {excel_col} 成绩 '{value}' 不符合要求，应为：{', '.join(allowed_grades[:-1])}")
+                                    value = ''  # 在预览中标记为空
                                 
                             set_clauses.append(f"{db_col} = ?")
                             values.append(value)
@@ -377,6 +391,14 @@ class GradesManager:
             # 允许的成绩值
             allowed_grades = ['优', '良', '及格', '待及格', '差', '']
             
+            # 成绩值标准化映射表
+            grade_mapping = {
+                '优秀': '优',
+                '良好': '良',
+                '及': '及格',
+                '待': '待及格'
+            }
+            
             # 从数据库获取学生信息
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
@@ -415,9 +437,14 @@ class GradesManager:
                             value = str(row[excel_col]) if pd.notna(row[excel_col]) else ''
                             
                             # 验证成绩值是否在允许的范围内
-                            if value and excel_col != '学号' and value not in allowed_grades:
-                                warnings.append(f"警告: 学号 {student_id} 的 {excel_col} 成绩 '{value}' 不符合要求，应为：{', '.join(allowed_grades[:-1])}")
-                                value = ''  # 在预览中标记为空
+                            if value and excel_col != '学号':
+                                # 尝试标准化成绩值
+                                if value in grade_mapping:
+                                    value = grade_mapping[value]
+                                
+                                if value not in allowed_grades:
+                                    warnings.append(f"警告: 学号 {student_id} 的 {excel_col} 成绩 '{value}' 不符合要求，应为：{', '.join(allowed_grades[:-1])}")
+                                    value = ''  # 在预览中标记为空
                             
                             student_grade[db_col] = value
                     

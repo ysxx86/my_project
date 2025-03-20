@@ -346,8 +346,10 @@ function updateGrade(selectElement) {
         selectElement.classList.add('grade-a');
     } else if (value === '良') {
         selectElement.classList.add('grade-b');
-    } else if (value === '差') {
+    } else if (value === '及格') {
         selectElement.classList.add('grade-c');
+    } else if (value === '待及格') {
+        selectElement.classList.add('grade-d');
     }
     
     // 准备要发送的数据
@@ -1175,13 +1177,13 @@ function processPastedText(text) {
         // 如果复制的不是直接的等级，则尝试进行简单的标准化处理
         if (!validGrades.includes(gradeValue)) {
             // 对于常见的误差进行修正
-            if (gradeValue === '优秀' || gradeValue === 'A' || gradeValue === 'a') {
+            if (gradeValue === '优秀' || gradeValue === '优' || gradeValue === 'A' || gradeValue === 'a') {
                 gradeValue = '优';
-            } else if (gradeValue === 'B' || gradeValue === 'b') {
+            } else if (gradeValue === '良好' || gradeValue === '良' || gradeValue === 'B' || gradeValue === 'b') {
                 gradeValue = '良';
-            } else if (gradeValue === 'C' || gradeValue === 'c' || gradeValue === '中') {
+            } else if (gradeValue === '及格' || gradeValue === '及' || gradeValue === 'C' || gradeValue === 'c' || gradeValue === '中') {
                 gradeValue = '及格';
-            } else if (gradeValue === 'D' || gradeValue === 'd' || gradeValue === '不及格') {
+            } else if (gradeValue === '待及格' || gradeValue === '待' || gradeValue === 'D' || gradeValue === 'd' || gradeValue === '不及格') {
                 gradeValue = '待及格';
             }
         }
