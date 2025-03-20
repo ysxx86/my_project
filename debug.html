@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统调试界面 - 班主任管理系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+            padding: 20px;
+        }
+        .debug-card {
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .log-container {
+            height: 250px;
+            overflow-y: auto;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            padding: 10px;
+            font-family: monospace;
+        }
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 3px;
+            border-bottom: 1px solid #eee;
+        }
+        .log-info { color: #0d6efd; }
+        .log-error { color: #dc3545; }
+        .log-warn { color: #ffc107; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mb-4">系统调试界面</h1>
+        
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <p class="mb-0">调试工具帮助您排查系统问题。需要返回主系统？</p>
+                    <div class="mt-2">
+                        <a href="pages/comments.html" class="btn btn-primary btn-sm">评语管理</a>
+                        <a href="pages/students.html" class="btn btn-secondary btn-sm">学生管理</a>
+                        <a href="pages/settings.html" class="btn btn-secondary btn-sm">系统设置</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card debug-card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">控制台日志</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="log-container" id="logContainer">
+                            <!-- 日志条目将在这里显示 -->
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <button class="btn btn-outline-secondary btn-sm" id="clearLogBtn">清空日志</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card debug-card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">评语保存功能测试</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="testForm">
+                            <div class="mb-3">
+                                <label for="testStudentId" class="form-label">学生ID</label>
+                                <input type="text" class="form-control" id="testStudentId" value="1001">
+                            </div>
+                            <div class="mb-3">
+                                <label for="testComment" class="form-label">评语内容</label>
+                                <textarea class="form-control" id="testComment" rows="3">测试评语内容</textarea>
+                            </div>
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="testAppendMode">
+                                <label class="form-check-label" for="testAppendMode">添加模式</label>
+                            </div>
+                            <button type="button" class="btn btn-primary" id="testSaveBtn">测试保存</button>
+                        </form>
+                    </div>
+                </div>
+                
+                <div class="card debug-card mt-4">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0">环境信息</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="envInfo">
+                            <!-- 环境信息将在这里显示 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card debug-card">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">故障排查工具</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <button class="btn btn-outline-primary w-100" id="checkServerBtn">检查服务器连接</button>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <button class="btn btn-outline-primary w-100" id="checkDOMBtn">检查DOM事件</button>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <button class="btn btn-outline-primary w-100" id="fixSaveBtn">修复保存按钮</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 模拟保存模态框 -->
+    <div class="modal fade" id="debugModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">测试模态框</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>这是一个测试模态框，用于测试模态框内按钮的点击事件。</p>
+                    <textarea id="modalTextarea" class="form-control" rows="3" data-student-id="1001"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                    <button type="button" class="btn btn-primary" id="modalSaveBtn">保存评语</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 捕获控制台日志
+        (function() {
+            const oldLog = console.log;
+            const oldError = console.error;
+            const oldWarn = console.warn;
+            
+            console.log = function(...args) {
+                addLogEntry('info', args.join(' '));
+                oldLog.apply(console, args);
+            };
+            
+            console.error = function(...args) {
+                addLogEntry('error', args.join(' '));
+                oldError.apply(console, args);
+            };
+            
+            console.warn = function(...args) {
+                addLogEntry('warn', args.join(' '));
+                oldWarn.apply(console, args);
+            };
+        })();
+        
+        // 添加日志条目
+        function addLogEntry(type, message) {
+            const logContainer = document.getElementById('logContainer');
+            if (!logContainer) return;
+            
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+        
+        // 显示环境信息
+        function showEnvironmentInfo() {
+            const envInfo = document.getElementById('envInfo');
+            if (!envInfo) return;
+            
+            const info = [
+                `浏览器: ${navigator.userAgent}`,
+                `屏幕分辨率: ${window.screen.width} x ${window.screen.height}`,
+                `窗口大小: ${window.innerWidth} x ${window.innerHeight}`,
+                `DPR: ${window.devicePixelRatio}`,
+                `语言: ${navigator.language}`,
+                `平台: ${navigator.platform}`,
+                `Bootstrap版本: ${typeof bootstrap !== 'undefined' ? bootstrap.Modal.VERSION : '未加载'}`
+            ];
+            
+            envInfo.innerHTML = info.map(item => `<div>${item}</div>`).join('');
+        }
+        
+        // 模拟保存评语功能
+        function simulateSaveComment(studentId, content, appendMode) {
+            console.log(`模拟保存评语: ID=${studentId}, 内容=${content}, 追加模式=${appendMode}`);
+            
+            const saveBtn = document.getElementById('testSaveBtn');
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 保存中...';
+            }
+            
+            // 模拟网络请求
+            setTimeout(() => {
+                if (Math.random() > 0.2) { // 80%成功率
+                    console.log('模拟保存成功');
+                    alert('模拟保存成功！');
+                } else {
+                    console.error('模拟保存失败');
+                    alert('模拟保存失败！');
+                }
+                
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = '测试保存';
+                }
+            }, 1500);
+        }
+        
+        // 检查服务器连接
+        function checkServerConnection() {
+            console.log('检查服务器连接...');
+            
+            fetch('/api/ping')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('服务器响应:', data);
+                    alert(`服务器连接成功: ${JSON.stringify(data)}`);
+                })
+                .catch(error => {
+                    console.error('服务器连接失败:', error);
+                    alert(`服务器连接失败: ${error.message}`);
+                });
+        }
+        
+        // 检查DOM事件
+        function checkDOMEvents() {
+            console.log('检查DOM事件绑定...');
+            
+            // 打开测试模态框
+            const debugModal = new bootstrap.Modal(document.getElementById('debugModal'));
+            debugModal.show();
+            
+            // 绑定模态框内保存按钮事件
+            const modalSaveBtn = document.getElementById('modalSaveBtn');
+            if (modalSaveBtn) {
+                // 移除现有事件
+                modalSaveBtn.replaceWith(modalSaveBtn.cloneNode(true));
+                
+                // 重新获取按钮并绑定事件
+                const newModalSaveBtn = document.getElementById('modalSaveBtn');
+                newModalSaveBtn.addEventListener('click', function() {
+                    console.log('模态框内保存按钮被点击');
+                    const textarea = document.getElementById('modalTextarea');
+                    const studentId = textarea.dataset.studentId;
+                    const content = textarea.value;
+                    
+                    simulateSaveComment(studentId, content, false);
+                });
+                
+                console.log('模态框内保存按钮事件已绑定');
+            }
+        }
+        
+        // 修复保存按钮
+        function fixSaveButton() {
+            console.log('尝试修复保存按钮...');
+            
+            // 获取页面上的所有保存按钮
+            const saveButtons = document.querySelectorAll('button[id$="SaveBtn"], button.btn-primary');
+            
+            saveButtons.forEach(btn => {
+                console.log(`发现按钮: ${btn.id || btn.className}`);
+                
+                // 克隆并替换按钮，移除所有现有事件处理程序
+                const newBtn = btn.cloneNode(true);
+                btn.parentNode.replaceChild(newBtn, btn);
+                
+                // 为新按钮添加明确的点击事件
+                newBtn.addEventListener('click', function(event) {
+                    console.log(`按钮 ${newBtn.id || newBtn.className} 被点击`);
+                    event.preventDefault();
+                    
+                    // 对于评语保存按钮，模拟保存动作
+                    if (newBtn.id === 'saveCommentBtn') {
+                        const commentText = document.getElementById('commentText');
+                        if (commentText) {
+                            const studentId = commentText.dataset.studentId || '1001';
+                            const content = commentText.value || '测试评语';
+                            const appendMode = document.getElementById('appendModeSwitch')?.checked || false;
+                            
+                            simulateSaveComment(studentId, content, appendMode);
+                        }
+                    }
+                    
+                    // 对于测试保存按钮，执行测试功能
+                    if (newBtn.id === 'testSaveBtn') {
+                        const studentId = document.getElementById('testStudentId')?.value || '1001';
+                        const content = document.getElementById('testComment')?.value || '测试评语';
+                        const appendMode = document.getElementById('testAppendMode')?.checked || false;
+                        
+                        simulateSaveComment(studentId, content, appendMode);
+                    }
+                });
+                
+                console.log(`按钮 ${newBtn.id || newBtn.className} 已修复`);
+            });
+            
+            alert(`已修复 ${saveButtons.length} 个按钮`);
+        }
+        
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('调试页面初始化');
+            
+            // 显示环境信息
+            showEnvironmentInfo();
+            
+            // 绑定清空日志按钮事件
+            document.getElementById('clearLogBtn')?.addEventListener('click', function() {
+                document.getElementById('logContainer').innerHTML = '';
+                console.log('日志已清空');
+            });
+            
+            // 绑定测试保存按钮事件
+            document.getElementById('testSaveBtn')?.addEventListener('click', function() {
+                const studentId = document.getElementById('testStudentId')?.value || '1001';
+                const content = document.getElementById('testComment')?.value || '测试评语';
+                const appendMode = document.getElementById('testAppendMode')?.checked || false;
+                
+                simulateSaveComment(studentId, content, appendMode);
+            });
+            
+            // 绑定检查服务器按钮事件
+            document.getElementById('checkServerBtn')?.addEventListener('click', checkServerConnection);
+            
+            // 绑定检查DOM事件按钮事件
+            document.getElementById('checkDOMBtn')?.addEventListener('click', checkDOMEvents);
+            
+            // 绑定修复保存按钮事件
+            document.getElementById('fixSaveBtn')?.addEventListener('click', fixSaveButton);
+            
+            console.log('调试页面初始化完成');
+        });
+    </script>
+</body>
+</html> 

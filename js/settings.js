@@ -141,6 +141,47 @@ function bindEventListeners() {
         });
     });
     
+    // 测试DeepSeek API连接
+    document.getElementById('testDeepseekApiBtn').addEventListener('click', function() {
+        const apiKey = document.getElementById('deepseekApiKey').value.trim();
+        
+        if (!apiKey) {
+            showToast('请先输入API密钥', 'warning');
+            return;
+        }
+        
+        // 显示测试中状态
+        const testBtn = document.getElementById('testDeepseekApiBtn');
+        testBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 测试中...';
+        testBtn.disabled = true;
+        
+        // 发送测试请求
+        fetch('/api/test-deepseek', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ api_key: apiKey })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                showToast('API连接测试成功！', 'success');
+            } else {
+                showToast('API连接测试失败: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('测试API连接出错:', error);
+            showToast('测试API连接时出错: ' + error.message, 'error');
+        })
+        .finally(() => {
+            // 恢复按钮状态
+            testBtn.innerHTML = '测试连接';
+            testBtn.disabled = false;
+        });
+    });
+    
     // API密钥显示/隐藏切换
     document.getElementById('toggleDeepseekKeyBtn').addEventListener('click', function() {
         const apiKeyInput = document.getElementById('deepseekApiKey');

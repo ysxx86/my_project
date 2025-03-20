@@ -12,11 +12,38 @@ let commentTemplates = {
 };
 let currentStudentId = null;
 
+// 添加DOM监控，确保按钮事件始终有效
+function monitorDOMChanges() {
+    console.log('开始监控DOM变化...');
+    
+    // 直接绑定事件，不依赖于jQuery或DOM观察器
+    setInterval(function() {
+        const saveBtn = document.getElementById('saveCommentBtn');
+        if (saveBtn && !saveBtn.hasAttribute('data-event-bound')) {
+            console.log('发现未绑定事件的保存按钮，添加点击事件');
+            
+            // 标记按钮已绑定事件，避免重复绑定
+            saveBtn.setAttribute('data-event-bound', 'true');
+            
+            // 添加直接的点击事件，不使用addEventListener
+            saveBtn.onclick = function(event) {
+                console.log('保存按钮点击事件触发(通过DOM监控)');
+                event.preventDefault();
+                saveComment();
+                return false;
+            };
+        }
+    }, 1000); // 每秒检查一次
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     console.log('评语管理页面初始化...');
     
     // 初始化
     initialize();
+    
+    // 启动DOM监控
+    monitorDOMChanges();
 });
 
 // 初始化评语列表
@@ -235,13 +262,21 @@ function createCommentCard(student, commentData) {
                     </div>
                 </div>
                 <div>
-                    <button class="btn btn-sm btn-primary" onclick="fillCommentForm('${student.id}', '${student.name}')">
+                    <button class="btn btn-sm btn-primary edit-comment-btn" data-student-id="${student.id}" data-student-name="${student.name}">
                         <i class='bx bx-edit'></i> 编辑评语
                     </button>
                 </div>
             </div>
         </div>
     `;
+    
+    // 绑定编辑按钮事件
+    const editBtn = col.querySelector('.edit-comment-btn');
+    if (editBtn) {
+        editBtn.addEventListener('click', function() {
+            fillCommentForm(this.dataset.studentId, this.dataset.studentName);
+        });
+    }
     
     return col;
 }
@@ -255,12 +290,18 @@ function fillCommentForm(studentId, studentName) {
     const modalStudentId = document.getElementById('modalStudentId');
     const commentText = document.getElementById('commentText');
     
-    if (modalStudentName) modalStudentName.textContent = studentName;
-    if (modalStudentId) modalStudentId.textContent = `学号: ${studentId}`;
-    if (!commentText) return;
+    if (!modalStudentName || !modalStudentId || !commentText) {
+        showNotification('找不到必要的表单元素', 'error');
+        return;
+    }
+    
+    // 设置学生信息
+    modalStudentName.textContent = studentName;
+    modalStudentId.textContent = `学号: ${studentId}`;
     
     // 存储学生ID，用于保存评语
     commentText.dataset.studentId = studentId;
+    currentStudentId = studentId;
     
     // 显示加载状态
     commentText.value = '加载中...';
@@ -269,7 +310,12 @@ function fillCommentForm(studentId, studentName) {
     if (USE_SERVER_API) {
         // 从服务器获取评语数据
         fetch(`/api/comments/${studentId}`)
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.status === 'ok' && data.comment) {
                     commentText.value = data.comment.content || '';
@@ -280,6 +326,7 @@ function fillCommentForm(studentId, studentName) {
             .catch(error => {
                 console.error('获取评语数据出错:', error);
                 commentText.value = '';
+                showNotification('获取评语数据失败: ' + error.message, 'error');
             })
             .finally(() => {
                 commentText.disabled = false;
@@ -320,13 +367,25 @@ function fillCommentForm(studentId, studentName) {
 
 // 保存评语
 function saveComment() {
+    console.log('执行保存评语函数...');
+    
     const commentText = document.getElementById('commentText');
-    if (!commentText) return;
+    if (!commentText) {
+        console.error('找不到评语输入框');
+        showNotification('找不到评语输入框', 'error');
+        return;
+    }
     
     const studentId = commentText.dataset.studentId;
-    const content = commentText.value.trim();
+    if (!studentId) {
+        console.error('未找到学生ID');
+        showNotification('未找到学生ID', 'error');
+        return;
+    }
     
-    if (!studentId || !content) {
+    const content = commentText.value.trim();
+    if (!content) {
+        console.error('评语内容为空');
         showNotification('请输入评语内容', 'error');
         return;
     }
@@ -334,127 +393,113 @@ function saveComment() {
     // 检查评语字数是否超过限制
     const maxLength = 200;
     if (content.length > maxLength) {
+        console.error('评语内容超过字数限制');
         showNotification(`评语内容超过${maxLength}字限制，请编辑后重试`, 'error');
         return;
     }
     
     // 检查是否为添加模式
-    const appendMode = document.getElementById('appendModeSwitch').checked;
+    const appendMode = document.getElementById('appendModeSwitch')?.checked || false;
+    console.log(`保存模式: ${appendMode ? '添加' : '替换'}`);
     
     // 创建评语对象
     const commentData = {
         studentId,
         content,
-        appendMode,
-        updateDate: formatDate(new Date())
+        appendMode
     };
     
     // 显示处理状态
-    const saveBtn = document.querySelector('#editCommentModal .btn-primary');
+    const saveBtn = document.getElementById('saveCommentBtn');
     if (saveBtn) {
         saveBtn.disabled = true;
         saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 保存中...';
     }
     
-    // 两种实现方式：
-    // 1. 如果已实现服务器端API，则使用服务器端保存
-    if (USE_SERVER_API) {
-        // 发送到服务器
-        fetch('/api/comments', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(commentData)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'ok') {
-                // 关闭模态框
-                const modal = bootstrap.Modal.getInstance(document.getElementById('editCommentModal'));
-                modal.hide();
-                
-                // 实时更新评语卡片，使用服务器返回的更新后内容
-                if (data.updatedContent) {
-                    commentData.content = data.updatedContent;
-                }
-                updateCommentCard(studentId, commentData);
-                
-                // 显示成功通知
-                showNotification('评语保存成功');
-            } else {
-                showNotification('评语保存失败: ' + data.message, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('保存评语时出错:', error);
-            showNotification('保存评语时出错，请查看控制台获取详细信息', 'error');
-        })
-        .finally(() => {
-            // 恢复按钮状态
-            if (saveBtn) {
-                saveBtn.disabled = false;
-                saveBtn.innerHTML = '保存评语';
-            }
-        });
-    } 
-    // 2. 如果使用本地存储，则使用dataService
-    else {
-        // 保存评语
-        const success = dataService.updateComment(commentData);
-        
-        if (success) {
+    console.log('发送保存请求:', commentData);
+    
+    // 发送到服务器
+    fetch('/api/comments', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(commentData)
+    })
+    .then(response => {
+        console.log('服务器响应状态:', response.status);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('保存评语响应:', data);
+        if (data.status === 'ok') {
             // 关闭模态框
             const modal = bootstrap.Modal.getInstance(document.getElementById('editCommentModal'));
-            modal.hide();
+            if (modal) {
+                modal.hide();
+            }
             
-            // 实时更新评语卡片（无需刷新整个列表）
-            updateCommentCard(studentId, commentData);
+            // 实时更新评语卡片
+            const updatedComment = {
+                content: data.updatedContent || content,
+                updateDate: data.updateDate || new Date().toLocaleString()
+            };
+            updateCommentCard(studentId, updatedComment);
             
             // 显示成功通知
             showNotification('评语保存成功');
-            
-            // 触发自定义事件，通知评语已更新
-            const event = new CustomEvent('commentUpdated', { 
-                detail: { 
-                    studentId, 
-                    content, 
-                    updateDate: commentData.updateDate 
-                } 
-            });
-            document.dispatchEvent(event);
         } else {
-            showNotification('评语保存失败', 'error');
+            throw new Error(data.message || '保存失败');
         }
-        
+    })
+    .catch(error => {
+        console.error('保存评语时出错:', error);
+        showNotification('保存评语时出错: ' + error.message, 'error');
+    })
+    .finally(() => {
         // 恢复按钮状态
         if (saveBtn) {
             saveBtn.disabled = false;
             saveBtn.innerHTML = '保存评语';
         }
-    }
+    });
 }
 
 // 实时更新评语卡片
 function updateCommentCard(studentId, comment) {
+    if (!studentId || !comment) {
+        console.error('更新评语卡片失败：缺少必要参数');
+        return;
+    }
+
     // 查找对应的评语卡片
     const commentCard = document.querySelector(`[data-student-id="${studentId}"]`);
-    if (!commentCard) return;
+    if (!commentCard) {
+        console.error(`找不到ID为 ${studentId} 的评语卡片`);
+        return;
+    }
     
     // 更新评语内容
     const contentElement = commentCard.querySelector('.comment-text');
     if (contentElement) {
-        contentElement.textContent = comment.content;
+        contentElement.textContent = comment.content || '暂无评语';
+    } else {
+        console.error('找不到评语内容元素');
     }
     
     // 更新评语日期
     const dateElement = commentCard.querySelector('.comment-date');
     if (dateElement) {
         dateElement.innerHTML = `<i class='bx bx-calendar'></i> ${comment.updateDate || '未更新'}`;
+    } else {
+        console.error('找不到评语日期元素');
     }
     
     // 更新评语字数和状态
-    const commentLength = comment.content.length;
+    const commentLength = (comment.content || '').length;
     let lengthColorClass = 'text-danger';
     if (commentLength >= 100) {
         lengthColorClass = 'text-success';
@@ -468,6 +513,8 @@ function updateCommentCard(studentId, comment) {
             <i class='bx bx-text'></i> ${commentLength} 字
             <span class="ms-1 ${lengthColorClass}">${commentLength < 50 ? '(字数不足)' : ''}</span>
         `;
+    } else {
+        console.error('找不到评语统计元素');
     }
 }
 
@@ -1521,6 +1568,8 @@ function showTemplateSelectorModal() {
 
 // 初始化评语数据
 function initialize() {
+    console.log('开始初始化评语管理功能...');
+    
     // 加载评语模板
     loadCommentTemplates();
     
@@ -1530,194 +1579,231 @@ function initialize() {
     // 绑定事件监听器
     bindEventListeners();
     
-    // 绑定搜索事件
-    const searchInput = document.getElementById('searchStudent');
-    if (searchInput) {
-        searchInput.addEventListener('input', function() {
-            filterComments(this.value);
-        });
-    }
+    console.log('评语管理功能初始化完成');
 }
 
 // 绑定事件监听器
 function bindEventListeners() {
-    // 编辑评语按钮点击事件
-    $(document).on('click', '.edit-comment-btn', function() {
-        const studentId = $(this).data('student-id');
-        const comment = $(this).data('comment');
-        
-        // 设置学生信息和评语内容
-        const studentName = $(this).closest('.card').find('.student-name').text();
-        $('#modalStudentName').text(studentName);
-        $('#modalStudentId').text('学号: ' + studentId);
-        $('#commentText').val(comment || '');
-        
-        // 清空AI评语生成区域的输入
-        $('#personalityInput').val('');
-        $('#studyPerformanceInput').val('');
-        $('#hobbiesInput').val('');
-        $('#improvementInput').val('');
-        
-        // 重置添加模式开关
-        $('#appendModeSwitch').prop('checked', false);
-        
-        // 更新字数统计
-        updateCharCount();
-        
-        // 存储当前学生ID
-        currentStudentId = studentId;
-        
-        // 显示模态框
-        $('#editCommentModal').modal('show');
-    });
-    
-    // 保存评语按钮事件
-    $('#saveCommentBtn').on('click', function() {
-        saveComment();
-    });
+    console.log('绑定事件监听器...');
     
     // 批量编辑按钮事件
-    $('#batchEditBtn').on('click', function() {
-        showBatchEditModal();
-    });
+    const batchEditBtn = document.getElementById('batchEditBtn');
+    if (batchEditBtn) {
+        batchEditBtn.addEventListener('click', function() {
+            console.log('批量编辑按钮被点击');
+            showBatchEditModal();
+        });
+    } else {
+        console.error('找不到批量编辑按钮');
+    }
     
     // 批量保存按钮事件
-    $('#saveBatchBtn').on('click', function() {
-        saveBatchComments();
-    });
+    const saveBatchBtn = document.getElementById('saveBatchBtn');
+    if (saveBatchBtn) {
+        saveBatchBtn.addEventListener('click', function() {
+            console.log('批量保存按钮被点击');
+            saveBatchComments();
+        });
+    } else {
+        console.error('找不到批量保存按钮');
+    }
     
     // 导出评语按钮事件
-    $('#exportCommentsBtn').on('click', function() {
-        exportComments();
-    });
+    const exportCommentsBtn = document.getElementById('exportCommentsBtn');
+    if (exportCommentsBtn) {
+        exportCommentsBtn.addEventListener('click', function() {
+            console.log('导出评语按钮被点击');
+            exportComments();
+        });
+    } else {
+        console.error('找不到导出评语按钮');
+    }
     
     // 打印预览按钮事件
-    $('#printPreviewBtn').on('click', function() {
-        showPrintPreview();
-    });
+    const printPreviewBtn = document.getElementById('printPreviewBtn');
+    if (printPreviewBtn) {
+        printPreviewBtn.addEventListener('click', function() {
+            console.log('打印预览按钮被点击');
+            showPrintPreview();
+        });
+    } else {
+        console.error('找不到打印预览按钮');
+    }
     
     // 管理模板按钮事件
-    $('#manageTemplatesBtn').on('click', function() {
-        showTemplateModal();
-    });
+    const manageTemplatesBtn = document.getElementById('manageTemplatesBtn');
+    if (manageTemplatesBtn) {
+        manageTemplatesBtn.addEventListener('click', function() {
+            console.log('管理模板按钮被点击');
+            showTemplateModal();
+        });
+    } else {
+        console.error('找不到管理模板按钮');
+    }
     
     // 添加模板按钮事件
-    $('#addTemplateBtn').on('click', function() {
-        addTemplate();
-    });
+    const addTemplateBtn = document.getElementById('addTemplateBtn');
+    if (addTemplateBtn) {
+        addTemplateBtn.addEventListener('click', function() {
+            console.log('添加模板按钮被点击');
+            addTemplate();
+        });
+    } else {
+        console.error('找不到添加模板按钮');
+    }
     
     // 模板分类筛选按钮事件
-    $('.template-filter').on('click', function() {
-        const filter = $(this).data('filter');
-        filterTemplates(filter);
-        
-        // 更新活动状态
-        $('.template-filter').removeClass('active');
-        $(this).addClass('active');
+    const templateFilters = document.querySelectorAll('.template-filter');
+    templateFilters.forEach(filter => {
+        filter.addEventListener('click', function() {
+            console.log('模板过滤按钮被点击:', this.dataset.filter);
+            const filterType = this.dataset.filter;
+            
+            // 更新活动状态
+            templateFilters.forEach(f => f.classList.remove('active'));
+            this.classList.add('active');
+            
+            // 根据选择的过滤器渲染模板按钮
+            renderTemplateButtons(filterType);
+        });
     });
     
     // 监听评语文本框输入事件，更新字数统计
-    $('#commentText').on('input', function() {
+    const commentText = document.getElementById('commentText');
+    if (commentText) {
+        commentText.addEventListener('input', function() {
+            updateCharCount();
+        });
+    } else {
+        console.error('找不到评语文本框');
+    }
+    
+    // AI评语生成按钮点击事件
+    const generateCommentBtn = document.getElementById('generateCommentBtn');
+    if (generateCommentBtn) {
+        generateCommentBtn.addEventListener('click', function() {
+            console.log('AI评语生成按钮被点击');
+            
+            if (!currentStudentId) {
+                console.error('未设置当前学生ID，无法生成评语');
+                showNotification('无法生成评语：未找到学生ID', 'error');
+                return;
+            }
+            
+            console.log('当前学生ID:', currentStudentId);
+            
+            // 显示生成状态
+            const generationStatus = document.getElementById('generationStatus');
+            if (generationStatus) {
+                generationStatus.classList.remove('d-none');
+            }
+            
+            // 获取参数
+            const params = {
+                student_id: currentStudentId,
+                personality: document.getElementById('personalityInput')?.value || '',
+                study_performance: document.getElementById('studyPerformanceInput')?.value || '',
+                hobbies: document.getElementById('hobbiesInput')?.value || '',
+                improvement: document.getElementById('improvementInput')?.value || '',
+                style: document.getElementById('styleSelect')?.value || '鼓励性的',
+                tone: document.getElementById('toneSelect')?.value || '正式的',
+                max_length: parseInt(document.getElementById('maxLengthSelect')?.value || '200')
+            };
+            
+            console.log('AI生成参数:', params);
+            
+            // 调用API生成评语
+            fetch('/api/generate-comment', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(params)
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('AI生成响应:', data);
+                
+                // 隐藏生成状态
+                if (generationStatus) {
+                    generationStatus.classList.add('d-none');
+                }
+                
+                if (data.status === 'success') {
+                    // 如果是添加模式，则在现有评语后添加
+                    const appendModeSwitch = document.getElementById('appendModeSwitch');
+                    const isAppendMode = appendModeSwitch && appendModeSwitch.checked;
+                    
+                    if (isAppendMode && commentText.value) {
+                        if (!commentText.value.endsWith('\n')) {
+                            commentText.value = commentText.value + '\n' + data.comment;
+                        } else {
+                            commentText.value = commentText.value + data.comment;
+                        }
+                    } else {
+                        // 否则直接替换
+                        commentText.value = data.comment;
+                    }
+                    
+                    // 更新字数统计
+                    updateCharCount();
+                    
+                    // 折叠AI评语助手区域
+                    const aiCollapse = bootstrap.Collapse.getInstance(document.getElementById('aiGeneratorCollapse'));
+                    if (aiCollapse) {
+                        aiCollapse.hide();
+                    }
+                    
+                    // 显示成功消息
+                    showNotification('评语生成成功！');
+                } else {
+                    // 显示错误消息
+                    showNotification(`生成失败: ${data.message}`, 'error');
+                }
+            })
+            .catch(error => {
+                // 隐藏生成状态
+                if (generationStatus) {
+                    generationStatus.classList.add('d-none');
+                }
+                console.error('生成评语时出错:', error);
+                showNotification('生成评语时出错，请重试', 'error');
+            });
+        });
+    } else {
+        console.error('找不到AI评语生成按钮');
+    }
+    
+    // 搜索输入事件
+    const searchInput = document.getElementById('searchStudent');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            console.log('搜索框输入:', this.value);
+            filterComments(this.value);
+        });
+    } else {
+        console.error('找不到搜索输入框');
+    }
+    
+    // 为批量编辑中的全选/取消全选按钮绑定事件
+    document.getElementById('selectAllStudentsBtn')?.addEventListener('click', function() {
+        console.log('全选按钮被点击');
+        const checkboxes = document.querySelectorAll('.student-checkbox');
+        checkboxes.forEach(cb => cb.checked = true);
+        document.getElementById('selectAllCheckbox').checked = true;
+    });
+    
+    document.getElementById('deselectAllStudentsBtn')?.addEventListener('click', function() {
+        console.log('取消全选按钮被点击');
+        const checkboxes = document.querySelectorAll('.student-checkbox');
+        checkboxes.forEach(cb => cb.checked = false);
+        document.getElementById('selectAllCheckbox').checked = false;
+    });
+    
+    // 批量评语文本框输入事件
+    document.getElementById('batchCommentText')?.addEventListener('input', function() {
         updateCharCount();
     });
     
-    // AI评语生成按钮点击事件
-    $('#generateCommentBtn').on('click', function() {
-        // 显示生成状态
-        $('#generationStatus').removeClass('d-none');
-        
-        // 获取参数
-        const params = {
-            student_id: currentStudentId,
-            personality: $('#personalityInput').val(),
-            study_performance: $('#studyPerformanceInput').val(),
-            hobbies: $('#hobbiesInput').val(),
-            improvement: $('#improvementInput').val(),
-            style: $('#styleSelect').val(),
-            tone: $('#toneSelect').val(),
-            max_length: parseInt($('#maxLengthSelect').val())
-        };
-        
-        // 调用API生成评语
-        fetch('/api/generate-comment', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(params)
-        })
-        .then(response => response.json())
-        .then(data => {
-            // 隐藏生成状态
-            $('#generationStatus').addClass('d-none');
-            
-            if (data.status === 'success') {
-                // 如果是添加模式，则在现有评语后添加
-                if ($('#appendModeSwitch').is(':checked')) {
-                    const currentText = $('#commentText').val();
-                    if (currentText && !currentText.endsWith('\n')) {
-                        $('#commentText').val(currentText + '\n' + data.comment);
-                    } else {
-                        $('#commentText').val(currentText + data.comment);
-                    }
-                } else {
-                    // 否则直接替换
-                    $('#commentText').val(data.comment);
-                }
-                
-                // 更新字数统计
-                updateCharCount();
-                
-                // 折叠AI评语助手区域
-                $('#aiGeneratorCollapse').collapse('hide');
-                
-                // 显示成功消息
-                showToast('评语生成成功！', 'success');
-            } else {
-                // 显示错误消息
-                showToast(`生成失败: ${data.message}`, 'error');
-            }
-        })
-        .catch(error => {
-            // 隐藏生成状态
-            $('#generationStatus').addClass('d-none');
-            console.error('Error generating comment:', error);
-            showToast('生成评语时出错，请重试', 'error');
-        });
-    });
-
-    // 显示/隐藏生成状态的监听
-    $('#aiGeneratorCollapse').on('hidden.bs.collapse', function () {
-        // 隐藏生成状态
-        $('#generationStatus').addClass('d-none');
-    });
-}
-
-// 显示提示信息
-function showToast(message, type = 'info') {
-    const toastClass = type === 'error' ? 'bg-danger' : 
-                      type === 'success' ? 'bg-success' : 'bg-info';
-    
-    const toastHtml = `
-        <div class="toast ${toastClass} text-white" role="alert" aria-live="assertive" aria-atomic="true">
-            <div class="toast-body">
-                ${message}
-            </div>
-        </div>
-    `;
-    
-    const $toast = $(toastHtml);
-    $('#toastContainer').append($toast);
-    
-    $toast.toast({
-        delay: 3000,
-        autohide: true
-    });
-    
-    $toast.toast('show');
-    
-    // 自动移除
-    $toast.on('hidden.bs.toast', function() {
-        $(this).remove();
-    });
+    console.log('事件监听器绑定完成');
 }

@@ -25,6 +25,77 @@ class DeepSeekAPI:
         if not self.api_key:
             logger.warning("未设置DeepSeek API密钥，请设置环境变量DEEPSEEK_API_KEY或直接提供api_key参数")
     
+    def test_connection(self) -> Dict[str, Any]:
+        """测试API连接是否正常
+        
+        Returns:
+            包含测试结果的字典，格式为 {"status": "success|error", "message": "..."}
+        """
+        if not self.api_key:
+            return {
+                "status": "error",
+                "message": "未设置API密钥，无法测试连接"
+            }
+            
+        # 构建请求头
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_key}"
+        }
+        
+        # 构建一个简单的请求体
+        payload = {
+            "model": "deepseek-chat",
+            "messages": [
+                {"role": "system", "content": "你是一个简单的API测试助手。"},
+                {"role": "user", "content": "返回'连接测试成功'这几个字，不要返回其他内容。"}
+            ],
+            "temperature": 0.1,
+            "max_tokens": 10
+        }
+        
+        try:
+            # 发送请求
+            logger.info("正在测试DeepSeek API连接...")
+            response = requests.post(self.API_URL, headers=headers, json=payload, timeout=10)
+            response.raise_for_status()  # 检查HTTP错误
+            
+            # 解析响应
+            result = response.json()
+            
+            # 检查响应是否包含预期字段
+            if "choices" in result and len(result["choices"]) > 0:
+                logger.info("DeepSeek API连接测试成功")
+                return {
+                    "status": "success",
+                    "message": "API连接正常"
+                }
+            else:
+                logger.warning(f"API响应格式异常: {result}")
+                return {
+                    "status": "error",
+                    "message": "API响应格式异常，但连接成功"
+                }
+                
+        except requests.exceptions.RequestException as e:
+            logger.error(f"API连接测试失败: {str(e)}")
+            return {
+                "status": "error",
+                "message": f"API连接失败: {str(e)}"
+            }
+        except json.JSONDecodeError:
+            logger.error("API返回的不是有效的JSON格式")
+            return {
+                "status": "error",
+                "message": "API返回格式错误"
+            }
+        except Exception as e:
+            logger.error(f"API连接测试时发生未知错误: {str(e)}")
+            return {
+                "status": "error",
+                "message": f"API连接测试失败: {str(e)}"
+            }
+    
     def generate_comment(self, 
                         student_info: Dict[str, Any], 
                         style: str = "鼓励性的", 
