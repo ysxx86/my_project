@@ -12,6 +12,35 @@ let commentTemplates = {
 };
 let currentStudentId = null;
 
+// 在文件顶部添加呼吸效果的CSS样式
+document.addEventListener('DOMContentLoaded', function() {
+    // 添加呼吸效果CSS
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes breathing {
+            0% { opacity: 0.7; }
+            50% { opacity: 1; }
+            100% { opacity: 0.7; }
+        }
+        .breathing-text {
+            animation: breathing 2s infinite ease-in-out;
+            font-weight: bold;
+            color: #3498db;
+        }
+        
+        @keyframes breathing-border {
+            0% { box-shadow: 0 0 0 0 rgba(52, 152, 219, 0.4); }
+            50% { box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.8); }
+            100% { box-shadow: 0 0 0 0 rgba(52, 152, 219, 0.4); }
+        }
+        .breathing-border {
+            animation: breathing-border 2s infinite ease-in-out;
+            border-color: #3498db !important;
+        }
+    `;
+    document.head.appendChild(style);
+});
+
 // 添加DOM监控，确保按钮事件始终有效
 function monitorDOMChanges() {
     console.log('开始监控DOM变化...');
@@ -262,8 +291,8 @@ function createCommentCard(student, commentData) {
                     </div>
                 </div>
                 <div>
-                    <button class="btn btn-sm btn-outline-info ai-comment-btn me-1" data-student-id="${student.id}" data-student-name="${student.name}">
-                        <i class='bx bx-bot'></i> AI助手
+                    <button class="btn btn-sm btn-outline-info ai-comment-btn me-1 breathing-border" data-student-id="${student.id}" data-student-name="${student.name}">
+                        <i class='bx bx-bot'></i> <span class="breathing-text">AI海海</span>
                     </button>
                     <button class="btn btn-sm btn-primary edit-comment-btn" data-student-id="${student.id}" data-student-name="${student.name}">
                         <i class='bx bx-edit'></i> 编辑评语
@@ -1733,7 +1762,7 @@ function bindEventListeners() {
 
 // 显示AI评语助手模态框
 function showAICommentAssistant(studentId, studentName) {
-    console.log('打开AI评语助手:', studentId, studentName);
+    console.log('打开AI海海评语助手:', studentId, studentName);
     
     // 创建模态框HTML
     const modalId = 'aiCommentAssistantModal';
@@ -1752,11 +1781,18 @@ function showAICommentAssistant(studentId, studentName) {
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="${modalId}Label">
-                            <i class='bx bx-bot'></i> AI评语助手 - <span id="aiModalStudentName"></span>
+                            <i class='bx bx-bot'></i> <span class="breathing-text">AI海海</span>评语助手 - <span id="aiModalStudentName"></span>
                         </h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
+                        <div class="api-info-bar text-end mb-3">
+                            <small class="text-muted">
+                                <i class='bx bx-info-circle'></i> 您正在使用青柠半夏提供的Deepseek API，您也可以
+                                <a href="/pages/settings.html" class="text-primary">使用自己API，点击修改</a>
+                            </small>
+                        </div>
+                        
                         <!-- AI评语生成设置 -->
                         <div class="card mb-3">
                             <div class="card-body">
@@ -1772,81 +1808,74 @@ function showAICommentAssistant(studentId, studentName) {
                                 </div>
                                 <div class="row mb-3">
                                     <div class="col-md-6">
-                                        <label class="form-label">爱好/特长</label>
-                                        <textarea class="form-control" id="aiHobbiesInput" rows="2" placeholder="例如：喜欢画画、擅长球类运动、对科学感兴趣..."></textarea>
+                                        <label class="form-label">兴趣爱好</label>
+                                        <textarea class="form-control" id="aiHobbiesInput" rows="2" placeholder="例如：喜欢阅读、擅长篮球、参加科技活动..."></textarea>
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label">需要改进的方面</label>
-                                        <textarea class="form-control" id="aiImprovementInput" rows="2" placeholder="例如：注意力不集中、作业拖延、不爱发言..."></textarea>
+                                        <textarea class="form-control" id="aiImprovementInput" rows="2" placeholder="例如：上课注意力不集中、作业拖拉、粗心..."></textarea>
                                     </div>
                                 </div>
-                                <div class="row mb-3">
+                                <div class="row">
                                     <div class="col-md-4">
                                         <label class="form-label">评语风格</label>
                                         <select class="form-select" id="aiStyleSelect">
-                                            <option value="鼓励性的">鼓励性</option>
-                                            <option value="严肃的">严肃</option>
-                                            <option value="中肯的">中肯</option>
-                                            <option value="温和的">温和</option>
+                                            <option value="鼓励性的">鼓励性的</option>
+                                            <option value="客观中立的">客观中立的</option>
+                                            <option value="严格要求的">严格要求的</option>
+                                            <option value="幽默活泼的">幽默活泼的</option>
+                                            <option value="全面综合的">全面综合的</option>
                                         </select>
                                     </div>
                                     <div class="col-md-4">
-                                        <label class="form-label">评语语气</label>
+                                        <label class="form-label">语气</label>
                                         <select class="form-select" id="aiToneSelect">
-                                            <option value="正式的">正式</option>
-                                            <option value="亲切的">亲切</option>
-                                            <option value="严厉的">严厉</option>
-                                            <option value="随和的">随和</option>
+                                            <option value="正式的">正式的</option>
+                                            <option value="亲切的">亲切的</option>
+                                            <option value="生动的">生动的</option>
+                                            <option value="专业的">专业的</option>
                                         </select>
                                     </div>
                                     <div class="col-md-4">
-                                        <label class="form-label">最大字数</label>
-                                        <input type="number" class="form-control" id="aiMaxLengthInput" value="200" min="50" max="500">
+                                        <label class="form-label">字数限制</label>
+                                        <input type="number" class="form-control" id="aiMaxLengthInput" value="150" min="50" max="300">
                                     </div>
                                 </div>
-                                <div class="text-end">
-                                    <button id="generateAICommentBtn" class="btn btn-primary">
-                                        <i class='bx bx-magic'></i> 生成AI评语
-                                    </button>
-                                </div>
+                            </div>
+                            <div class="card-footer text-end">
+                                <button type="button" class="btn btn-primary" id="generateAICommentBtn">
+                                    <i class='bx bx-bot'></i> 生成评语
+                                </button>
                             </div>
                         </div>
                         
-                        <!-- AI评语预览 -->
-                        <div id="aiCommentPreview" class="card" style="display: none;">
-                            <div class="card-header bg-info text-white">
-                                <h6 class="mb-0">
-                                    <i class='bx bx-bot'></i> AI生成的评语
-                                </h6>
+                        <!-- 生成中提示 -->
+                        <div id="aiGeneratingIndicator" style="display: none;">
+                            <div class="d-flex justify-content-center mb-3">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                            <p class="text-center">AI正在生成评语，请稍候...</p>
+                        </div>
+                        
+                        <!-- 评语预览 -->
+                        <div id="aiCommentPreview" class="card mb-3" style="display: none;">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <span><i class='bx bx-message-alt-detail'></i> AI生成的评语</span>
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="generateAnotherBtn">
+                                    <i class='bx bx-refresh'></i> 重新生成
+                                </button>
                             </div>
                             <div class="card-body">
-                                <div id="aiCommentContent" class="mb-3 p-3 border rounded" style="min-height: 100px;"></div>
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <span class="badge bg-light text-dark" id="aiCommentLength">0/200</span> 字
-                                    </div>
-                                    <div>
-                                        <button class="btn btn-outline-secondary" id="generateAnotherBtn">
-                                            <i class='bx bx-refresh'></i> 重新生成
-                                        </button>
-                                        <button class="btn btn-primary" id="useAICommentBtn">
-                                            <i class='bx bx-check'></i> 使用此评语
-                                        </button>
-                                    </div>
-                                </div>
+                                <p id="aiCommentContent" class="mb-0"></p>
+                            </div>
+                            <div class="card-footer text-end">
+                                <button type="button" class="btn btn-success" id="useAICommentBtn">
+                                    <i class='bx bx-check'></i> 使用此评语
+                                </button>
                             </div>
                         </div>
-                        
-                        <!-- 加载中提示 -->
-                        <div id="aiGeneratingIndicator" class="text-center p-4" style="display: none;">
-                            <div class="spinner-border text-primary mb-3" role="status">
-                                <span class="visually-hidden">正在生成...</span>
-                            </div>
-                            <p>正在生成评语，请稍候...</p>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
                     </div>
                 </div>
             </div>

@@ -20,11 +20,20 @@ class DeepSeekAPI:
         """初始化DeepSeek API客户端
         
         Args:
-            api_key: DeepSeek API密钥，如果不提供则从环境变量获取
+            api_key: DeepSeek API密钥，如果不提供则从环境变量获取，如果环境变量也没有则使用默认值
         """
-        self.api_key = api_key or os.environ.get("DEEPSEEK_API_KEY")
-        if not self.api_key:
-            logger.warning("未设置DeepSeek API密钥，请设置环境变量DEEPSEEK_API_KEY或直接提供api_key参数")
+        # 默认API密钥
+        default_api_key = "sk-04f7d75638d044ed8a707d7aadf46782"
+        
+        # 优先级：1.传入的参数 2.环境变量 3.默认值
+        self.api_key = api_key or os.environ.get("DEEPSEEK_API_KEY") or default_api_key
+        
+        if self.api_key == default_api_key:
+            logger.info("使用默认DeepSeek API密钥")
+        elif api_key:
+            logger.info("使用自定义DeepSeek API密钥")
+        elif os.environ.get("DEEPSEEK_API_KEY"):
+            logger.info("使用环境变量中的DeepSeek API密钥")
     
     def test_connection(self) -> Dict[str, Any]:
         """测试API连接是否正常
