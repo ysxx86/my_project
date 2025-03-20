@@ -249,8 +249,16 @@ class GradesManager:
     def import_grades_from_excel(self, file_path, semester="上学期"):
         """从Excel文件导入成绩"""
         try:
+            # 检查文件路径
+            if not file_path or not os.path.exists(file_path):
+                print(f"文件路径无效或文件不存在: {file_path}")
+                return False, f"文件路径无效或文件不存在: {file_path}"
+                
+            print(f"准备导入成绩文件: {file_path}, 文件大小: {os.path.getsize(file_path)} 字节")
+            
             # 读取Excel文件
             df = pd.read_excel(file_path)
+            print(f"成功读取Excel文件，包含 {len(df)} 行数据")
             
             # 确保有必要的列
             required_columns = ['学号']
@@ -278,6 +286,9 @@ class GradesManager:
                 '书法': 'shufa'
             }
             
+            # 允许的成绩值
+            allowed_grades = ['优', '良', '及格', '待及格', '差', '']
+            
             # 转换Excel数据
             success_count = 0
             fail_count = 0
@@ -289,6 +300,7 @@ class GradesManager:
                     # 检查学生是否存在
                     cursor.execute("SELECT id FROM students WHERE id = ?", (student_id,))
                     if not cursor.fetchone():
+                        print(f"学生ID不存在: {student_id}")
                         fail_count += 1
                         continue
                     
@@ -300,9 +312,9 @@ class GradesManager:
                         if excel_col in df.columns and excel_col != '学号':
                             value = str(row[excel_col]) if pd.notna(row[excel_col]) else ''
                             
-                            # 验证成绩只能是优、良、差三个等级
-                            if value and excel_col != '学号' and value not in ['优', '良', '差', '']:
-                                print(f"警告: {student_id} 的 {excel_col} 成绩 '{value}' 不符合要求，已自动清空")
+                            # 验证成绩值是否在允许的范围内
+                            if value and excel_col != '学号' and value not in allowed_grades:
+                                print(f"警告: {student_id} 的 {excel_col} 成绩 '{value}' 不符合要求，应为：{', '.join(allowed_grades[:-1])}，已自动清空")
                                 value = ''  # 不符合要求的成绩将被清空
                                 
                             set_clauses.append(f"{db_col} = ?")
@@ -330,10 +342,21 @@ class GradesManager:
             conn.commit()
             conn.close()
             
+            print(f"导入完成: 成功 {success_count} 条, 失败 {fail_count} 条")
+            
+            # 删除临时文件
+            try:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    print(f"已删除临时文件: {file_path}")
+            except Exception as e:
+                print(f"删除临时文件失败: {e}")
+            
             return True, f"成功导入 {success_count} 条成绩记录，失败 {fail_count} 条。"
         
         except Exception as e:
             print(f"导入成绩时出错: {e}")
+            print(traceback.format_exc())  # 打印完整的错误堆栈
             return False, f"导入成绩时出错: {str(e)}"
     
     def get_subject_names(self):
@@ -424,14 +447,30 @@ class GradesManager:
         
         # 合并说明文字的单元格
         for i in range(4):
-            ws.merge_cells(start_row=notes_row+i, start_column=1, end_row=notes_row+i, end_column=5)
+            ws.merge_cells(start_row=notes_row+i, start_column=1, end_row=notes_row+i, end_column=6)
         
-        # 保存文件
-        if output_path is None:
-            template_dir = 'templates'
-            if not os.path.exists(template_dir):
-                os.makedirs(template_dir)
+        # 确定保存路径
+        if not output_path:
+            # 使用默认路径
+            template_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'templates')
+            os.makedirs(template_dir, exist_ok=True)
             output_path = os.path.join(template_dir, 'grades_import_template.xlsx')
         
-        wb.save(output_path)
-        return output_path
+        try:
+            # 保存文件
+            wb.save(output_path)
+            print(f"成绩导入模板已保存到: {output_path}")
+            return output_path
+        except Exception as e:
+            print(f"保存成绩导入模板时出错: {e}")
+            print(traceback.format_exc())
+            
+            # 尝试保存到备用位置
+            backup_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'grades_template.xlsx')
+            try:
+                wb.save(backup_path)
+                print(f"成绩导入模板已保存到备用位置: {backup_path}")
+                return backup_path
+            except Exception as e2:
+                print(f"保存到备用位置也失败: {e2}")
+                return None

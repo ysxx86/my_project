@@ -45,6 +45,9 @@ TEMPLATE_FOLDER = 'templates'
 EXPORTS_FOLDER = 'exports'
 DATABASE = 'students.db'
 
+# 将UPLOAD_FOLDER添加到app.config中
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
 # 确保所有必要的文件夹存在
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(TEMPLATE_FOLDER, exist_ok=True)
@@ -1114,13 +1117,13 @@ def get_all_grades():
     try:
         semester = request.args.get('semester', '')
         if not semester:
-            return jsonify({'status': 'error', 'message': 'u8bf7u6307u5b9au5b66u671f'})
+            return jsonify({'status': 'error', 'message': '请提供学期'})
         
         grades = grades_manager.get_all_grades(semester)
         return jsonify({'status': 'ok', 'grades': grades})
     except Exception as e:
-        app.logger.error(f'u83b7u53d6u5b66u751fu6210u7ee9u65f6u51fau9519: {str(e)}')
-        return jsonify({'status': 'error', 'message': f'u83b7u53d6u5b66u751fu6210u7ee9u5931u8d25: {str(e)}'})
+        app.logger.error(f'获取学生成绩时出错: {str(e)}')
+        return jsonify({'status': 'error', 'message': f'获取学生成绩失败: {str(e)}'})
 
 # 获取单个学生成绩
 @app.route('/api/grades/<student_id>', methods=['GET'])
@@ -1130,8 +1133,8 @@ def get_student_grades(student_id):
         grades = grades_manager.get_student_grades(student_id, semester)
         return jsonify({'status': 'ok', 'grades': grades})
     except Exception as e:
-        app.logger.error(f'u83b7u53d6u5b66u751fu6210u7ee9u65f6u51fau9519: {str(e)}')
-        return jsonify({'status': 'error', 'message': f'u83b7u53d6u5b66u751fu6210u7ee9u5931u8d25: {str(e)}'})
+        app.logger.error(f'获取学生成绩时出错: {str(e)}')
+        return jsonify({'status': 'error', 'message': f'获取学生成绩失败: {str(e)}'})
 
 # 保存学生成绩
 @app.route('/api/grades/<student_id>', methods=['POST'])
@@ -1145,7 +1148,7 @@ def save_student_grade(student_id):
         
         if not semester:
             app.logger.error("缺少必要参数: semester")
-            return jsonify({'status': 'error', 'message': 'u7f3au5c11u5fc5u8981u53c2u6570'})
+            return jsonify({'status': 'error', 'message': '缺少必要参数: semester'})
         
         # 移除semester，因为在save_grade函数中已经单独处理了
         grade_data = {}
@@ -1159,14 +1162,14 @@ def save_student_grade(student_id):
         
         if success:
             app.logger.info(f"成功保存学生 {student_id} 的成绩")
-            return jsonify({'status': 'ok', 'message': 'u6210u529fu4fddu5b58u5b66u751fu6210u7ee9'})
+            return jsonify({'status': 'ok', 'message': '成功保存学生成绩'})
         else:
             app.logger.error(f"保存学生 {student_id} 的成绩失败")
-            return jsonify({'status': 'error', 'message': 'u4fddu5b58u5b66u751fu6210u7ee9u5931u8d25'})
+            return jsonify({'status': 'error', 'message': '保存学生成绩失败'})
     except Exception as e:
-        app.logger.error(f'u4fddu5b58u5b66u751fu6210u7ee9u65f6u51fau9519: {str(e)}')
+        app.logger.error(f'保存学生成绩时出错: {str(e)}')
         app.logger.error(traceback.format_exc())
-        return jsonify({'status': 'error', 'message': f'u4fddu5b58u5b66u751fu6210u7ee9u5931u8d25: {str(e)}'})
+        return jsonify({'status': 'error', 'message': f'保存学生成绩失败: {str(e)}'})
 
 # 删除学生成绩
 @app.route('/api/grades/<student_id>', methods=['DELETE'])
@@ -1179,13 +1182,13 @@ def delete_student_grade(student_id):
         
         if success:
             app.logger.info(f"成功删除学生 {student_id} 的成绩")
-            return jsonify({'status': 'ok', 'message': 'u6210u529fu5220u9664u5b66u751fu6210u7ee9'})
+            return jsonify({'status': 'ok', 'message': '成功删除学生成绩'})
         else:
             app.logger.error(f"删除学生 {student_id} 的成绩失败")
-            return jsonify({'status': 'error', 'message': 'u5220u9664u5b66u751fu6210u7ee9u5931u8d25'})
+            return jsonify({'status': 'error', 'message': '删除学生成绩失败'})
     except Exception as e:
-        app.logger.error(f'u5220u9664u5b66u751fu6210u7ee9u65f6u51fau9519: {str(e)}')
-        return jsonify({'status': 'error', 'message': f'u5220u9664u5b66u751fu6210u7ee9u5931u8d25: {str(e)}'})
+        app.logger.error(f'删除学生成绩时出错: {str(e)}')
+        return jsonify({'status': 'error', 'message': f'删除学生成绩失败: {str(e)}'})
 
 # 导入学生成绩
 @app.route('/api/grades/import', methods=['POST'])
@@ -1196,29 +1199,39 @@ def import_grades():
         
         if 'file' not in request.files:
             app.logger.error("未提供文件")
-            return jsonify({'status': 'error', 'message': 'u6ca1u6709u4e0au4f20u6587u4ef6'})
+            return jsonify({'status': 'error', 'message': '没有上传文件'})
         
         file = request.files['file']
+        app.logger.info(f"上传的文件名: {file.filename}")
         
         if file.filename == '':
             app.logger.error("未选择文件")
-            return jsonify({'status': 'error', 'message': 'u672au9009u62e9u6587u4ef6'})
+            return jsonify({'status': 'error', 'message': '未选择文件'})
         
         if not file.filename.endswith(('.xlsx', '.xls')):
             app.logger.error("文件格式不正确")
-            return jsonify({'status': 'error', 'message': 'u53eau8bbau4e0au4f20Excel (.xlsx/.xls) u6587u4ef6'})
+            return jsonify({'status': 'error', 'message': '只能上传Excel (.xlsx/.xls) 文件'})
         
         # 创建上传目录
-        uploads_dir = os.path.join(app.config['UPLOAD_FOLDER'])
-        if not os.path.exists(uploads_dir):
-            os.makedirs(uploads_dir)
+        if not os.path.exists(UPLOAD_FOLDER):
+            app.logger.info(f"创建上传目录: {UPLOAD_FOLDER}")
+            os.makedirs(UPLOAD_FOLDER)
         
         # 保存文件
-        file_path = os.path.join(uploads_dir, secure_filename(file.filename))
+        saved_filename = secure_filename(file.filename)
+        file_path = os.path.join(UPLOAD_FOLDER, saved_filename)
         file.save(file_path)
         app.logger.info(f"保存文件到: {file_path}")
         
+        # 确认文件是否成功保存
+        if not os.path.exists(file_path):
+            app.logger.error(f"文件保存失败: {file_path}")
+            return jsonify({'status': 'error', 'message': '文件保存失败'})
+        
+        app.logger.info(f"文件大小: {os.path.getsize(file_path)} 字节")
+        
         # 导入成绩
+        app.logger.info("开始导入成绩")
         success, message = grades_manager.import_grades_from_excel(file_path, semester)
         
         if success:
@@ -1231,22 +1244,41 @@ def import_grades():
     except Exception as e:
         app.logger.error(f'导入成绩时出错: {str(e)}')
         app.logger.error(traceback.format_exc())
-        return jsonify({'status': 'error', 'message': f'u5bfcu5165u6210u7ee9u5931u8d25: {str(e)}'})
+        
+        # 提供更明确的错误信息
+        error_message = str(e)
+        if "No such file or directory" in error_message:
+            error_message = f"找不到文件或目录: {error_message}"
+        elif "Permission denied" in error_message:
+            error_message = f"权限被拒绝: {error_message}"
+        
+        return jsonify({'status': 'error', 'message': f'导入成绩失败: {error_message}'})
 
 # 下载成绩导入模板
 @app.route('/api/grades/template', methods=['GET'])
 def download_grades_template():
     try:
+        app.logger.info("收到下载成绩导入模板请求")
         template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates', 'grades_import_template.xlsx')
+        app.logger.info(f"查找模板文件: {template_path}")
+        
         if not os.path.exists(template_path):
+            app.logger.info("模板文件不存在，创建新模板")
             # 如果模板不存在，创建一个新的
             template_path = grades_manager.create_empty_template()
+            app.logger.info(f"创建的新模板路径: {template_path}")
+            
+            if not template_path or not os.path.exists(template_path):
+                app.logger.error("创建模板失败或模板路径无效")
+                return jsonify({'status': 'error', 'message': '创建成绩导入模板失败'})
         
+        app.logger.info(f"准备发送模板文件: {template_path}")
         return send_file(template_path, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                          as_attachment=True, download_name='成绩导入模板.xlsx')
     except Exception as e:
         app.logger.error(f'下载成绩导入模板时出错: {str(e)}')
-        return jsonify({'status': 'error', 'message': f'u4e0bu8f7du5931u8d25: {str(e)}'})
+        app.logger.error(traceback.format_exc())
+        return jsonify({'status': 'error', 'message': f'下载成绩导入模板失败: {str(e)}'})
 
 # 初始化数据应用
 if __name__ == '__main__':
