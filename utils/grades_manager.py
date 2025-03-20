@@ -283,12 +283,16 @@ class GradesManager:
                 '待': '待及格'
             }
             
+            # 检查是否包含姓名列，用于校验
+            has_name_column = '姓名' in df.columns
+            name_mismatch_count = 0
+            
             # 先检查Excel中的列是否能够识别
             recognized_subjects = []
             unrecognized_columns = []
             
             for col in df.columns:
-                if col == '学号':
+                if col in ['学号', '姓名']:
                     continue
                 if col in column_mapping:
                     recognized_subjects.append(col)
@@ -312,11 +316,26 @@ class GradesManager:
                     student_id = str(row['学号']).strip()
                     
                     # 检查学生是否存在
-                    cursor.execute("SELECT id FROM students WHERE id = ?", (student_id,))
-                    if not cursor.fetchone():
+                    cursor.execute("SELECT id, name FROM students WHERE id = ?", (student_id,))
+                    student_record = cursor.fetchone()
+                    if not student_record:
                         print(f"学生ID不存在: {student_id}")
                         fail_count += 1
                         continue
+                    
+                    db_student_name = student_record[1]
+                    
+                    # 如果Excel有姓名列，则检查姓名是否匹配
+                    if has_name_column:
+                        excel_student_name = str(row['姓名']).strip() if pd.notna(row['姓名']) else ""
+                        
+                        if excel_student_name and excel_student_name != db_student_name:
+                            name_mismatch_msg = f"姓名不匹配: 学号 {student_id} 在Excel中为「{excel_student_name}」，系统中为「{db_student_name}」"
+                            print(name_mismatch_msg)
+                            warnings.append(name_mismatch_msg)
+                            name_mismatch_count += 1
+                            fail_count += 1
+                            continue
                     
                     # 生成更新字句
                     set_clauses = ["semester = ?"]
@@ -387,6 +406,8 @@ class GradesManager:
                 status_message += f"，跳过 {skipped_count} 条无效记录"
             if fail_count > 0:
                 status_message += f"，失败 {fail_count} 条"
+            if name_mismatch_count > 0:
+                status_message += f"，其中 {name_mismatch_count} 条因姓名不匹配而跳过"
             
             return True, status_message
         
@@ -448,12 +469,16 @@ class GradesManager:
             valid_count = 0
             invalid_count = 0
             warnings = []
+            name_mismatches = []  # 记录姓名不匹配的情况
             recognized_subjects = []  # 记录成功识别的科目
             unrecognized_columns = []  # 记录未识别的列
             
+            # 检查是否包含姓名列，用于校验
+            has_name_column = '姓名' in df.columns
+            
             # 先检查Excel中的列是否能够识别
             for col in df.columns:
-                if col == '学号':
+                if col in ['学号', '姓名']:
                     continue
                 if col in column_mapping:
                     recognized_subjects.append(col)
@@ -478,6 +503,24 @@ class GradesManager:
                         warnings.append(f"警告: 学号 {student_id} 不在系统中")
                         invalid_count += 1
                         continue
+                    
+                    # 如果Excel有姓名列，则检查姓名是否匹配
+                    excel_student_name = ""
+                    if has_name_column:
+                        excel_student_name = str(row['姓名']).strip() if pd.notna(row['姓名']) else ""
+                        db_student_name = students_dict[student_id]['name']
+                        
+                        if excel_student_name and excel_student_name != db_student_name:
+                            name_mismatch_msg = f"姓名不匹配: 学号 {student_id} 在Excel中为「{excel_student_name}」，系统中为「{db_student_name}」"
+                            warnings.append(name_mismatch_msg)
+                            name_mismatches.append({
+                                'student_id': student_id,
+                                'excel_name': excel_student_name,
+                                'db_name': db_student_name
+                            })
+                            # 姓名不匹配视为无效记录
+                            invalid_count += 1
+                            continue
                     
                     # 创建学生成绩记录
                     student_grade = {
@@ -526,13 +569,15 @@ class GradesManager:
                     invalid_count += 1
             
             # 生成HTML预览
-            html_preview = self._generate_grades_preview_html(preview_data, warnings, recognized_subjects, unrecognized_columns)
+            html_preview = self._generate_grades_preview_html(preview_data, warnings, recognized_subjects, unrecognized_columns, name_mismatches)
             
             status_message = f'成功识别 {len(recognized_subjects)} 个科目的成绩，共 {valid_count} 条有效记录'
             if unrecognized_columns:
                 status_message += f'，跳过了 {len(unrecognized_columns)} 个无法识别的列'
             if invalid_count > 0:
                 status_message += f'，{invalid_count} 条记录无效'
+            if name_mismatches:
+                status_message += f'，发现 {len(name_mismatches)} 条姓名不匹配'
             
             return {
                 'status': 'ok',
@@ -542,7 +587,8 @@ class GradesManager:
                 'warnings': warnings,
                 'file_path': file_path,
                 'recognized_subjects': recognized_subjects,
-                'unrecognized_columns': unrecognized_columns
+                'unrecognized_columns': unrecognized_columns,
+                'name_mismatches': name_mismatches
             }
             
         except Exception as e:
@@ -553,7 +599,7 @@ class GradesManager:
                 'message': f"预览成绩时出错: {str(e)}"
             }
     
-    def _generate_grades_preview_html(self, grades_data, warnings=None, recognized_subjects=None, unrecognized_columns=None):
+    def _generate_grades_preview_html(self, grades_data, warnings=None, recognized_subjects=None, unrecognized_columns=None, name_mismatches=None):
         """生成成绩预览的HTML表格"""
         print("生成成绩预览HTML表格")
         
@@ -597,6 +643,42 @@ class GradesManager:
                 html += "</div>"
                 
             html += "</div>"
+        
+        # 添加姓名不匹配警告
+        if name_mismatches and len(name_mismatches) > 0:
+            html += """
+            <div class="alert alert-danger mb-3">
+                <h5><i class='bx bx-error-circle'></i> 姓名不匹配警告：</h5>
+                <p class="mb-2">以下学生的姓名与系统中的记录不一致，这些学生的成绩将被<strong>跳过导入</strong>。请检查姓名是否正确。</p>
+                
+                <div class="table-responsive mt-2">
+                    <table class="table table-sm table-bordered table-danger">
+                        <thead>
+                            <tr>
+                                <th>学号</th>
+                                <th>Excel中的姓名</th>
+                                <th>系统中的姓名</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            """
+            
+            for mismatch in name_mismatches:
+                html += f"""
+                <tr>
+                    <td>{mismatch['student_id']}</td>
+                    <td style="background-color: #fee2e2;">{mismatch['excel_name']}</td>
+                    <td>{mismatch['db_name']}</td>
+                </tr>
+                """
+            
+            html += """
+                        </tbody>
+                    </table>
+                </div>
+                <p class="mt-2 mb-0"><strong>解决方法：</strong>请检查Excel文件中的姓名拼写，确保与系统中的学生姓名完全一致。</p>
+            </div>
+            """
         
         html += """
         <div class="table-responsive">
