@@ -283,12 +283,31 @@ class GradesManager:
                 '待': '待及格'
             }
             
+            # 先检查Excel中的列是否能够识别
+            recognized_subjects = []
+            unrecognized_columns = []
+            
+            for col in df.columns:
+                if col == '学号':
+                    continue
+                if col in column_mapping:
+                    recognized_subjects.append(col)
+                else:
+                    unrecognized_columns.append(col)
+            
+            if unrecognized_columns:
+                print(f"发现未识别的列: {unrecognized_columns}，这些列将被忽略")
+            
+            if not recognized_subjects:
+                return False, f"Excel文件中没有可识别的成绩列。可用的科目包括：{', '.join(column_mapping.keys())}"
+            
             # 转换Excel数据
             success_count = 0
             fail_count = 0
-            warnings = []  # 初始化warnings列表
+            skipped_count = 0
+            warnings = []
             
-            for _, row in df.iterrows():
+            for i, row in df.iterrows():
                 try:
                     student_id = str(row['学号']).strip()
                     
@@ -303,38 +322,49 @@ class GradesManager:
                     set_clauses = ["semester = ?"]
                     values = [semester]
                     
-                    for excel_col, db_col in column_mapping.items():
-                        if excel_col in df.columns and excel_col != '学号':
-                            value = str(row[excel_col]) if pd.notna(row[excel_col]) else ''
-                            
-                            # 验证成绩值是否在允许的范围内
-                            if value and excel_col != '学号':
-                                # 尝试标准化成绩值
-                                if value in grade_mapping:
-                                    value = grade_mapping[value]
-                                
-                                if value not in allowed_grades:
-                                    warnings.append(f"警告: 学号 {student_id} 的 {excel_col} 成绩 '{value}' 不符合要求，应为：{', '.join(allowed_grades[:-1])}")
-                                    value = ''  # 在预览中标记为空
-                                
-                            set_clauses.append(f"{db_col} = ?")
-                            values.append(value)
+                    # 记录是否有有效成绩数据
+                    has_valid_grade = False
                     
-                    # 添加条件参数
-                    values.append(student_id)
-                    
-                    # 执行更新
-                    if len(set_clauses) > 1:  # 确保至少有一个成绩字段要更新
-                        query = f'''
-                        UPDATE students SET {', '.join(set_clauses)}
-                        WHERE id = ?
-                        '''
-                        cursor.execute(query, values)
+                    for excel_col in recognized_subjects:
+                        db_col = column_mapping[excel_col]
+                        value = str(row[excel_col]) if pd.notna(row[excel_col]) else ''
                         
-                        if cursor.rowcount > 0:
-                            success_count += 1
-                        else:
-                            fail_count += 1
+                        # 验证成绩值是否在允许的范围内
+                        if value:
+                            # 尝试标准化成绩值
+                            if value in grade_mapping:
+                                value = grade_mapping[value]
+                            
+                            if value not in allowed_grades:
+                                print(f"警告: 学号 {student_id} 的 {excel_col} 成绩 '{value}' 不符合要求，已自动跳过")
+                                value = ''  # 跳过不符合要求的成绩
+                            else:
+                                has_valid_grade = True  # 找到至少一个有效成绩
+                        
+                        set_clauses.append(f"{db_col} = ?")
+                        values.append(value)
+                    
+                    # 只有有至少一个有效成绩才更新数据库
+                    if has_valid_grade:
+                        # 添加条件参数
+                        values.append(student_id)
+                        
+                        # 执行更新
+                        if len(set_clauses) > 1:  # 确保至少有一个成绩字段要更新
+                            query = f'''
+                            UPDATE students SET {', '.join(set_clauses)}
+                            WHERE id = ?
+                            '''
+                            cursor.execute(query, values)
+                            
+                            if cursor.rowcount > 0:
+                                success_count += 1
+                            else:
+                                fail_count += 1
+                    else:
+                        # 没有有效成绩，跳过此记录
+                        print(f"学号 {student_id} 没有有效的成绩数据，已跳过")
+                        skipped_count += 1
                 except Exception as e:
                     print(f"导入学生 {student_id} 的成绩时出错: {e}")
                     fail_count += 1
@@ -342,7 +372,7 @@ class GradesManager:
             conn.commit()
             conn.close()
             
-            print(f"导入完成: 成功 {success_count} 条, 失败 {fail_count} 条")
+            print(f"导入完成: 成功 {success_count} 条, 跳过 {skipped_count} 条, 失败 {fail_count} 条")
             
             # 删除临时文件
             try:
@@ -352,7 +382,13 @@ class GradesManager:
             except Exception as e:
                 print(f"删除临时文件失败: {e}")
             
-            return True, f"成功导入 {success_count} 条成绩记录，失败 {fail_count} 条。"
+            status_message = f"成功导入 {success_count} 条成绩记录"
+            if skipped_count > 0:
+                status_message += f"，跳过 {skipped_count} 条无效记录"
+            if fail_count > 0:
+                status_message += f"，失败 {fail_count} 条"
+            
+            return True, status_message
         
         except Exception as e:
             print(f"导入成绩时出错: {e}")
@@ -412,6 +448,26 @@ class GradesManager:
             valid_count = 0
             invalid_count = 0
             warnings = []
+            recognized_subjects = []  # 记录成功识别的科目
+            unrecognized_columns = []  # 记录未识别的列
+            
+            # 先检查Excel中的列是否能够识别
+            for col in df.columns:
+                if col == '学号':
+                    continue
+                if col in column_mapping:
+                    recognized_subjects.append(col)
+                else:
+                    unrecognized_columns.append(col)
+            
+            if unrecognized_columns:
+                print(f"发现未识别的列: {unrecognized_columns}")
+            
+            if not recognized_subjects:
+                return {
+                    'status': 'error',
+                    'message': f"Excel文件中没有可识别的成绩列。可用的科目包括：{', '.join(column_mapping.keys())}"
+                }
             
             for i, row in df.iterrows():
                 try:
@@ -432,38 +488,61 @@ class GradesManager:
                     }
                     
                     # 添加各科目成绩
-                    for excel_col, db_col in column_mapping.items():
-                        if excel_col in df.columns and excel_col != '学号':
-                            value = str(row[excel_col]) if pd.notna(row[excel_col]) else ''
-                            
-                            # 验证成绩值是否在允许的范围内
-                            if value and excel_col != '学号':
-                                # 尝试标准化成绩值
-                                if value in grade_mapping:
-                                    value = grade_mapping[value]
-                                
-                                if value not in allowed_grades:
-                                    warnings.append(f"警告: 学号 {student_id} 的 {excel_col} 成绩 '{value}' 不符合要求，应为：{', '.join(allowed_grades[:-1])}")
-                                    value = ''  # 在预览中标记为空
-                            
-                            student_grade[db_col] = value
+                    has_valid_grade = False  # 是否有至少一个有效成绩
+                    grade_warnings = []  # 该学生的成绩警告
                     
-                    preview_data.append(student_grade)
-                    valid_count += 1
+                    for excel_col in recognized_subjects:
+                        db_col = column_mapping[excel_col]
+                        value = str(row[excel_col]) if pd.notna(row[excel_col]) else ''
+                        
+                        # 验证成绩值是否在允许的范围内
+                        if value:
+                            # 尝试标准化成绩值
+                            if value in grade_mapping:
+                                value = grade_mapping[value]
+                            
+                            if value not in allowed_grades:
+                                grade_warnings.append(f"学号 {student_id} 的 {excel_col} 成绩 '{value}' 不符合要求，已自动跳过")
+                                value = ''  # 在预览中标记为空
+                            else:
+                                has_valid_grade = True  # 找到至少一个有效成绩
+                        
+                        student_grade[db_col] = value
+                    
+                    # 只有有效的成绩才添加到预览数据中
+                    if has_valid_grade:
+                        preview_data.append(student_grade)
+                        valid_count += 1
+                        
+                        # 添加该学生的警告（如果有）
+                        warnings.extend(grade_warnings)
+                    else:
+                        # 此学生没有有效成绩，计入无效记录
+                        warnings.append(f"学号 {student_id} 没有有效的成绩数据，已跳过")
+                        invalid_count += 1
+                
                 except Exception as e:
                     warnings.append(f"处理学号 {student_id} 的成绩时出错: {str(e)}")
                     invalid_count += 1
             
             # 生成HTML预览
-            html_preview = self._generate_grades_preview_html(preview_data, warnings)
+            html_preview = self._generate_grades_preview_html(preview_data, warnings, recognized_subjects, unrecognized_columns)
+            
+            status_message = f'成功识别 {len(recognized_subjects)} 个科目的成绩，共 {valid_count} 条有效记录'
+            if unrecognized_columns:
+                status_message += f'，跳过了 {len(unrecognized_columns)} 个无法识别的列'
+            if invalid_count > 0:
+                status_message += f'，{invalid_count} 条记录无效'
             
             return {
                 'status': 'ok',
-                'message': f'成功解析 {valid_count} 条成绩记录，{invalid_count} 条无效记录',
+                'message': status_message,
                 'grades': preview_data,
                 'html_preview': html_preview,
                 'warnings': warnings,
-                'file_path': file_path
+                'file_path': file_path,
+                'recognized_subjects': recognized_subjects,
+                'unrecognized_columns': unrecognized_columns
             }
             
         except Exception as e:
@@ -474,14 +553,52 @@ class GradesManager:
                 'message': f"预览成绩时出错: {str(e)}"
             }
     
-    def _generate_grades_preview_html(self, grades_data, warnings=None):
+    def _generate_grades_preview_html(self, grades_data, warnings=None, recognized_subjects=None, unrecognized_columns=None):
         """生成成绩预览的HTML表格"""
         print("生成成绩预览HTML表格")
         
         # 定义科目名称字典
         subject_names = self.get_subject_names()
         
-        html = """
+        # 添加识别状态信息
+        html = ""
+        if recognized_subjects or unrecognized_columns:
+            html += """
+            <div class="alert alert-info mb-3">
+                <h5><i class='bx bx-info-circle'></i> 导入信息：</h5>
+            """
+            
+            if recognized_subjects:
+                html += f"""
+                <p><strong>已识别的科目({len(recognized_subjects)})：</strong></p>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+                """
+                
+                # 使用绿色荧光背景显示已识别的科目
+                for subject in recognized_subjects:
+                    html += f"""
+                    <span style="display: inline-block; padding: 4px 10px; background-color: #a7f3d0; color: #047857; border-radius: 4px; font-weight: 500;">{subject}</span>
+                    """
+                
+                html += "</div>"
+            
+            if unrecognized_columns:
+                html += f"""
+                <p><strong>未识别的列({len(unrecognized_columns)})：</strong> <small class="text-muted">(这些列将被忽略)</small></p>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+                """
+                
+                # 使用红色荧光背景显示未识别的列
+                for column in unrecognized_columns:
+                    html += f"""
+                    <span style="display: inline-block; padding: 4px 10px; background-color: #fecaca; color: #b91c1c; border-radius: 4px; font-weight: 500;">{column}</span>
+                    """
+                
+                html += "</div>"
+                
+            html += "</div>"
+        
+        html += """
         <div class="table-responsive">
             <table class="table table-striped table-hover">
                 <thead>
@@ -489,6 +606,19 @@ class GradesManager:
                         <th>学号</th>
                         <th>姓名</th>
                         <th>班级</th>
+        """
+        
+        # 添加科目列标题 - 仅包含已识别的科目
+        if recognized_subjects:
+            for subject in ['道法', '语文', '数学', '英语', '劳动', '体育', '音乐', 
+                            '美术', '科学', '综合', '信息', '书法']:
+                if subject in recognized_subjects:
+                    html += f"""
+                        <th style="background-color: #d1fae5;">{subject}</th>
+                    """
+        else:
+            # 如果没有指定已识别的科目，显示所有科目列
+            html += """
                         <th>道法</th>
                         <th>语文</th>
                         <th>数学</th>
@@ -501,6 +631,9 @@ class GradesManager:
                         <th>综合</th>
                         <th>信息</th>
                         <th>书法</th>
+            """
+            
+        html += """
                     </tr>
                 </thead>
                 <tbody>
@@ -513,6 +646,18 @@ class GradesManager:
                     <td>{grade.get('student_id', '-')}</td>
                     <td>{grade.get('student_name', '-')}</td>
                     <td>{grade.get('class', '-')}</td>
+            """
+            
+            # 添加各科目成绩 - 仅包含已识别的科目
+            if recognized_subjects:
+                for subject_code, subject_name in subject_names.items():
+                    if subject_name in recognized_subjects:
+                        html += f"""
+                    <td>{grade.get(subject_code, '-')}</td>
+                        """
+            else:
+                # 如果没有指定已识别的科目，显示所有科目成绩
+                html += f"""
                     <td>{grade.get('daof', '-')}</td>
                     <td>{grade.get('yuwen', '-')}</td>
                     <td>{grade.get('shuxue', '-')}</td>
@@ -525,6 +670,9 @@ class GradesManager:
                     <td>{grade.get('zonghe', '-')}</td>
                     <td>{grade.get('xinxi', '-')}</td>
                     <td>{grade.get('shufa', '-')}</td>
+                """
+                
+            html += """
                 </tr>
             """
         
@@ -536,24 +684,36 @@ class GradesManager:
         
         # 添加警告信息（如果有）
         if warnings and len(warnings) > 0:
+            # 限制显示的警告数量，避免太多警告淹没界面
+            max_warnings = 10
+            warning_count = len(warnings)
+            
             html += """
             <div class="alert alert-warning mt-3">
                 <h5><i class='bx bx-error'></i> 警告信息：</h5>
-                <ul>
             """
             
-            for warning in warnings:
-                html += f"<li>{warning}</li>"
-                
+            if warning_count <= max_warnings:
+                html += "<ul>"
+                for warning in warnings:
+                    html += f"<li>{warning}</li>"
+                html += "</ul>"
+            else:
+                # 只显示部分警告，并提示总数
+                html += f"<p>共有 {warning_count} 条警告，显示前 {max_warnings} 条：</p><ul>"
+                for warning in warnings[:max_warnings]:
+                    html += f"<li>{warning}</li>"
+                html += f"</ul><p>...还有 {warning_count - max_warnings} 条警告未显示</p>"
+            
             html += """
-                </ul>
             </div>
             """
         
         # 添加数据统计
         html += f"""
-        <div class="alert alert-info mt-3">
-            <i class='bx bx-info-circle'></i> 共发现 {len(grades_data)} 条有效成绩数据，点击"确认导入"按钮完成导入。
+        <div class="alert alert-success mt-3">
+            <i class='bx bx-check-circle'></i> 共发现 {len(grades_data)} 条有效成绩数据，点击"确认导入"按钮完成导入。
+            <p class="mb-0 mt-2"><small>系统已自动识别可导入的科目，并跳过了无法识别的列和无效的成绩数据。</small></p>
         </div>
         """
         
