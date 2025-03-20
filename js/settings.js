@@ -1,6 +1,19 @@
 // @charset UTF-8
 // 初始化页面时加载数据库信息
 document.addEventListener('DOMContentLoaded', function() {
+    // 创建样式元素
+    const style = document.createElement('style');
+    style.textContent = `
+        .toast {
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+        .toast.show {
+            opacity: 1;
+        }
+    `;
+    document.head.appendChild(style);
+    
     // 加载数据库信息
     loadDatabaseInfo();
     
@@ -203,34 +216,71 @@ function bindEventListeners() {
 
 // 显示提示信息
 function showToast(message, type = 'info') {
+    console.log('显示Toast消息:', message, type); // 添加日志以便调试
+    
+    // 简化Toast实现，不依赖Bootstrap的Toast API
     const toastClass = type === 'error' ? 'bg-danger' : 
                      type === 'success' ? 'bg-success' : 
                      type === 'warning' ? 'bg-warning' : 'bg-info';
     
-    const toastHtml = `
-        <div class="toast ${toastClass} text-white" role="alert" aria-live="assertive" aria-atomic="true">
-            <div class="toast-body">
-                ${message}
-            </div>
-        </div>
-    `;
+    // 创建一个独立的toast元素
+    const toast = document.createElement('div');
+    toast.className = `toast ${toastClass} text-white`;
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('aria-atomic', 'true');
+    toast.innerHTML = `<div class="toast-body">${message}</div>`;
     
-    const toastContainer = document.getElementById('toastContainer');
+    // 获取或创建Toast容器
+    let toastContainer = document.getElementById('toastContainer');
     if (!toastContainer) {
         // 如果容器不存在，创建一个
-        const container = document.createElement('div');
-        container.id = 'toastContainer';
-        container.className = 'position-fixed bottom-0 end-0 p-3';
-        container.style.zIndex = '9999';
-        document.body.appendChild(container);
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toastContainer';
+        toastContainer.className = 'position-fixed bottom-0 end-0 p-3';
+        toastContainer.style.zIndex = '9999';
+        document.body.appendChild(toastContainer);
     }
     
-    const toastElement = document.createElement('div');
-    toastElement.innerHTML = toastHtml;
-    document.getElementById('toastContainer').appendChild(toastElement.firstChild);
+    // 添加到容器
+    toastContainer.appendChild(toast);
     
-    const toast = new bootstrap.Toast(document.getElementById('toastContainer').lastChild, {
-        delay: 3000
+    // 手动显示Toast
+    requestAnimationFrame(() => {
+        // 确保DOM已更新
+        toast.style.opacity = '1';
+        
+        // 自动隐藏
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transition = 'opacity 0.3s ease';
+            
+            // 等待淡出动画完成后移除元素
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+            }, 300);
+        }, 3000);
     });
-    toast.show();
+
+    // 添加必要的样式
+    const style = document.createElement('style');
+    style.textContent = `
+        #toastContainer {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+        #toastContainer .toast {
+            margin-bottom: 10px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+    `;
+    document.head.appendChild(style);
 } 

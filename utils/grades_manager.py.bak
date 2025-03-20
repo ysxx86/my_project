@@ -334,8 +334,8 @@ class GradesManager:
                             print(name_mismatch_msg)
                             warnings.append(name_mismatch_msg)
                             name_mismatch_count += 1
-                            fail_count += 1
-                            continue
+                        fail_count += 1
+                        continue
                     
                     # 生成更新字句
                     set_clauses = ["semester = ?"]
@@ -519,8 +519,8 @@ class GradesManager:
                                 'db_name': db_student_name
                             })
                             # 姓名不匹配视为无效记录
-                            invalid_count += 1
-                            continue
+                        invalid_count += 1
+                        continue
                     
                     # 创建学生成绩记录
                     student_grade = {
@@ -777,8 +777,8 @@ class GradesManager:
             
             if warning_count <= max_warnings:
                 html += "<ul>"
-                for warning in warnings:
-                    html += f"<li>{warning}</li>"
+            for warning in warnings:
+                html += f"<li>{warning}</li>"
                 html += "</ul>"
             else:
                 # 只显示部分警告，并提示总数
@@ -933,4 +933,4 @@ class GradesManager:
                 return backup_path
             except Exception as e2:
                 print(f"保存到备用位置也失败: {e2}")
-                return None 
+                return None

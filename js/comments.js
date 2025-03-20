@@ -29,7 +29,7 @@ function monitorDOMChanges() {
             saveBtn.onclick = function(event) {
                 console.log('保存按钮点击事件触发(通过DOM监控)');
                 event.preventDefault();
-                saveComment();
+            saveComment();
                 return false;
             };
         }
@@ -262,6 +262,9 @@ function createCommentCard(student, commentData) {
                     </div>
                 </div>
                 <div>
+                    <button class="btn btn-sm btn-outline-info ai-comment-btn me-1" data-student-id="${student.id}" data-student-name="${student.name}">
+                        <i class='bx bx-bot'></i> AI助手
+                    </button>
                     <button class="btn btn-sm btn-primary edit-comment-btn" data-student-id="${student.id}" data-student-name="${student.name}">
                         <i class='bx bx-edit'></i> 编辑评语
                     </button>
@@ -275,6 +278,14 @@ function createCommentCard(student, commentData) {
     if (editBtn) {
         editBtn.addEventListener('click', function() {
             fillCommentForm(this.dataset.studentId, this.dataset.studentName);
+        });
+    }
+    
+    // 绑定AI评语助手按钮事件
+    const aiBtn = col.querySelector('.ai-comment-btn');
+    if (aiBtn) {
+        aiBtn.addEventListener('click', function() {
+            showAICommentAssistant(this.dataset.studentId, this.dataset.studentName);
         });
     }
     
@@ -383,6 +394,9 @@ function saveComment() {
         return;
     }
     
+    // 先调用一次字数统计更新，确保字数已被限制在允许范围内
+    updateCharCount();
+    
     const content = commentText.value.trim();
     if (!content) {
         console.error('评语内容为空');
@@ -393,9 +407,11 @@ function saveComment() {
     // 检查评语字数是否超过限制
     const maxLength = 200;
     if (content.length > maxLength) {
-        console.error('评语内容超过字数限制');
-        showNotification(`评语内容超过${maxLength}字限制，请编辑后重试`, 'error');
-        return;
+        console.warn(`评语内容超过字数限制: ${content.length}/${maxLength}，将自动截断`);
+        // 自动截断内容而不是显示错误
+        commentText.value = content.substring(0, maxLength);
+        updateCharCount();
+        showNotification(`评语内容已自动截断至${maxLength}字`, 'warning');
     }
     
     // 检查是否为添加模式
@@ -405,7 +421,7 @@ function saveComment() {
     // 创建评语对象
     const commentData = {
         studentId,
-        content,
+        content: commentText.value.trim(), // 使用可能被截断后的内容
         appendMode
     };
     
@@ -418,14 +434,14 @@ function saveComment() {
     
     console.log('发送保存请求:', commentData);
     
-    // 发送到服务器
-    fetch('/api/comments', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(commentData)
-    })
+        // 发送到服务器
+        fetch('/api/comments', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(commentData)
+        })
     .then(response => {
         console.log('服务器响应状态:', response.status);
         if (!response.ok) {
@@ -433,11 +449,11 @@ function saveComment() {
         }
         return response.json();
     })
-    .then(data => {
+        .then(data => {
         console.log('保存评语响应:', data);
-        if (data.status === 'ok') {
-            // 关闭模态框
-            const modal = bootstrap.Modal.getInstance(document.getElementById('editCommentModal'));
+            if (data.status === 'ok') {
+                // 关闭模态框
+                const modal = bootstrap.Modal.getInstance(document.getElementById('editCommentModal'));
             if (modal) {
                 modal.hide();
             }
@@ -448,24 +464,24 @@ function saveComment() {
                 updateDate: data.updateDate || new Date().toLocaleString()
             };
             updateCommentCard(studentId, updatedComment);
-            
-            // 显示成功通知
-            showNotification('评语保存成功');
-        } else {
+                
+                // 显示成功通知
+                showNotification('评语保存成功');
+            } else {
             throw new Error(data.message || '保存失败');
-        }
-    })
-    .catch(error => {
-        console.error('保存评语时出错:', error);
+            }
+        })
+        .catch(error => {
+            console.error('保存评语时出错:', error);
         showNotification('保存评语时出错: ' + error.message, 'error');
-    })
-    .finally(() => {
-        // 恢复按钮状态
-        if (saveBtn) {
-            saveBtn.disabled = false;
-            saveBtn.innerHTML = '保存评语';
-        }
-    });
+        })
+        .finally(() => {
+            // 恢复按钮状态
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '保存评语';
+            }
+        });
 }
 
 // 实时更新评语卡片
@@ -1072,6 +1088,7 @@ function formatDate(date) {
 
 // 更新字数统计
 function updateCharCount() {
+    console.log('更新字数统计...');
     const commentText = document.getElementById('commentText');
     const charCount = document.getElementById('commentCharCount');
     const batchCommentText = document.getElementById('batchCommentText');
@@ -1081,15 +1098,17 @@ function updateCharCount() {
         const maxLength = 200; // 最大字数限制
         const count = commentText.value.length;
         charCount.textContent = `${count}/${maxLength}`;
+        console.log(`当前字数: ${count}/${maxLength}`);
         
         // 限制输入字数
         if (count > maxLength) {
             commentText.value = commentText.value.substring(0, maxLength);
             charCount.textContent = `${maxLength}/${maxLength}`;
+            console.log(`已截断至最大字数: ${maxLength}`);
         }
         
         // 根据字数改变颜色提示 - 从绿色(接近0字)渐变到红色(接近200字)
-        const percentage = count / maxLength; // 使用百分比来确定颜色
+        const percentage = Math.min(count / maxLength, 1.0); // 确保不超过1.0
         
         if (percentage < 0.5) {
             // 0-50%: 从绿色渐变到黄色
@@ -1123,7 +1142,7 @@ function updateCharCount() {
         }
         
         // 根据字数改变颜色提示 - 从绿色(接近0字)渐变到红色(接近200字)
-        const percentage = count / maxLength; // 使用百分比来确定颜色
+        const percentage = Math.min(count / maxLength, 1.0); // 确保不超过1.0
         
         if (percentage < 0.5) {
             // 0-50%: 从绿色渐变到黄色
@@ -1678,102 +1697,6 @@ function bindEventListeners() {
         console.error('找不到评语文本框');
     }
     
-    // AI评语生成按钮点击事件
-    const generateCommentBtn = document.getElementById('generateCommentBtn');
-    if (generateCommentBtn) {
-        generateCommentBtn.addEventListener('click', function() {
-            console.log('AI评语生成按钮被点击');
-            
-            if (!currentStudentId) {
-                console.error('未设置当前学生ID，无法生成评语');
-                showNotification('无法生成评语：未找到学生ID', 'error');
-                return;
-            }
-            
-            console.log('当前学生ID:', currentStudentId);
-            
-            // 显示生成状态
-            const generationStatus = document.getElementById('generationStatus');
-            if (generationStatus) {
-                generationStatus.classList.remove('d-none');
-            }
-            
-            // 获取参数
-            const params = {
-                student_id: currentStudentId,
-                personality: document.getElementById('personalityInput')?.value || '',
-                study_performance: document.getElementById('studyPerformanceInput')?.value || '',
-                hobbies: document.getElementById('hobbiesInput')?.value || '',
-                improvement: document.getElementById('improvementInput')?.value || '',
-                style: document.getElementById('styleSelect')?.value || '鼓励性的',
-                tone: document.getElementById('toneSelect')?.value || '正式的',
-                max_length: parseInt(document.getElementById('maxLengthSelect')?.value || '200')
-            };
-            
-            console.log('AI生成参数:', params);
-            
-            // 调用API生成评语
-            fetch('/api/generate-comment', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(params)
-            })
-            .then(response => response.json())
-            .then(data => {
-                console.log('AI生成响应:', data);
-                
-                // 隐藏生成状态
-                if (generationStatus) {
-                    generationStatus.classList.add('d-none');
-                }
-                
-                if (data.status === 'success') {
-                    // 如果是添加模式，则在现有评语后添加
-                    const appendModeSwitch = document.getElementById('appendModeSwitch');
-                    const isAppendMode = appendModeSwitch && appendModeSwitch.checked;
-                    
-                    if (isAppendMode && commentText.value) {
-                        if (!commentText.value.endsWith('\n')) {
-                            commentText.value = commentText.value + '\n' + data.comment;
-                        } else {
-                            commentText.value = commentText.value + data.comment;
-                        }
-                    } else {
-                        // 否则直接替换
-                        commentText.value = data.comment;
-                    }
-                    
-                    // 更新字数统计
-                    updateCharCount();
-                    
-                    // 折叠AI评语助手区域
-                    const aiCollapse = bootstrap.Collapse.getInstance(document.getElementById('aiGeneratorCollapse'));
-                    if (aiCollapse) {
-                        aiCollapse.hide();
-                    }
-                    
-                    // 显示成功消息
-                    showNotification('评语生成成功！');
-                } else {
-                    // 显示错误消息
-                    showNotification(`生成失败: ${data.message}`, 'error');
-                }
-            })
-            .catch(error => {
-                // 隐藏生成状态
-                if (generationStatus) {
-                    generationStatus.classList.add('d-none');
-                }
-                console.error('生成评语时出错:', error);
-                showNotification('生成评语时出错，请重试', 'error');
-            });
-        });
-    } else {
-        console.error('找不到AI评语生成按钮');
-    }
-    
     // 搜索输入事件
     const searchInput = document.getElementById('searchStudent');
     if (searchInput) {
@@ -1806,4 +1729,317 @@ function bindEventListeners() {
     });
     
     console.log('事件监听器绑定完成');
+}
+
+// 显示AI评语助手模态框
+function showAICommentAssistant(studentId, studentName) {
+    console.log('打开AI评语助手:', studentId, studentName);
+    
+    // 创建模态框HTML
+    const modalId = 'aiCommentAssistantModal';
+    let modalElement = document.getElementById(modalId);
+    
+    // 如果模态框不存在，创建新的
+    if (!modalElement) {
+        modalElement = document.createElement('div');
+        modalElement.className = 'modal fade';
+        modalElement.id = modalId;
+        modalElement.tabIndex = '-1';
+        modalElement.setAttribute('data-bs-backdrop', 'static');
+        modalElement.setAttribute('aria-labelledby', `${modalId}Label`);
+        modalElement.innerHTML = `
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="${modalId}Label">
+                            <i class='bx bx-bot'></i> AI评语助手 - <span id="aiModalStudentName"></span>
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- AI评语生成设置 -->
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">学生个性特点</label>
+                                        <textarea class="form-control" id="aiPersonalityInput" rows="2" placeholder="例如：活泼开朗、喜欢思考、认真负责..."></textarea>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">学习表现</label>
+                                        <textarea class="form-control" id="aiStudyInput" rows="2" placeholder="例如：数学成绩优秀、语文需要提高、认真听讲..."></textarea>
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">爱好/特长</label>
+                                        <textarea class="form-control" id="aiHobbiesInput" rows="2" placeholder="例如：喜欢画画、擅长球类运动、对科学感兴趣..."></textarea>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">需要改进的方面</label>
+                                        <textarea class="form-control" id="aiImprovementInput" rows="2" placeholder="例如：注意力不集中、作业拖延、不爱发言..."></textarea>
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label">评语风格</label>
+                                        <select class="form-select" id="aiStyleSelect">
+                                            <option value="鼓励性的">鼓励性</option>
+                                            <option value="严肃的">严肃</option>
+                                            <option value="中肯的">中肯</option>
+                                            <option value="温和的">温和</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">评语语气</label>
+                                        <select class="form-select" id="aiToneSelect">
+                                            <option value="正式的">正式</option>
+                                            <option value="亲切的">亲切</option>
+                                            <option value="严厉的">严厉</option>
+                                            <option value="随和的">随和</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">最大字数</label>
+                                        <input type="number" class="form-control" id="aiMaxLengthInput" value="200" min="50" max="500">
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <button id="generateAICommentBtn" class="btn btn-primary">
+                                        <i class='bx bx-magic'></i> 生成AI评语
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- AI评语预览 -->
+                        <div id="aiCommentPreview" class="card" style="display: none;">
+                            <div class="card-header bg-info text-white">
+                                <h6 class="mb-0">
+                                    <i class='bx bx-bot'></i> AI生成的评语
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div id="aiCommentContent" class="mb-3 p-3 border rounded" style="min-height: 100px;"></div>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <span class="badge bg-light text-dark" id="aiCommentLength">0/200</span> 字
+                                    </div>
+                                    <div>
+                                        <button class="btn btn-outline-secondary" id="generateAnotherBtn">
+                                            <i class='bx bx-refresh'></i> 重新生成
+                                        </button>
+                                        <button class="btn btn-primary" id="useAICommentBtn">
+                                            <i class='bx bx-check'></i> 使用此评语
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 加载中提示 -->
+                        <div id="aiGeneratingIndicator" class="text-center p-4" style="display: none;">
+                            <div class="spinner-border text-primary mb-3" role="status">
+                                <span class="visually-hidden">正在生成...</span>
+                            </div>
+                            <p>正在生成评语，请稍候...</p>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modalElement);
+        
+        // 绑定生成按钮事件
+        document.getElementById('generateAICommentBtn').addEventListener('click', function() {
+            generateAIComment(studentId);
+        });
+        
+        // 绑定重新生成按钮事件
+        document.getElementById('generateAnotherBtn').addEventListener('click', function() {
+            generateAIComment(studentId);
+        });
+        
+        // 绑定使用评语按钮事件
+        document.getElementById('useAICommentBtn').addEventListener('click', function() {
+            useAIComment(studentId);
+        });
+    }
+    
+    // 设置学生姓名
+    document.getElementById('aiModalStudentName').textContent = studentName;
+    
+    // 清空生成的评语预览
+    document.getElementById('aiCommentPreview').style.display = 'none';
+    document.getElementById('aiCommentContent').textContent = '';
+    
+    // 打开模态框
+    const modal = new bootstrap.Modal(modalElement);
+    modal.show();
+}
+
+// 生成AI评语
+function generateAIComment(studentId) {
+    console.log('生成AI评语:', studentId);
+    
+    // 获取输入参数
+    const personality = document.getElementById('aiPersonalityInput').value.trim();
+    const studyPerformance = document.getElementById('aiStudyInput').value.trim();
+    const hobbies = document.getElementById('aiHobbiesInput').value.trim();
+    const improvement = document.getElementById('aiImprovementInput').value.trim();
+    const style = document.getElementById('aiStyleSelect').value;
+    const tone = document.getElementById('aiToneSelect').value;
+    const maxLength = parseInt(document.getElementById('aiMaxLengthInput').value);
+    
+    // 显示加载状态
+    document.getElementById('aiGeneratingIndicator').style.display = 'block';
+    document.getElementById('aiCommentPreview').style.display = 'none';
+    document.getElementById('generateAICommentBtn').disabled = true;
+    
+    // 请求参数
+    const requestData = {
+        student_id: studentId,  // 兼容后端API
+        studentId: studentId,   // 兼容后端API可能的另一种参数名
+        personality,
+        study_performance: studyPerformance,
+        hobbies,
+        improvement,
+        style,
+        tone,
+        max_length: maxLength
+    };
+    
+    console.log('发送评语生成请求:', requestData);
+    
+    // 发送请求
+    fetch('/api/generate-comment', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP错误! 状态: ${response.status}`);
+        }
+        // 获取响应文本以便于调试
+        return response.text().then(text => {
+            // 尝试解析JSON
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                console.error('解析响应数据失败:', e);
+                console.log('原始响应内容:', text);
+                throw new Error('服务器返回的数据格式不正确');
+            }
+        });
+    })
+    .then(data => {
+        console.log('评语生成结果:', data);
+        
+        // 隐藏加载状态
+        document.getElementById('aiGeneratingIndicator').style.display = 'none';
+        
+        // 检查响应状态
+        if (data.status === 'ok') {
+            // 获取评语内容（兼容可能的不同字段名）
+            const commentContent = data.comment || data.content;
+            
+            if (!commentContent) {
+                showNotification('评语生成成功，但内容为空', 'warning');
+                return;
+            }
+            
+            // 显示生成的评语
+            const aiCommentPreview = document.getElementById('aiCommentPreview');
+            const aiCommentContent = document.getElementById('aiCommentContent');
+            const aiCommentLength = document.getElementById('aiCommentLength');
+            
+            aiCommentContent.textContent = commentContent;
+            aiCommentLength.textContent = `${commentContent.length}/${maxLength}`;
+            aiCommentPreview.style.display = 'block';
+            
+            showNotification('评语生成成功', 'success');
+        } else {
+            // 显示错误消息
+            showNotification(`评语生成失败: ${data.message || '未知错误'}`, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('评语生成请求出错:', error);
+        document.getElementById('aiGeneratingIndicator').style.display = 'none';
+        showNotification(`评语生成出错: ${error.message}`, 'error');
+    })
+    .finally(() => {
+        // 恢复按钮状态
+        document.getElementById('generateAICommentBtn').disabled = false;
+    });
+}
+
+// 使用AI生成的评语
+function useAIComment(studentId) {
+    console.log('使用AI评语:', studentId);
+    
+    // 获取生成的评语内容
+    const aiCommentContent = document.getElementById('aiCommentContent').textContent;
+    if (!aiCommentContent) {
+        showNotification('评语内容为空', 'error');
+        return;
+    }
+    
+    // 确认使用评语
+    if (confirm('确定要使用此评语吗？这将替换现有评语。')) {
+        // 创建评语数据
+        const commentData = {
+            studentId,
+            content: aiCommentContent,
+            updatedContent: aiCommentContent  // 兼容API可能需要的参数
+        };
+        
+        // 发送到服务器
+        fetch('/api/comments', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(commentData)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP错误! 状态: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.status === 'ok') {
+                // 关闭模态框
+                const modal = bootstrap.Modal.getInstance(document.getElementById('aiCommentAssistantModal'));
+                if (modal) {
+                    modal.hide();
+                }
+                
+                // 实时更新评语卡片
+                updateCommentCard(studentId, {
+                    content: aiCommentContent,
+                    updateDate: new Date().toLocaleDateString()
+                });
+                
+                showNotification('评语已保存', 'success');
+                
+                // 触发更新事件
+                notifyStudentDataChanged();
+            } else {
+                throw new Error(data.message || '保存失败');
+            }
+        })
+        .catch(error => {
+            console.error('保存评语失败:', error);
+            showNotification(`保存评语失败: ${error.message}`, 'error');
+        });
+    }
 }

@@ -3,6 +3,7 @@
 import sys
 import subprocess
 import os
+import json
 
 def check_and_install(package, version=None):
     """检查并安装Python包"""
@@ -81,6 +82,7 @@ except ImportError:
     print("! PDF导出功能不可用，请安装reportlab模块")
     
 from utils.grades_manager import GradesManager
+from utils.comment_generator import CommentGenerator
 
 # 设置DeepSeek API全局变量
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
@@ -97,13 +99,13 @@ try:
         print("! DeepSeek API密钥未设置，AI评语生成功能不可用")
 except ImportError:
     print("! 无法导入DeepSeekAPI，AI评语生成功能不可用")
-    # 创建一个模拟版的generate_comment方法用于/api/generate-comment端点
-    def generate_comment_mock(*args, **kwargs):
-        return {
-            "status": "error",
-            "message": "DeepSeek API模块未安装，AI评语生成功能不可用",
-            "comment": ""
-        }
+    deepseek_api = None
+
+# 系统设置存储
+SYSTEM_SETTINGS = {
+    "deepseek_api_key": DEEPSEEK_API_KEY,
+    "deepseek_api_enabled": bool(DEEPSEEK_API_KEY)
+}
 
 # 配置日志
 logging.basicConfig(
@@ -316,7 +318,7 @@ def health_check():
     return jsonify({'status': 'ok', 'message': '服务器正常运行中'})
 
 # 下载模板API
-@app.route('/api/template', methods=['GET'])
+@app.route('/api/template', endpoint='download_student_template', methods=['GET'])
 def download_template():
     template_path = os.path.join(TEMPLATE_FOLDER, 'student_template.xlsx')
     if not os.path.exists(template_path):
@@ -1466,140 +1468,105 @@ def download_grades_template():
 # AI生成评语API
 @app.route('/api/generate-comment', methods=['POST'])
 def generate_comment():
-    """调用DeepSeek API生成学生评语"""
+    """生成AI评语"""
     try:
-        data = request.json
-        student_id = data.get('student_id') or data.get('studentId')
+        # 获取请求数据
+        data = request.get_json()
+        print("收到评语生成请求:", data)
         
-        if not student_id:
-            app.logger.error("生成评语请求缺少学生ID")
+        # 验证请求数据
+        comment_generator = CommentGenerator(deepseek_api.api_key)
+        is_valid, error_msg = comment_generator.validate_request(data)
+        if not is_valid:
+            print("请求数据验证失败:", error_msg)
             return jsonify({
                 "status": "error",
-                "message": "未提供学生ID",
-                "comment": ""
+                "message": error_msg
             })
         
-        # 获取可选参数
-        style = data.get('style', '鼓励性的')
-        tone = data.get('tone', '正式的')
-        max_length = data.get('maxLength', 200)
-        personality = data.get('personality', '')
-        study_performance = data.get('studyPerformance', '')
-        hobbies = data.get('hobbies', '')
-        improvement = data.get('improvement', '')
-        
-        app.logger.info(f"生成评语请求，学生ID：{student_id}, 风格：{style}, 语调：{tone}")
-        
-        # 检查API可用性
-        if 'deepseek_api' not in globals() or deepseek_api is None or not deepseek_api.api_key:
-            app.logger.warning("DeepSeek API未配置，请先在设置页面配置API密钥")
+        # 获取学生信息
+        student_id = data.get('student_id')
+        if not student_id:
+            print("缺少学生ID")
             return jsonify({
                 "status": "error",
-                "message": "DeepSeek API未配置，请先在设置页面配置API密钥",
-                "comment": ""
+                "message": "缺少学生ID"
             })
             
-        # 获取学生信息
+        # 从数据库获取学生信息
         conn = get_db_connection()
-        student = conn.execute('SELECT * FROM students WHERE id = ?', (student_id,)).fetchone()
+        cursor = conn.cursor()
+        cursor.execute('SELECT name, gender FROM students WHERE id = ?', (student_id,))
+        student = cursor.fetchone()
         conn.close()
         
         if not student:
-            app.logger.error(f"未找到ID为{student_id}的学生")
+            print(f"未找到学生: {student_id}")
             return jsonify({
                 "status": "error",
-                "message": f"未找到ID为{student_id}的学生",
-                "comment": ""
+                "message": "未找到学生"
             })
-        
-        # 构建学生信息
+            
+        # 构建学生信息字典
         student_info = {
-            "student_id": student_id,
-            "name": student['name'],
-            "gender": student['gender'],
-            "personality": personality,
-            "study_performance": study_performance,
-            "hobbies": hobbies,
-            "improvement": improvement
+            "name": student[0],
+            "gender": student[1],
+            "personality": data.get('personality', ''),
+            "study_performance": data.get('study_performance', ''),
+            "hobbies": data.get('hobbies', ''),
+            "improvement": data.get('improvement', '')
         }
         
-        try:
-            # 调用DeepSeek API生成评语
-            result = deepseek_api.generate_comment(
-                student_info=student_info,
-                style=style,
-                tone=tone,
-                max_length=max_length
-            )
-            
-            return jsonify(result)
-        except Exception as e:
-            app.logger.error(f"生成评语时出错: {str(e)}")
+        # 格式化学生信息
+        student_info = comment_generator.format_student_info(student_info)
+        
+        # 生成评语
+        result = comment_generator.generate_comment(
+            student_info=student_info,
+            style=data.get('style', '鼓励性的'),
+            tone=data.get('tone', '正式的'),
+            max_length=int(data.get('max_length', 200))
+        )
+        
+        print("评语生成结果:", result)
+        
+        # 返回结果
+        if result["status"] == "ok":
+            return jsonify({
+                "status": "ok",
+                "comment": result["comment"]
+            })
+        else:
             return jsonify({
                 "status": "error",
-                "message": f"生成评语时出错: {str(e)}",
-                "comment": ""
+                "message": result["message"]
             })
-            
+                
     except Exception as e:
-        app.logger.error(f"处理请求时出错: {str(e)}")
+        print("生成评语时出错:", str(e))
+        print(traceback.format_exc())
         return jsonify({
             "status": "error",
-            "message": f"处理请求时出错: {str(e)}",
-            "comment": ""
+            "message": f"生成评语时出错: {str(e)}"
         })
 
 # 测试DeepSeek API连接
 @app.route('/api/test-deepseek', methods=['POST'])
 def test_deepseek_api():
     """测试DeepSeek API连接"""
-    try:
-        data = request.json
-        api_key = data.get('api_key', '')
-        
-        if not api_key:
-            return jsonify({
-                "status": "error",
-                "message": "未提供API密钥"
-            })
-        
-        # 临时创建API客户端进行测试
-        try:
-            from utils.deepseek_api import DeepSeekAPI
-            test_api = DeepSeekAPI(api_key)
-            
-            # 测试连接
-            test_result = test_api.test_connection()
-            
-            if test_result.get('status') == 'success':
-                app.logger.info("DeepSeek API连接测试成功")
-                return jsonify({
-                    "status": "success",
-                    "message": "DeepSeek API连接测试成功"
-                })
-            else:
-                app.logger.warning(f"DeepSeek API连接测试失败: {test_result.get('message')}")
-                return jsonify({
-                    "status": "error",
-                    "message": f"API连接测试失败: {test_result.get('message')}"
-                })
-        except ImportError:
-            app.logger.error("DeepSeek API模块未安装")
-            return jsonify({
-                "status": "error",
-                "message": "DeepSeek API模块未安装，无法测试连接"
-            })
-        except Exception as e:
-            app.logger.error(f"测试API连接时出错: {str(e)}")
-            return jsonify({
-                "status": "error",
-                "message": f"测试API连接时出错: {str(e)}"
-            })
-    except Exception as e:
-        app.logger.error(f"处理API测试请求时出错: {str(e)}")
+    if not deepseek_api:
         return jsonify({
             "status": "error",
-            "message": f"处理请求时出错: {str(e)}"
+            "message": "DeepSeek API未初始化，请先设置API密钥"
+        })
+        
+    try:
+        result = deepseek_api.test_connection()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"测试API连接时出错: {str(e)}"
         })
 
 # 保存DeepSeek API设置
@@ -1607,37 +1574,41 @@ def test_deepseek_api():
 def save_deepseek_api_settings():
     """保存DeepSeek API设置"""
     try:
-        data = request.json
-        api_key = data.get('api_key', '')
+        data = request.get_json()
+        api_key = data.get('api_key', '').strip()
         
-        global DEEPSEEK_API_KEY, deepseek_api
+        # 更新全局设置
+        global DEEPSEEK_API_KEY, deepseek_api, SYSTEM_SETTINGS
         DEEPSEEK_API_KEY = api_key
+        SYSTEM_SETTINGS["deepseek_api_key"] = api_key
         
-        # 更新环境变量
-        os.environ["DEEPSEEK_API_KEY"] = api_key
-        
-        # 重新初始化API客户端
-        try:
-            from utils.deepseek_api import DeepSeekAPI
+        # 重新初始化DeepSeek API
+        if api_key:
             deepseek_api = DeepSeekAPI(api_key)
-            app.logger.info("DeepSeek API设置已更新")
+            SYSTEM_SETTINGS["deepseek_api_enabled"] = True
+        else:
+            deepseek_api = None
+            SYSTEM_SETTINGS["deepseek_api_enabled"] = False
             
-            return jsonify({
-                "status": "success",
-                "message": "DeepSeek API设置已更新"
-            })
-        except ImportError:
-            return jsonify({
-                "status": "warning",
-                "message": "API密钥已保存，但DeepSeek API模块未安装，AI评语生成功能不可用"
-            })
-            
+        return jsonify({
+            "status": "ok",
+            "message": "DeepSeek API设置已更新",
+            "settings": SYSTEM_SETTINGS
+        })
     except Exception as e:
-        app.logger.error(f"保存DeepSeek API设置时出错: {str(e)}")
         return jsonify({
             "status": "error",
             "message": f"保存设置时出错: {str(e)}"
         })
+
+# 获取系统设置
+@app.route('/api/settings', methods=['GET'])
+def get_system_settings():
+    """获取系统设置"""
+    return jsonify({
+        "status": "ok",
+        "settings": SYSTEM_SETTINGS
+    })
 
 # 初始化数据应用
 if __name__ == '__main__':

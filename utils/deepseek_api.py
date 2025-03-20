@@ -4,6 +4,7 @@ import json
 import requests
 import logging
 from typing import Dict, Any, Optional
+import traceback
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -112,7 +113,10 @@ class DeepSeekAPI:
         Returns:
             包含生成评语的字典，格式为 {"status": "ok|error", "comment": "...", "message": "..."}
         """
+        logger.info(f"开始为学生 {student_info.get('name')} 生成评语")
+        
         if not self.api_key:
+            logger.error("API密钥未设置，无法调用API")
             return {
                 "status": "error", 
                 "message": "未设置DeepSeek API密钥，无法调用API",
@@ -158,19 +162,31 @@ class DeepSeekAPI:
         
         try:
             # 发送请求
-            logger.info(f"正在为学生 {student_info.get('name')} 生成评语...")
-            response = requests.post(self.API_URL, headers=headers, json=payload)
-            response.raise_for_status()  # 检查HTTP错误
+            logger.info(f"正在为学生 {student_info.get('name')} 发送API请求...")
+            
+            response = requests.post(self.API_URL, headers=headers, json=payload, timeout=30)
+            logger.info(f"API响应状态码: {response.status_code}")
+            
+            # 检查HTTP错误
+            response.raise_for_status()
+            
+            # 记录原始响应
+            response_text = response.text
+            logger.info(f"API原始响应: {response_text[:200]}...")
             
             # 解析响应
             result = response.json()
+            logger.info(f"API响应解析为JSON: {str(result)[:200]}...")
             
             # 提取生成的评语
             if "choices" in result and len(result["choices"]) > 0:
                 comment = result["choices"][0]["message"]["content"].strip()
+                logger.info(f"成功提取评语: {comment[:50]}...")
+                
                 # 确保评语不超过最大长度
                 if len(comment) > max_length:
                     comment = comment[:max_length]
+                    logger.info(f"评语已截断至{max_length}字")
                 
                 return {
                     "status": "ok",
@@ -178,10 +194,10 @@ class DeepSeekAPI:
                     "message": "评语生成成功"
                 }
             else:
-                logger.error(f"API返回错误: {result}")
+                logger.error(f"API返回格式异常，无choices字段: {result}")
                 return {
                     "status": "error",
-                    "message": f"评语生成失败: API返回格式异常",
+                    "message": "评语生成失败: API返回格式异常，无法提取评语内容",
                     "comment": ""
                 }
                 
@@ -189,18 +205,20 @@ class DeepSeekAPI:
             logger.error(f"API请求错误: {str(e)}")
             return {
                 "status": "error",
-                "message": f"评语生成失败: {str(e)}",
+                "message": f"评语生成失败: API请求错误: {str(e)}",
                 "comment": ""
             }
-        except json.JSONDecodeError:
-            logger.error("API返回的不是有效的JSON格式")
+        except json.JSONDecodeError as e:
+            logger.error(f"API返回的不是有效的JSON格式: {str(e)}")
+            logger.error(f"原始响应: {response.text[:200]}...")
             return {
                 "status": "error",
-                "message": "评语生成失败: API返回格式错误",
+                "message": "评语生成失败: API返回格式错误，无法解析为JSON",
                 "comment": ""
             }
         except Exception as e:
             logger.error(f"生成评语时发生未知错误: {str(e)}")
+            logger.error(f"错误堆栈: {traceback.format_exc()}")
             return {
                 "status": "error",
                 "message": f"评语生成失败: {str(e)}",

@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学生评语 - 班主任管理系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <style>
+        body {
+            background-color: #f5f7fa;
+            padding: 20px 0;
+            min-height: 100vh;
+        }
+        .comment-editor {
+            max-width: 900px;
+            margin: 2rem auto;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border: none;
+            border-radius: 12px;
+        }
+        .card-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            padding: 15px 20px;
+            border-radius: 12px 12px 0 0 !important;
+        }
+        .card-body {
+            padding: 20px;
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            visibility: hidden;
+            opacity: 0;
+            transition: visibility 0s, opacity 0.3s linear;
+        }
+        .loading-overlay.show {
+            visibility: visible;
+            opacity: 1;
+        }
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 20px;
+        }
+        .loading-spinner i {
+            font-size: 3rem;
+            color: #3498db;
+            animation: spin 1s linear infinite;
+        }
+        .loading-message {
+            font-size: 1.2rem;
+            color: #333;
+            font-weight: 500;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #comment {
+            min-height: 200px;
+            resize: vertical;
+            font-size: 1rem;
+            line-height: 1.6;
+            padding: 15px;
+        }
+        .status-message {
+            padding: 15px;
+            margin: 0 0 20px 0;
+            border-radius: 8px;
+            display: none;
+            font-weight: 500;
+        }
+        .status-message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status-message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .btn-icon {
+            display: inline-flex;
+            align-items: center;
+        }
+        .btn-icon i {
+            margin-right: 8px;
+        }
+        .form-label {
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #80bdff;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
+    </style>
+</head>
+<body>
+    <!-- 加载中遮罩 -->
+    <div id="loadingOverlay" class="loading-overlay" role="dialog" aria-labelledby="loadingMessage" inert>
+        <div class="loading-spinner">
+            <i class='bx bx-loader-alt'></i>
+        </div>
+        <div id="loadingMessage" class="loading-message">正在处理，请稍候...</div>
+    </div>
+
+    <div class="container">
+        <div class="card comment-editor">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class='bx bx-edit-alt me-2'></i>编辑学生评语
+                </h5>
+            </div>
+            <div class="card-body">
+                <!-- 状态消息 -->
+                <div id="statusMessage" class="status-message"></div>
+
+                <!-- 评语编辑器 -->
+                <div class="mb-4">
+                    <label for="comment" class="form-label">评语内容</label>
+                    <textarea class="form-control" id="comment" rows="12" placeholder="请输入评语内容"></textarea>
+                </div>
+
+                <!-- 操作按钮 -->
+                <div class="text-end">
+                    <button class="btn btn-secondary btn-icon" id="cancelBtn">
+                        <i class='bx bx-x'></i> 取消
+                    </button>
+                    <button class="btn btn-primary btn-icon ms-2" id="saveBtn">
+                        <i class='bx bx-save'></i> 保存评语
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 显示/隐藏加载中遮罩
+        function toggleLoading(show) {
+            const overlay = document.getElementById('loadingOverlay');
+            if (show) {
+                overlay.classList.add('show');
+                overlay.removeAttribute('inert');
+                // 将焦点设置到加载消息
+                document.getElementById('loadingMessage').focus();
+            } else {
+                overlay.classList.remove('show');
+                overlay.setAttribute('inert', '');
+                // 将焦点返回到保存按钮
+                document.getElementById('saveBtn').focus();
+            }
+        }
+
+        // 显示状态消息
+        function showStatus(message, type = 'success') {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.textContent = message;
+            statusDiv.className = `status-message ${type}`;
+            statusDiv.style.display = 'block';
+            
+            // 3秒后自动隐藏
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 3000);
+        }
+
+        // 获取URL参数
+        function getQueryParam(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+
+        // 学生ID
+        const studentId = getQueryParam('id');
+
+        // 获取学生评语
+        async function fetchStudentComment() {
+            if (!studentId) {
+                showStatus('未找到学生ID', 'error');
+                setTimeout(() => {
+                    window.location.href = 'students.html';
+                }, 2000);
+                return;
+            }
+
+            try {
+                // 获取学生信息
+                const studentResponse = await fetch(`/api/students/${studentId}`);
+                const studentData = await studentResponse.json();
+                
+                if (studentData.status !== 'ok') {
+                    throw new Error(studentData.message || '获取学生信息失败');
+                }
+                
+                // 获取评语
+                const commentResponse = await fetch(`/api/comments/${studentId}`);
+                const commentData = await commentResponse.json();
+                
+                if (commentData.status === 'ok') {
+                    // 处理不同字段名的评语内容
+                    // 如果后端返回comment字段，将其转为content
+                    if (commentData.comment && !commentData.content) {
+                        commentData.content = commentData.comment;
+                    }
+                    
+                    // 统一使用content字段
+                    document.getElementById('comment').value = commentData.content || '';
+                }
+            } catch (error) {
+                console.error('获取数据失败:', error);
+                showStatus('获取数据失败: ' + error.message, 'error');
+            }
+        }
+
+        // 保存评语
+        async function saveComment() {
+            const comment = document.getElementById('comment').value.trim();
+            if (!comment) {
+                showStatus('请输入评语内容', 'error');
+                return;
+            }
+
+            toggleLoading(true);
+            const saveBtn = document.getElementById('saveBtn');
+            saveBtn.disabled = true;
+
+            try {
+                const response = await fetch('/api/comments', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        studentId: studentId,
+                        content: comment,
+                        updatedContent: comment
+                    })
+                });
+
+                const data = await response.json();
+                if (data.status === 'ok') {
+                    showStatus('评语保存成功', 'success');
+                    setTimeout(() => {
+                        window.location.href = 'students.html';
+                    }, 2000);
+                } else {
+                    throw new Error(data.message || '保存失败');
+                }
+            } catch (error) {
+                console.error('保存评语失败:', error);
+                showStatus(`保存评语失败: ${error.message}`, 'error');
+            } finally {
+                toggleLoading(false);
+                saveBtn.disabled = false;
+            }
+        }
+
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', fetchStudentComment);
+
+        // 绑定事件处理
+        document.getElementById('saveBtn').addEventListener('click', saveComment);
+        document.getElementById('cancelBtn').addEventListener('click', () => {
+            window.location.href = 'students.html';
+        });
+    </script>
+</body>
+</html> 

@@ -145,8 +145,12 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // 获取对应的侧边栏和底部导航项
             const targetId = this.getAttribute('href').substring(1);
-            document.querySelector(`.nav-link[href="#${targetId}"]`).classList.add('active');
-            document.querySelector(`.tab-item[href="#${targetId}"]`).classList.add('active');
+            const sidebarLink = document.querySelector(`.nav-link[href="#${targetId}"]`);
+            const bottomTabLink = document.querySelector(`.tab-item[href="#${targetId}"]`);
+            
+            // 添加null检查
+            if (sidebarLink) sidebarLink.classList.add('active');
+            if (bottomTabLink) bottomTabLink.classList.add('active');
             
             // 更新iframe内容
             const iframeSrc = this.getAttribute('data-iframe');

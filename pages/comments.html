@@ -391,7 +391,7 @@
     </div>
     
     <!-- 编辑评语模态框 -->
-    <div class="modal fade" id="editCommentModal" tabindex="-1" aria-labelledby="editCommentModalLabel" aria-hidden="true">
+    <div class="modal fade" id="editCommentModal" tabindex="-1" aria-labelledby="editCommentModalLabel" data-bs-backdrop="static">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
@@ -409,82 +409,6 @@
                                 <div class="form-check form-switch mt-2">
                                     <input class="form-check-input" type="checkbox" id="appendModeSwitch">
                                     <label class="form-check-label" for="appendModeSwitch">添加到原有评语</label>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- AI评语生成区域 -->
-                        <div class="card mb-3">
-                            <div class="card-header bg-primary text-white">
-                                <i class='bx bx-bot me-1'></i> AI评语助手
-                                <button type="button" class="btn btn-sm btn-light float-end" data-bs-toggle="collapse" data-bs-target="#aiGeneratorCollapse" aria-expanded="false">
-                                    <i class='bx bx-chevron-down'></i>
-                                </button>
-                            </div>
-                            <div class="collapse show" id="aiGeneratorCollapse">
-                                <div class="card-body">
-                                    <div class="row mb-3">
-                                        <div class="col-md-6">
-                                            <label class="form-label">学生个性特点</label>
-                                            <textarea class="form-control" id="personalityInput" rows="2" placeholder="例如：活泼开朗、喜欢思考、认真负责..."></textarea>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">学习表现</label>
-                                            <textarea class="form-control" id="studyPerformanceInput" rows="2" placeholder="例如：数学成绩优秀、语文需要提高、认真听讲..."></textarea>
-                                        </div>
-                                    </div>
-                                    <div class="row mb-3">
-                                        <div class="col-md-6">
-                                            <label class="form-label">爱好/特长</label>
-                                            <textarea class="form-control" id="hobbiesInput" rows="2" placeholder="例如：喜欢画画、擅长球类运动、对科学感兴趣..."></textarea>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">需要改进的方面</label>
-                                            <textarea class="form-control" id="improvementInput" rows="2" placeholder="例如：注意力不集中、作业拖延、不爱发言..."></textarea>
-                                        </div>
-                                    </div>
-                                    <div class="row mb-3">
-                                        <div class="col-md-4">
-                                            <label class="form-label">评语风格</label>
-                                            <select class="form-select" id="styleSelect">
-                                                <option value="鼓励性的">鼓励性</option>
-                                                <option value="中肯的">中肯</option>
-                                                <option value="严肃的">严肃</option>
-                                                <option value="温和的">温和</option>
-                                                <option value="建设性的">建设性</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label">评语语气</label>
-                                            <select class="form-select" id="toneSelect">
-                                                <option value="正式的">正式</option>
-                                                <option value="亲切的">亲切</option>
-                                                <option value="专业的">专业</option>
-                                                <option value="平易近人的">平易近人</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label">评语字数</label>
-                                            <select class="form-select" id="maxLengthSelect">
-                                                <option value="100">100字以内</option>
-                                                <option value="150">150字以内</option>
-                                                <option value="200" selected>200字以内</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="d-grid">
-                                        <button type="button" class="btn btn-primary" id="generateCommentBtn">
-                                            <i class='bx bx-bot me-1'></i> 生成AI评语
-                                        </button>
-                                    </div>
-                                    <div id="generationStatus" class="mt-2 d-none">
-                                        <div class="d-flex align-items-center">
-                                            <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
-                                                <span class="visually-hidden">正在生成...</span>
-                                            </div>
-                                            <span>正在生成评语，请稍候...</span>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -539,7 +463,7 @@
     </div>
     
     <!-- 批量编辑模态框 -->
-    <div class="modal fade" id="batchEditModal" tabindex="-1" aria-hidden="true">
+    <div class="modal fade" id="batchEditModal" tabindex="-1" data-bs-backdrop="static">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
@@ -564,7 +488,7 @@
     </div>
     
     <!-- 管理评语模板模态框 -->
-    <div class="modal fade" id="templateModal" tabindex="-1" aria-hidden="true">
+    <div class="modal fade" id="templateModal" tabindex="-1" data-bs-backdrop="static">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
@@ -622,7 +546,7 @@
     </div>
     
     <!-- 打印预览模态框 -->
-    <div class="modal fade" id="printPreviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal fade" id="printPreviewModal" tabindex="-1" data-bs-backdrop="static">
         <div class="modal-dialog modal-fullscreen">
             <div class="modal-content">
                 <div class="modal-header no-print">
@@ -651,7 +575,7 @@
     </div>
     
     <!-- 模板选择模态框 -->
-    <div class="modal fade" id="templateSelectorModal" tabindex="-1" aria-hidden="true">
+    <div class="modal fade" id="templateSelectorModal" tabindex="-1" data-bs-backdrop="static">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
