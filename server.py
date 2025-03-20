@@ -1,4 +1,46 @@
 # -*- coding: utf-8 -*-
+# 自动安装所需依赖
+import sys
+import subprocess
+import os
+
+def check_and_install(package, version=None):
+    """检查并安装Python包"""
+    package_with_version = f"{package}=={version}" if version else package
+    
+    try:
+        # 尝试导入模块
+        __import__(package)
+        print(f"✓ {package} 已安装")
+    except ImportError:
+        print(f"! 未找到 {package} 模块，正在安装...")
+        try:
+            # 使用系统Python运行pip安装
+            subprocess.check_call([sys.executable, "-m", "pip", "install", 
+                                  package_with_version, "--no-cache-dir"])
+            print(f"✓ {package} 安装成功")
+        except Exception as e:
+            print(f"! {package} 安装失败: {str(e)}")
+            print(f"  请手动运行: pip install {package_with_version}")
+
+# 检查关键依赖
+print("检查并安装关键依赖...")
+REQUIRED_PACKAGES = [
+    ("requests", "2.31.0"),
+    ("reportlab", "4.1.0"),
+    ("flask", "3.0.2"),
+    ("flask_cors", "3.0.10"),
+    ("pandas", "2.2.1"),
+    ("openpyxl", "3.1.2"),
+    ("werkzeug", "2.3.0")
+]
+
+for package, version in REQUIRED_PACKAGES:
+    check_and_install(package, version)
+
+print("依赖检查完成，开始导入模块...\n")
+
+# 原始的导入语句
 from flask import Flask, request, jsonify, send_from_directory, render_template, url_for, send_file
 from flask_cors import CORS
 import os
@@ -18,7 +60,24 @@ from utils.excel_processor import ExcelProcessor
 from utils.comment_processor import batch_update_comments, generate_comments_pdf, generate_preview_html
 from utils.pdf_exporter import export_comments_to_pdf  # 导入PDF导出函数
 from utils.grades_manager import GradesManager
-from utils.deepseek_api import DeepSeekAPI  # 导入DeepSeek API封装
+
+# 尝试导入DeepSeek API，如果失败则提供空实现
+try:
+    from utils.deepseek_api import DeepSeekAPI  # 导入DeepSeek API封装
+except ImportError:
+    print("! 无法导入DeepSeekAPI，使用模拟实现")
+    # 创建一个模拟的DeepSeekAPI类
+    class DeepSeekAPI:
+        def __init__(self, api_key=None):
+            self.api_key = api_key
+            print("警告: 使用了DeepSeekAPI的模拟实现，AI评语生成功能不可用")
+            
+        def generate_comment(self, student_info, style="鼓励性的", tone="正式的", max_length=200):
+            return {
+                "status": "error",
+                "message": "DeepSeek API模块未正确安装，请运行 emergency_fix.bat 修复",
+                "comment": "请先安装requests模块后再使用此功能。"
+            }
 
 # 配置日志
 logging.basicConfig(
@@ -1369,7 +1428,7 @@ def download_grades_template():
             # 如果模板不存在，创建一个新的
             template_path = grades_manager.create_empty_template()
             app.logger.info(f"创建的新模板路径: {template_path}")
-            
+        
             if not template_path or not os.path.exists(template_path):
                 app.logger.error("创建模板失败或模板路径无效")
                 return jsonify({'status': 'error', 'message': '创建成绩导入模板失败'})
