@@ -687,8 +687,8 @@ async function exportReports() {
         progressModal.show();
         const progressBar = document.getElementById('progressBar');
         const progressText = document.getElementById('progressText');
-        
-        // 更新进度
+            
+            // 更新进度
         updateProgress(10, '正在准备导出...');
         
         try {

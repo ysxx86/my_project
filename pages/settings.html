@@ -419,7 +419,7 @@
                 </div>
                 
                 <!-- AI评语设置卡片 -->
-                <div class="card mb-4" id="ai-settings-section">
+                <div class="card mb-4">
                     <div class="card-header">
                         <h5 class="mb-0">
                             <i class='bx bx-bot me-1'></i> AI评语设置
@@ -493,21 +493,6 @@
                 }
             } catch (error) {
                 console.error('获取设置失败:', error);
-            }
-            
-            // 检查URL是否包含ai-settings-section锚点，如果有则聚焦到API输入框
-            if (window.location.hash === '#ai-settings-section') {
-                const apiKeyInput = document.getElementById('deepseekApiKey');
-                if (apiKeyInput) {
-                    setTimeout(() => {
-                        apiKeyInput.focus();
-                        // 滚动到锚点位置并稍微调整位置，确保可见性
-                        const aisection = document.getElementById('ai-settings-section');
-                        if (aisection) {
-                            aisection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        }
-                    }, 500); // 延迟500毫秒，确保页面已完全加载
-                }
             }
         });
 
