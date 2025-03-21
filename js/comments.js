@@ -1020,8 +1020,18 @@ function exportComments() {
     
     // 调用导出API
     fetch(`/api/export-comments-pdf${queryString}`)
-        .then(response => response.json())
-        .then(data => {
+        .then(response => {
+            // 即使是错误状态码，也获取JSON响应
+            return response.json().then(data => {
+                // 将响应状态码和数据一起返回
+                return { 
+                    ok: response.ok, 
+                    status: response.status,
+                    data: data 
+                };
+            });
+        })
+        .then(result => {
             // 关闭加载通知
             const toastContainer = document.getElementById('toastContainer');
             if (toastContainer) {
@@ -1032,25 +1042,29 @@ function exportComments() {
                 });
             }
             
-            if (data.status === 'ok') {
+            // 检查结果
+            if (result.ok && result.data.status === 'ok') {
                 // 显示成功通知
                 showNotification('PDF生成成功，正在下载...');
                 
                 // 创建下载链接
                 const downloadLink = document.createElement('a');
-                downloadLink.href = data.download_url;
-                downloadLink.download = data.download_url.split('/').pop();
+                downloadLink.href = result.data.download_url;
+                downloadLink.download = result.data.download_url.split('/').pop();
                 document.body.appendChild(downloadLink);
                 downloadLink.click();
                 document.body.removeChild(downloadLink);
             } else {
-                showNotification('导出PDF失败: ' + data.message, 'error');
+                // 显示错误信息
+                const errorMessage = result.data.message || '导出PDF失败，未知错误';
+                showNotification(`导出PDF失败: ${errorMessage}`, 'error');
+                console.error('导出PDF失败:', result);
             }
         })
         .catch(error => {
-            console.error('导出PDF时出错:', error);
-            showNotification('导出PDF时出错，请查看控制台获取详细信息', 'error');
-    });
+            console.error('导出PDF时网络请求出错:', error);
+            showNotification('导出PDF时出错，请检查网络连接或查看控制台获取详细信息', 'error');
+        });
 }
 
 // 导入docx库

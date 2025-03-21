@@ -76,9 +76,12 @@ from utils.comment_processor import batch_update_comments, generate_comments_pdf
 try:
     from utils.pdf_exporter import export_comments_to_pdf  # 导入PDF导出函数
 except ImportError:
-    # 创建一个简化版的PDF导出函数
+    # 创建一个简化版的PDF导出函数，返回格式与正常函数一致
     def export_comments_to_pdf(*args, **kwargs):
-        return None, "PDF导出功能不可用，请安装reportlab模块"
+        return {
+            'status': 'error',
+            'message': 'PDF导出功能不可用，请安装reportlab模块'
+        }
     print("! PDF导出功能不可用，请安装reportlab模块")
     
 from utils.grades_manager import GradesManager
@@ -1173,13 +1176,34 @@ def api_export_comments_pdf():
     # 获取班级参数（可选）
     class_name = request.args.get('class')
     
-    # 调用新的PDF导出函数
-    result = export_comments_to_pdf(class_name)
-    
-    if result['status'] == 'ok':
-        return jsonify(result)
-    else:
-        return jsonify(result), 500
+    try:
+        # 调用新的PDF导出函数
+        result = export_comments_to_pdf(class_name)
+        
+        # 检查result类型，处理可能的返回值为None或元组的情况
+        if result is None:
+            return jsonify({
+                'status': 'error',
+                'message': 'PDF导出功能不可用，请确保服务器安装了reportlab库'
+            }), 400
+        elif isinstance(result, tuple) and len(result) == 2 and result[0] is None:
+            return jsonify({
+                'status': 'error',
+                'message': result[1]
+            }), 400
+        
+        # 正常处理字典类型的结果
+        if result.get('status') == 'ok':
+            return jsonify(result)
+        else:
+            return jsonify(result), 400  # 使用400而不是500
+    except Exception as e:
+        app.logger.error(f"导出评语PDF时发生错误: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({
+            'status': 'error',
+            'message': f'导出评语PDF时发生错误: {str(e)}'
+        }), 400
 
 # 提供导出文件下载
 @app.route('/download/exports/<filename>', methods=['GET'])
