@@ -50,47 +50,71 @@ def get_db_connection():
 def register_fonts():
     """注册中文字体，确保PDF可以正确显示中文"""
     if not REPORTLAB_AVAILABLE:
+        logger.error("ReportLab库不可用，无法注册字体")
         return False
     
-    # 尝试注册常见中文字体
+    # 检查字体目录
+    if not os.path.exists(FONTS_FOLDER):
+        try:
+            os.makedirs(FONTS_FOLDER, exist_ok=True)
+            logger.info(f"创建字体目录: {FONTS_FOLDER}")
+        except Exception as e:
+            logger.error(f"创建字体目录失败: {str(e)}")
+    
+    # 尝试注册常见中文字体 - 优先使用macOS系统字体
     font_files = [
-        (f'{FONTS_FOLDER}/SimSun.ttf', 'SimSun'),
-        (f'{FONTS_FOLDER}/SourceHanSerifCN-Regular.otf', 'SimSun'),
-        ('C:/Windows/Fonts/simsun.ttc', 'SimSun'),
-        ('C:/Windows/Fonts/simhei.ttf', 'SimHei'),
+        # macOS系统字体
         ('/System/Library/Fonts/PingFang.ttc', 'PingFang'),
+        ('/System/Library/Fonts/STHeiti Light.ttc', 'STHeiti'),
+        ('/System/Library/Fonts/STHeiti Medium.ttc', 'STHeiti-Medium'),
+        ('/System/Library/Fonts/Hiragino Sans GB.ttc', 'Hiragino'),
         ('/Library/Fonts/Microsoft/SimSun.ttf', 'SimSun'),
-        ('/Library/Fonts/Microsoft/SimHei.ttf', 'SimHei')
+        ('/Library/Fonts/Arial Unicode.ttf', 'Arial-Unicode'),
+        # 项目字体目录
+        (f'{FONTS_FOLDER}/SimSun.ttf', 'SimSun'),
+        (f'{FONTS_FOLDER}/SourceHanSerifCN-Regular.otf', 'SourceHan'),
+        # Windows系统字体
+        ('C:/Windows/Fonts/simsun.ttc', 'SimSun-Win'),
+        ('C:/Windows/Fonts/simhei.ttf', 'SimHei-Win')
     ]
     
     # 尝试所有可能的字体，直到成功注册一个
     for font_path, font_name in font_files:
         try:
             if os.path.exists(font_path):
+                logger.info(f"找到字体文件: {font_path}")
                 pdfmetrics.registerFont(TTFont(font_name, font_path))
-                logger.info(f"成功注册中文字体: {font_path}")
+                logger.info(f"成功注册中文字体: {font_path} 作为 {font_name}")
                 return font_name
+            else:
+                logger.info(f"字体文件不存在: {font_path}")
         except Exception as e:
-            logger.warning(f"注册字体 {font_path} 失败: {e}")
+            logger.warning(f"注册字体 {font_path} 失败: {str(e)}")
+            logger.warning(traceback.format_exc())
     
-    # 如果所有尝试都失败，使用默认字体
+    # 如果无法找到中文字体，尝试使用默认字体
     logger.warning("无法注册中文字体，将使用默认字体")
     return 'Helvetica'
 
 # 核心导出函数
-def export_comments_to_pdf(class_name=None, output_file=None):
+def export_comments_to_pdf(class_name=None, output_file=None, school_name=None, school_year=None):
     """
     将学生评语导出为PDF文件
     
     参数:
     - class_name: 班级名称（可选，仅导出指定班级）
     - output_file: 输出文件名（可选，如未指定则自动生成）
+    - school_name: 学校名称（可选，显示在标题中）
+    - school_year: 学年（可选，显示在标题中）
     
     返回:
     - 包含状态和文件路径的字典
     """
+    logger.info(f"开始导出评语PDF，班级: {class_name}, 学校: {school_name}, 学年: {school_year}")
+    
     # 检查PDF生成库是否可用
     if not REPORTLAB_AVAILABLE:
+        logger.error("PDF生成库(ReportLab)未安装")
         return {
             'status': 'error', 
             'message': 'PDF生成库(ReportLab)未安装，无法生成PDF文件。请安装库: pip install reportlab'
@@ -100,10 +124,14 @@ def export_comments_to_pdf(class_name=None, output_file=None):
     try:
         if not os.path.exists(EXPORTS_FOLDER):
             os.makedirs(EXPORTS_FOLDER, exist_ok=True)
+            logger.info(f"创建导出目录: {EXPORTS_FOLDER}")
             
         if not os.access(EXPORTS_FOLDER, os.W_OK):
+            logger.error(f"导出目录不可写: {EXPORTS_FOLDER}")
             return {'status': 'error', 'message': f'导出目录 {EXPORTS_FOLDER} 不可写，请检查权限'}
     except Exception as e:
+        logger.error(f"创建导出目录时出错: {str(e)}")
+        logger.error(traceback.format_exc())
         return {'status': 'error', 'message': f'创建导出目录时出错: {str(e)}'}
     
     # 生成导出文件名
@@ -114,9 +142,11 @@ def export_comments_to_pdf(class_name=None, output_file=None):
         filename = output_file
     
     file_path = os.path.join(EXPORTS_FOLDER, filename)
+    logger.info(f"导出文件路径: {file_path}")
     
     # 注册字体
     font_name = register_fonts()
+    logger.info(f"使用字体: {font_name}")
     
     # 获取学生数据
     try:
@@ -125,9 +155,13 @@ def export_comments_to_pdf(class_name=None, output_file=None):
         
         # 查询语句
         if class_name:
-            cursor.execute('SELECT id, name, gender, class, comments, updated_at FROM students WHERE class = ? ORDER BY CAST(id AS INTEGER)', (class_name,))
+            query = 'SELECT id, name, gender, class, comments, updated_at FROM students WHERE class = ? ORDER BY CAST(id AS INTEGER)'
+            logger.info(f"执行查询: {query} 参数: {class_name}")
+            cursor.execute(query, (class_name,))
         else:
-            cursor.execute('SELECT id, name, gender, class, comments, updated_at FROM students ORDER BY class, CAST(id AS INTEGER)')
+            query = 'SELECT id, name, gender, class, comments, updated_at FROM students ORDER BY class, CAST(id AS INTEGER)'
+            logger.info(f"执行查询: {query}")
+            cursor.execute(query)
         
         # 获取数据
         students = cursor.fetchall()
@@ -141,131 +175,136 @@ def export_comments_to_pdf(class_name=None, output_file=None):
         logger.info(f"成功获取 {len(students)} 名学生数据")
     except Exception as e:
         logger.error(f"查询学生数据时出错: {str(e)}")
+        logger.error(traceback.format_exc())
         return {'status': 'error', 'message': f'查询学生数据时出错: {str(e)}'}
     
     # 生成PDF文件
     try:
-        # 转换学生数据为字典列表并按班级分组
+        # 分析学生数据
         students_by_class = {}
         for s in students:
-            # 提取班级名称，确保有值
             class_name = s['class'] if s['class'] else '未分班'
-            
-            # 如果班级不存在则创建列表
             if class_name not in students_by_class:
                 students_by_class[class_name] = []
-            
-            # 添加学生到对应班级
             students_by_class[class_name].append(dict(s))
         
-        # 创建PDF文档
+        # 创建简单的PDF文档 - 使用纵向A4纸张
         doc = SimpleDocTemplate(
             file_path,
-            pagesize=landscape(A4),
-            rightMargin=10*mm,
-            leftMargin=10*mm,
-            topMargin=10*mm,
-            bottomMargin=10*mm
+            pagesize=A4,
+            rightMargin=20*mm,
+            leftMargin=20*mm,
+            topMargin=20*mm,
+            bottomMargin=20*mm
         )
         
         # 创建样式
         styles = getSampleStyleSheet()
-        title_style = ParagraphStyle('Title', parent=styles['Title'], fontName=font_name, fontSize=16, alignment=1)
-        header_style = ParagraphStyle('Header', parent=styles['Heading2'], fontName=font_name, fontSize=14, alignment=0)
-        normal_style = ParagraphStyle(
-            'Normal', 
+        
+        # 定义标题样式
+        title_style = ParagraphStyle(
+            'Title', 
+            parent=styles['Title'], 
+            fontName=font_name, 
+            fontSize=18, 
+            alignment=1,  # 居中
+            spaceAfter=10*mm
+        )
+        
+        # 定义班级标题样式
+        class_style = ParagraphStyle(
+            'Class', 
+            parent=styles['Heading1'], 
+            fontName=font_name, 
+            fontSize=16, 
+            alignment=0,  # 左对齐
+            spaceAfter=5*mm
+        )
+        
+        # 定义学生名称样式
+        student_style = ParagraphStyle(
+            'Student', 
+            parent=styles['Heading2'], 
+            fontName=font_name, 
+            fontSize=14, 
+            alignment=0,  # 左对齐
+            spaceAfter=2*mm
+        )
+        
+        # 定义评语样式
+        comment_style = ParagraphStyle(
+            'Comment', 
+            parent=styles['Normal'], 
+            fontName=font_name, 
+            fontSize=12, 
+            alignment=0,  # 左对齐
+            firstLineIndent=5*mm,
+            spaceBefore=2*mm,
+            spaceAfter=5*mm
+        )
+        
+        # 定义时间样式
+        time_style = ParagraphStyle(
+            'Time', 
             parent=styles['Normal'], 
             fontName=font_name, 
             fontSize=10, 
-            leading=12,
-            alignment=0,
-            firstLineIndent=0,
-            leftIndent=0
+            alignment=0,  # 左对齐
+            leftIndent=10*mm,
+            textColor=colors.gray
         )
         
-        # 构建文档内容
+        # 创建文档内容
         story = []
-        current_page = 1
-        cards_per_page = 6  # 每页6个学生，3列2行排列
         
-        # 添加标题
-        story.append(Paragraph("学生评语表", title_style))
+        # 添加文档标题
+        title = f"学生评语汇总 - {school_name} {school_year}" if school_name and school_year else "学生评语汇总"
+        story.append(Paragraph(title, title_style))
         
-        # 遍历每个班级
+        # 处理每个班级
         for class_name, class_students in students_by_class.items():
             # 添加班级标题
-            story.append(Paragraph(class_name, header_style))
+            story.append(Paragraph(f"班级：{class_name}", class_style))
             
-            # 每6个学生一页处理
-            for page_index, page_start in enumerate(range(0, len(class_students), cards_per_page)):
-                # 获取当前页的学生
-                page_students = class_students[page_start:page_start + cards_per_page]
-                
-                # 创建学生卡片表格数据
-                data = []
-                row = []
-                
-                # 处理每个学生
-                for i, student in enumerate(page_students):
-                    # 安全获取学生信息
-                    name = student.get('name', '未知')
-                    gender = student.get('gender', '')
-                    student_id = student.get('id', '')
-                    comments = student.get('comments', '') or '暂无评语'
-                    updated_at = student.get('updated_at', '') or '未更新'
+            # 处理每个学生
+            for student in class_students:
+                try:
+                    # 安全获取学生数据
+                    name = str(student.get('name', '')) if student.get('name') is not None else '未知学生'
+                    gender = str(student.get('gender', '')) if student.get('gender') is not None else ''
+                    student_id = str(student.get('id', '')) if student.get('id') is not None else ''
+                    updated_at = str(student.get('updated_at', '')) if student.get('updated_at') is not None else '未更新'
                     
-                    # 构建cell内容
-                    info = f"<b>{name}</b> ({gender}) - 学号: {student_id}"
-                    comments_formatted = comments.replace('<', '&lt;').replace('>', '&gt;').replace('\n', '<br/>')
-                    content = f"""
-                    <para leftIndent="0" firstLineIndent="0">{info}</para>
-                    <para leftIndent="0" firstLineIndent="0"><br/></para>
-                    <para leftIndent="0" firstLineIndent="0">{comments_formatted}</para>
-                    <para leftIndent="0" firstLineIndent="0"><br/></para>
-                    <para leftIndent="0" firstLineIndent="0" align="right"><font size="8">更新时间: {updated_at}</font></para>
-                    """
+                    # 处理评语，移除所有可能导致问题的字符
+                    raw_comments = student.get('comments', '')
+                    if raw_comments is None or raw_comments == '':
+                        comments = '暂无评语'
+                    else:
+                        comments = str(raw_comments).replace('<', ' ').replace('>', ' ')
                     
-                    # 添加到行
-                    row.append(Paragraph(content, normal_style))
+                    # 添加学生信息
+                    student_info = f"{name} ({gender}) - 学号: {student_id}"
+                    story.append(Paragraph(student_info, student_style))
                     
-                    # 每3个学生一行，或者是最后一个学生
-                    if (i + 1) % 3 == 0 or i == len(page_students) - 1:
-                        # 补齐空单元格
-                        while len(row) < 3:
-                            row.append('')
-                        data.append(row)
-                        row = []
-                
-                # 创建表格
-                if data:
-                    col_widths = [doc.width/3.0 - 5*mm] * 3
-                    table = Table(data, colWidths=col_widths)
+                    # 添加评语
+                    story.append(Paragraph(comments, comment_style))
                     
-                    # 表格样式
-                    table.setStyle(TableStyle([
-                        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                        ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
-                        ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.black),
-                        ('LEFTPADDING', (0, 0), (-1, -1), 5),
-                        ('RIGHTPADDING', (0, 0), (-1, -1), 5),
-                        ('TOPPADDING', (0, 0), (-1, -1), 5),
-                        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-                    ]))
+                    # 添加更新时间
+                    story.append(Paragraph(f"更新时间: {updated_at}", time_style))
                     
-                    story.append(table)
+                    # 添加分隔空间
+                    story.append(Spacer(1, 5*mm))
                     
-                    # 添加页码
-                    story.append(Paragraph(
-                        f"第 {current_page} 页", 
-                        ParagraphStyle('PageNumber', fontName=font_name, fontSize=9, alignment=1)
-                    ))
-                    
-                    # 增加页码计数
-                    current_page += 1
-                    
-                    # 如果不是最后一页，添加分页符
-                    if page_index < (len(class_students) - 1) // cards_per_page:
-                        story.append(PageBreak())
+                except Exception as e:
+                    logger.error(f"处理学生 {student.get('name')} 数据时出错: {str(e)}")
+                    # 添加错误信息
+                    error_style = ParagraphStyle('Error', parent=styles['Normal'], fontName=font_name, textColor=colors.red)
+                    story.append(Paragraph(f"处理该学生数据时出错: {str(e)}", error_style))
+                    story.append(Spacer(1, 5*mm))
+            
+            # 在每个班级后添加分页符（除了最后一个班级）
+            if class_name != list(students_by_class.keys())[-1]:
+                story.append(PageBreak())
         
         # 构建PDF
         doc.build(story)

@@ -141,6 +141,9 @@ class DeepSeekAPI:
         # 构建提示语
         gender = "他" if student_info.get("gender") == "男" else "她"
         
+        # 获取额外指令
+        additional_instructions = student_info.get('additional_instructions', '')
+        
         prompt = f"""
 你是一名经验丰富的班主任，请为以下学生生成一段不超过{max_length}字的评语。
 评语应该是{style}和{tone}的。
@@ -155,6 +158,7 @@ class DeepSeekAPI:
 
 请根据以上信息，生成一段全面、具体且有针对性的评语，突出{gender}的优点，同时也提出建设性的改进建议。
 评语的长度必须控制在{max_length}字以内，请确保评语内容积极向上且有指导意义。
+{additional_instructions}
 不要在回复中写除了评语之外的任何内容。
 """
 

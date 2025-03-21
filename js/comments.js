@@ -262,8 +262,8 @@ function createCommentCard(student, commentData) {
                     </div>
                 </div>
                 <div>
-                    <button class="btn btn-sm btn-outline-info ai-comment-btn me-1" data-student-id="${student.id}" data-student-name="${student.name}">
-                        <i class='bx bx-bot'></i> AI助手
+                    <button class="btn btn-sm btn-outline-info ai-comment-btn me-1 breathing-button" data-student-id="${student.id}" data-student-name="${student.name}" style="background: linear-gradient(135deg, #e0f7ff, #ffffff); border-color: #00c3ff; color: #0072ff; font-weight: bold;">
+                        <i class='bx bx-bot'></i> AI海海
                     </button>
                     <button class="btn btn-sm btn-primary edit-comment-btn" data-student-id="${student.id}" data-student-name="${student.name}">
                         <i class='bx bx-edit'></i> 编辑评语
@@ -1013,15 +1013,75 @@ function exportComments() {
     
     // 获取班级信息（可选）
     const exportSettings = dataService.getExportSettings();
-    const className = exportSettings.className || '';
+    let className = exportSettings.className || '';
+    const schoolName = exportSettings.schoolName || '';
+    const schoolYear = exportSettings.schoolYear || '';
     
-    // 构建请求URL
-    const queryString = className ? `?class=${encodeURIComponent(className)}` : '';
+    console.log('导出设置：', { 班级: className, 学校: schoolName, 学年: schoolYear });
+    
+    // 构建请求URL - 使用URLSearchParams处理参数
+    const params = new URLSearchParams();
+    
+    // 添加班级参数
+    if (className && className.trim() !== '') {
+        try {
+            className = className.trim();
+            params.append('class', className);
+        } catch (e) {
+            console.error('处理班级名称时出错:', e);
+        }
+    }
+    
+    // 添加学校名称参数
+    if (schoolName && schoolName.trim() !== '') {
+        try {
+            params.append('school_name', schoolName.trim());
+        } catch (e) {
+            console.error('处理学校名称时出错:', e);
+        }
+    }
+    
+    // 添加学年参数
+    if (schoolYear && schoolYear.trim() !== '') {
+        try {
+            params.append('school_year', schoolYear.trim());
+        } catch (e) {
+            console.error('处理学年时出错:', e);
+        }
+    }
+    
+    // 生成查询字符串
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    
+    console.log('导出请求URL:', `/api/export-comments-pdf${queryString}`);
+    
+    // 显示长时间进度提示
+    setTimeout(() => {
+        // 5秒后如果仍在加载，显示长时间等待提示
+        const toastContainer = document.getElementById('toastContainer');
+        if (toastContainer) {
+            const toasts = toastContainer.querySelectorAll('.toast');
+            // 如果仍有加载通知，显示额外的提示
+            if (toasts.length > 0) {
+                showNotification('PDF生成中，请继续等待...', 'info', 8000);
+            }
+        }
+    }, 5000);
     
     // 调用导出API
     fetch(`/api/export-comments-pdf${queryString}`)
-        .then(response => response.json())
-        .then(data => {
+        .then(response => {
+            // 即使是错误状态码，也获取JSON响应
+            return response.json().then(data => {
+                // 将响应状态码和数据一起返回
+                return { 
+                    ok: response.ok, 
+                    status: response.status,
+                    data: data 
+                };
+            });
+        })
+        .then(result => {
             // 关闭加载通知
             const toastContainer = document.getElementById('toastContainer');
             if (toastContainer) {
@@ -1032,25 +1092,70 @@ function exportComments() {
                 });
             }
             
-            if (data.status === 'ok') {
+            // 检查结果
+            if (result.ok && result.data.status === 'ok') {
                 // 显示成功通知
                 showNotification('PDF生成成功，正在下载...');
                 
                 // 创建下载链接
                 const downloadLink = document.createElement('a');
-                downloadLink.href = data.download_url;
-                downloadLink.download = data.download_url.split('/').pop();
+                downloadLink.href = result.data.download_url;
+                downloadLink.download = result.data.download_url.split('/').pop();
                 document.body.appendChild(downloadLink);
                 downloadLink.click();
                 document.body.removeChild(downloadLink);
             } else {
-                showNotification('导出PDF失败: ' + data.message, 'error');
+                // 显示错误信息
+                let errorMessage = '导出PDF失败，未知错误';
+                
+                // 正确提取错误信息
+                try {
+                    if (result.data) {
+                        // 如果data是字符串，直接使用
+                        if (typeof result.data === 'string') {
+                            errorMessage = result.data;
+                        } 
+                        // 如果data是对象
+                        else if (typeof result.data === 'object') {
+                            // 尝试获取message字段
+                            if (typeof result.data.message === 'string') {
+                                errorMessage = result.data.message;
+                            } 
+                            // 如果status是error并且有message
+                            else if (result.data.status === 'error' && typeof result.data.message === 'string') {
+                                errorMessage = result.data.message;
+                            }
+                            // 如果对象没有可用的message字段，尝试转换为字符串
+                            else {
+                                // 尝试使用JSON.stringify转换
+                                try {
+                                    const dataStr = JSON.stringify(result.data);
+                                    if (dataStr && dataStr !== '{}' && dataStr !== '[]') {
+                                        errorMessage = '服务器返回: ' + dataStr.substring(0, 100);
+                                    }
+                                } catch (jsonErr) {
+                                    console.error('JSON转换错误:', jsonErr);
+                                }
+                            }
+                        }
+                    }
+                    // 如果没有提取到有意义的错误信息，加上HTTP状态码
+                    if (errorMessage === '导出PDF失败，未知错误' && result.status) {
+                        errorMessage += ` (HTTP ${result.status})`;
+                    }
+                } catch (e) {
+                    console.error('解析错误消息时出错:', e);
+                    errorMessage = `解析错误消息时出错: ${e.message}`;
+                }
+                
+                showNotification(`导出PDF失败: ${errorMessage}`, 'error');
+                console.error('导出PDF失败详情:', result);
             }
         })
         .catch(error => {
-            console.error('导出PDF时出错:', error);
-            showNotification('导出PDF时出错，请查看控制台获取详细信息', 'error');
-    });
+            console.error('导出PDF时网络请求出错:', error);
+            showNotification('导出PDF时出错，请检查网络连接或查看控制台获取详细信息', 'error');
+        });
 }
 
 // 导入docx库
@@ -1364,7 +1469,7 @@ function updateTemplateButtons() {
 }
 
 // 显示通知
-function showNotification(message, type = 'success') {
+function showNotification(message, type = 'success', duration = 3000) {
     // 创建一个toast元素
     const toastId = `toast-${Date.now()}`;
     const toast = document.createElement('div');
@@ -1403,9 +1508,13 @@ function showNotification(message, type = 'success') {
         document.getElementById(toastId)?.remove();
     });
     
-    // 显示Toast
-    const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+    // 显示Toast，0表示不自动关闭
+    const delay = duration === 0 ? Infinity : duration;
+    const bsToast = new bootstrap.Toast(toast, { delay: delay });
     bsToast.show();
+    
+    // 返回toast实例以便可以手动控制
+    return bsToast;
 }
 
 // 修改学生操作函数，添加跨页面通信
@@ -1589,6 +1698,33 @@ function showTemplateSelectorModal() {
 function initialize() {
     console.log('开始初始化评语管理功能...');
     
+    // 添加呼吸灯效果的样式
+    if (!document.getElementById('breathing-effect-style')) {
+        const style = document.createElement('style');
+        style.id = 'breathing-effect-style';
+        style.textContent = `
+            @keyframes breathing {
+                0% { box-shadow: 0 0 10px 2px rgba(0, 183, 255, 0.4); }
+                25% { box-shadow: 0 0 15px 4px rgba(0, 217, 255, 0.6); }
+                50% { box-shadow: 0 0 20px 6px rgba(0, 247, 255, 0.8); }
+                75% { box-shadow: 0 0 15px 4px rgba(0, 217, 255, 0.6); }
+                100% { box-shadow: 0 0 10px 2px rgba(0, 183, 255, 0.4); }
+            }
+            .breathing-border {
+                animation: breathing 2s infinite ease-in-out;
+                border: 3px solid #00c3ff !important;
+                border-radius: 8px !important;
+                overflow: hidden;
+            }
+            .breathing-button {
+                animation: breathing 2s infinite ease-in-out;
+                position: relative;
+                z-index: 1;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
     // 加载评语模板
     loadCommentTemplates();
     
@@ -1733,7 +1869,7 @@ function bindEventListeners() {
 
 // 显示AI评语助手模态框
 function showAICommentAssistant(studentId, studentName) {
-    console.log('打开AI评语助手:', studentId, studentName);
+    console.log('打开AI海海:', studentId, studentName);
     
     // 创建模态框HTML
     const modalId = 'aiCommentAssistantModal';
@@ -1749,14 +1885,25 @@ function showAICommentAssistant(studentId, studentName) {
         modalElement.setAttribute('aria-labelledby', `${modalId}Label`);
         modalElement.innerHTML = `
             <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header">
+                <div class="modal-content breathing-border">
+                    <div class="modal-header" style="background: linear-gradient(135deg, #00c6ff, #0072ff); color: white;">
                         <h5 class="modal-title" id="${modalId}Label">
-                            <i class='bx bx-bot'></i> AI评语助手 - <span id="aiModalStudentName"></span>
+                            <i class='bx bx-bot'></i> AI海海 - <span id="aiModalStudentName"></span>
                         </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
+                        <!-- 欢迎信息 -->
+                        <div class="alert alert-info d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <i class='bx bx-info-circle me-2'></i> 
+                                欢迎使用青柠半夏为您提供的Deepseek API，您也可以使用自己的API
+                            </div>
+                            <a href="#" class="btn btn-sm btn-outline-primary" id="openApiSettingsBtn">
+                                <i class='bx bx-cog'></i> 修改
+                            </a>
+                        </div>
+                        
                         <!-- AI评语生成设置 -->
                         <div class="card mb-3">
                             <div class="card-body">
@@ -1788,6 +1935,8 @@ function showAICommentAssistant(studentId, studentName) {
                                             <option value="严肃的">严肃</option>
                                             <option value="中肯的">中肯</option>
                                             <option value="温和的">温和</option>
+                                            <option value="诗意的">诗意的</option>
+                                            <option value="自然的">自然的</option>
                                         </select>
                                     </div>
                                     <div class="col-md-4">
@@ -1813,10 +1962,10 @@ function showAICommentAssistant(studentId, studentName) {
                         </div>
                         
                         <!-- AI评语预览 -->
-                        <div id="aiCommentPreview" class="card" style="display: none;">
-                            <div class="card-header bg-info text-white">
+                        <div id="aiCommentPreview" class="card" style="display: none; border: 2px solid #00c3ff; box-shadow: 0 0 10px rgba(0, 195, 255, 0.3);">
+                            <div class="card-header bg-info text-white" style="background: linear-gradient(135deg, #00c6ff, #0072ff) !important;">
                                 <h6 class="mb-0">
-                                    <i class='bx bx-bot'></i> AI生成的评语
+                                    <i class='bx bx-bot'></i> AI海海生成的评语
                                 </h6>
                             </div>
                             <div class="card-body">
@@ -1868,6 +2017,12 @@ function showAICommentAssistant(studentId, studentName) {
         document.getElementById('useAICommentBtn').addEventListener('click', function() {
             useAIComment(studentId);
         });
+        
+        // 绑定API设置按钮事件 - 现在打开模态框而不是跳转
+        document.getElementById('openApiSettingsBtn').addEventListener('click', function(e) {
+            e.preventDefault();
+            showApiSettingsModal();
+        });
     }
     
     // 设置学生姓名
@@ -1900,6 +2055,16 @@ function generateAIComment(studentId) {
     document.getElementById('aiCommentPreview').style.display = 'none';
     document.getElementById('generateAICommentBtn').disabled = true;
     
+    // 处理特殊风格
+    let styleDescription = style;
+    let additionalInstructions = "";
+    
+    if (style === "诗意的") {
+        additionalInstructions = "请在评语中加入一句与学生特点相关的诗句，使评语更加富有诗意。";
+    } else if (style === "自然的") {
+        additionalInstructions = "请使用花卉、植物等自然元素来形象比喻描述学生的特点，使评语更加生动形象。";
+    }
+    
     // 请求参数
     const requestData = {
         student_id: studentId,  // 兼容后端API
@@ -1910,17 +2075,18 @@ function generateAIComment(studentId) {
         improvement,
         style,
         tone,
-        max_length: maxLength
+        max_length: maxLength,
+        additional_instructions: additionalInstructions  // 添加特殊风格说明
     };
     
     console.log('发送评语生成请求:', requestData);
     
     // 发送请求
-            fetch('/api/generate-comment', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+    fetch('/api/generate-comment', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
         body: JSON.stringify(requestData)
     })
     .then(response => {
@@ -1939,7 +2105,7 @@ function generateAIComment(studentId) {
             }
         });
     })
-            .then(data => {
+    .then(data => {
         console.log('评语生成结果:', data);
         
         // 隐藏加载状态
@@ -2043,3 +2209,244 @@ function useAIComment(studentId) {
         });
     }
 }
+
+// 创建并显示API设置模态框
+function showApiSettingsModal() {
+    console.log('显示API设置模态框');
+
+    // 创建模态框HTML
+    const modalId = 'apiSettingsModal';
+    let modalElement = document.getElementById(modalId);
+    
+    // 如果模态框不存在，创建新的
+    if (!modalElement) {
+        modalElement = document.createElement('div');
+        modalElement.className = 'modal fade';
+        modalElement.id = modalId;
+        modalElement.tabIndex = '-1';
+        modalElement.setAttribute('data-bs-backdrop', 'static');
+        modalElement.setAttribute('aria-labelledby', `${modalId}Label`);
+        modalElement.innerHTML = `
+            <div class="modal-dialog modal-md">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="${modalId}Label">
+                            <i class='bx bx-cog'></i> 设置 Deepseek API
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="apiDeepseekKey" class="form-label">Deepseek API密钥</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="apiDeepseekKey" placeholder="输入您的Deepseek API密钥">
+                                <button class="btn btn-outline-secondary" type="button" id="apiToggleKeyBtn">
+                                    <i class='bx bx-show'></i>
+                                </button>
+                            </div>
+                            <div class="form-text">用于生成学生评语的API密钥，请在 <a href="https://www.deepseek.com/" target="_blank">DeepSeek官网</a> 获取</div>
+                        </div>
+                        
+                        <!-- API状态显示 -->
+                        <div id="apiStatusDisplay" class="alert alert-info mt-3" style="display: none;"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                        <button type="button" class="btn btn-info" id="apiTestBtn">
+                            <i class='bx bx-test-tube'></i> 测试连接
+                        </button>
+                        <button type="button" class="btn btn-primary" id="apiSaveBtn">
+                            <i class='bx bx-save'></i> 保存设置
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modalElement);
+        
+        // 绑定API密钥显示/隐藏按钮事件
+        document.getElementById('apiToggleKeyBtn').addEventListener('click', function() {
+            const apiKeyInput = document.getElementById('apiDeepseekKey');
+            const icon = this.querySelector('i');
+            
+            if (apiKeyInput.type === 'password') {
+                apiKeyInput.type = 'text';
+                icon.classList.remove('bx-show');
+                icon.classList.add('bx-hide');
+            } else {
+                apiKeyInput.type = 'password';
+                icon.classList.remove('bx-hide');
+                icon.classList.add('bx-show');
+            }
+        });
+        
+        // 绑定测试按钮事件
+        document.getElementById('apiTestBtn').addEventListener('click', function() {
+            testApiConnection();
+        });
+        
+        // 绑定保存按钮事件
+        document.getElementById('apiSaveBtn').addEventListener('click', function() {
+            saveApiSettings();
+        });
+    }
+    
+    // 加载当前的API密钥
+    loadApiSettings();
+    
+    // 显示模态框
+    const modal = new bootstrap.Modal(modalElement);
+    modal.show();
+}
+
+// 加载API设置
+function loadApiSettings() {
+    const apiKeyInput = document.getElementById('apiDeepseekKey');
+    if (!apiKeyInput) return;
+    
+    // 从localStorage获取API密钥
+    const apiKey = localStorage.getItem('deepseekApiKey') || '';
+    apiKeyInput.value = apiKey;
+    
+    // 也可以从服务器加载，但这里我们使用本地存储的值
+    fetch('/api/settings')
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'ok' && data.settings && data.settings.deepseek_api_key) {
+                apiKeyInput.value = data.settings.deepseek_api_key;
+            }
+        })
+        .catch(error => {
+            console.error('加载API设置时出错:', error);
+        });
+}
+
+// 测试API连接
+function testApiConnection() {
+    const apiKey = document.getElementById('apiDeepseekKey').value.trim();
+    const statusDisplay = document.getElementById('apiStatusDisplay');
+    
+    if (!apiKey) {
+        showApiStatus('请输入API密钥', 'warning');
+        return;
+    }
+    
+    // 显示加载状态
+    showApiStatus('正在测试连接...', 'info');
+    
+    // 禁用测试按钮
+    const testBtn = document.getElementById('apiTestBtn');
+    if (testBtn) {
+        testBtn.disabled = true;
+        testBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 测试中...';
+    }
+    
+    // 发送测试请求
+    fetch('/api/test-deepseek', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ api_key: apiKey })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'ok') {
+            showApiStatus('API连接测试成功！', 'success');
+        } else {
+            showApiStatus(`测试失败: ${data.message || '未知错误'}`, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('测试API连接时出错:', error);
+        showApiStatus(`测试出错: ${error.message}`, 'danger');
+    })
+    .finally(() => {
+        // 恢复按钮状态
+        if (testBtn) {
+            testBtn.disabled = false;
+            testBtn.innerHTML = '<i class="bx bx-test-tube"></i> 测试连接';
+        }
+    });
+}
+
+// 保存API设置
+function saveApiSettings() {
+    const apiKey = document.getElementById('apiDeepseekKey').value.trim();
+    
+    // 保存到localStorage
+    localStorage.setItem('deepseekApiKey', apiKey);
+    
+    // 显示保存状态
+    const statusDisplay = document.getElementById('apiStatusDisplay');
+    
+    // 禁用保存按钮
+    const saveBtn = document.getElementById('apiSaveBtn');
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 保存中...';
+    }
+    
+    // 发送到服务器
+    fetch('/api/settings/deepseek', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ api_key: apiKey })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'ok') {
+            showApiStatus('API设置已保存', 'success');
+            
+            // 可以选择关闭模态框
+            setTimeout(() => {
+                const modal = bootstrap.Modal.getInstance(document.getElementById('apiSettingsModal'));
+                if (modal) modal.hide();
+            }, 1500);
+        } else {
+            showApiStatus(`保存失败: ${data.message || '未知错误'}`, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('保存API设置时出错:', error);
+        showApiStatus(`保存失败: ${error.message}`, 'danger');
+    })
+    .finally(() => {
+        // 恢复按钮状态
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<i class="bx bx-save"></i> 保存设置';
+        }
+    });
+}
+
+// 显示API状态
+function showApiStatus(message, type) {
+    const statusDisplay = document.getElementById('apiStatusDisplay');
+    if (!statusDisplay) return;
+    
+    // 设置状态消息和样式
+    statusDisplay.textContent = message;
+    statusDisplay.style.display = 'block';
+    
+    // 设置样式
+    statusDisplay.className = '';
+    statusDisplay.classList.add('alert');
+    
+    switch (type) {
+        case 'success':
+            statusDisplay.classList.add('alert-success');
+            break;
+        case 'danger':
+            statusDisplay.classList.add('alert-danger');
+            break;
+        case 'warning':
+            statusDisplay.classList.add('alert-warning');
+            break;
+        default:
+            statusDisplay.classList.add('alert-info');
+    }
+}// 文件结束
