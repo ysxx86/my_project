@@ -88,6 +88,15 @@ from utils.grades_manager import GradesManager
 from utils.comment_generator import CommentGenerator
 from utils.report_exporter import ReportExporter
 
+# 导入仪表盘模块
+try:
+    from dashboard import init_dashboard
+    print("✓ 仪表盘模块已导入")
+    dashboard_enabled = True
+except ImportError:
+    print("! 仪表盘模块导入失败，相关功能将不可用")
+    dashboard_enabled = False
+
 # 设置DeepSeek API全局变量
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 deepseek_api = None
@@ -130,6 +139,15 @@ app = Flask(__name__,
             static_folder='./',
             template_folder='./')
 CORS(app)  # 启用跨域资源共享
+
+# 初始化仪表盘模块
+if dashboard_enabled:
+    try:
+        dashboard_components = init_dashboard(app)
+        print("✓ 仪表盘功能已初始化")
+    except Exception as e:
+        print(f"! 仪表盘初始化失败: {str(e)}")
+        dashboard_enabled = False
 
 # 配置
 UPLOAD_FOLDER = 'uploads'
