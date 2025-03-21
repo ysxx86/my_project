@@ -34,6 +34,44 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 绑定事件监听
     bindEventListeners();
+    
+    // 检查是否需要滚动到Deepseek API设置
+    if (sessionStorage.getItem('scrollToDeepseekApi') === 'true') {
+        // 清除会话存储变量
+        sessionStorage.removeItem('scrollToDeepseekApi');
+        
+        // 激活安全设置选项卡（假设Deepseek API设置在此选项卡下）
+        setTimeout(() => {
+            // 找到API设置所在的卡片
+            const apiCard = document.querySelector('.card-header:has(h5:contains("AI评语设置"))') || 
+                            document.querySelector('h5:contains("AI评语设置")').closest('.card');
+            
+            if (apiCard) {
+                // 滚动到API设置卡片
+                apiCard.scrollIntoView({ behavior: 'smooth' });
+                
+                // 高亮显示API设置卡片
+                apiCard.classList.add('border-primary');
+                apiCard.style.boxShadow = '0 0 15px rgba(52, 152, 219, 0.6)';
+                
+                // 高亮显示DeepseekApiKey输入框
+                const apiKeyInput = document.getElementById('deepseekApiKey');
+                if (apiKeyInput) {
+                    apiKeyInput.focus();
+                    apiKeyInput.classList.add('border-primary');
+                }
+                
+                // 3秒后移除高亮效果
+                setTimeout(() => {
+                    apiCard.classList.remove('border-primary');
+                    apiCard.style.boxShadow = '';
+                    if (apiKeyInput) {
+                        apiKeyInput.classList.remove('border-primary');
+                    }
+                }, 3000);
+            }
+        }, 500); // 延迟半秒确保DOM已完全加载
+    }
 });
 
 // 加载数据库信息
