@@ -1589,6 +1589,33 @@ function showTemplateSelectorModal() {
 function initialize() {
     console.log('开始初始化评语管理功能...');
     
+    // 添加呼吸灯效果的样式
+    if (!document.getElementById('breathing-effect-style')) {
+        const style = document.createElement('style');
+        style.id = 'breathing-effect-style';
+        style.textContent = `
+            @keyframes breathing {
+                0% { box-shadow: 0 0 10px 2px rgba(0, 183, 255, 0.4); }
+                25% { box-shadow: 0 0 15px 4px rgba(0, 217, 255, 0.6); }
+                50% { box-shadow: 0 0 20px 6px rgba(0, 247, 255, 0.8); }
+                75% { box-shadow: 0 0 15px 4px rgba(0, 217, 255, 0.6); }
+                100% { box-shadow: 0 0 10px 2px rgba(0, 183, 255, 0.4); }
+            }
+            .breathing-border {
+                animation: breathing 2s infinite ease-in-out;
+                border: 3px solid #00c3ff !important;
+                border-radius: 8px !important;
+                overflow: hidden;
+            }
+            .breathing-button {
+                animation: breathing 2s infinite ease-in-out;
+                position: relative;
+                z-index: 1;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
     // 加载评语模板
     loadCommentTemplates();
     
@@ -1735,33 +1762,6 @@ function bindEventListeners() {
 function showAICommentAssistant(studentId, studentName) {
     console.log('打开AI海海:', studentId, studentName);
     
-    // 添加呼吸灯效果的样式
-    if (!document.getElementById('breathing-effect-style')) {
-        const style = document.createElement('style');
-        style.id = 'breathing-effect-style';
-        style.textContent = `
-            @keyframes breathing {
-                0% { box-shadow: 0 0 10px 2px rgba(0, 183, 255, 0.4); }
-                25% { box-shadow: 0 0 15px 4px rgba(0, 217, 255, 0.6); }
-                50% { box-shadow: 0 0 20px 6px rgba(0, 247, 255, 0.8); }
-                75% { box-shadow: 0 0 15px 4px rgba(0, 217, 255, 0.6); }
-                100% { box-shadow: 0 0 10px 2px rgba(0, 183, 255, 0.4); }
-            }
-            .breathing-border {
-                animation: breathing 2s infinite ease-in-out;
-                border: 3px solid #00c3ff !important;
-                border-radius: 8px !important;
-                overflow: hidden;
-            }
-            .breathing-button {
-                animation: breathing 2s infinite ease-in-out;
-                position: relative;
-                z-index: 1;
-            }
-        `;
-        document.head.appendChild(style);
-    }
-    
     // 创建模态框HTML
     const modalId = 'aiCommentAssistantModal';
     let modalElement = document.getElementById(modalId);
@@ -1826,6 +1826,8 @@ function showAICommentAssistant(studentId, studentName) {
                                             <option value="严肃的">严肃</option>
                                             <option value="中肯的">中肯</option>
                                             <option value="温和的">温和</option>
+                                            <option value="诗意的">诗意的</option>
+                                            <option value="自然的">自然的</option>
                                         </select>
                                     </div>
                                     <div class="col-md-4">
@@ -1944,6 +1946,16 @@ function generateAIComment(studentId) {
     document.getElementById('aiCommentPreview').style.display = 'none';
     document.getElementById('generateAICommentBtn').disabled = true;
     
+    // 处理特殊风格
+    let styleDescription = style;
+    let additionalInstructions = "";
+    
+    if (style === "诗意的") {
+        additionalInstructions = "请在评语中加入一句与学生特点相关的诗句，使评语更加富有诗意。";
+    } else if (style === "自然的") {
+        additionalInstructions = "请使用花卉、植物等自然元素来形象比喻描述学生的特点，使评语更加生动形象。";
+    }
+    
     // 请求参数
     const requestData = {
         student_id: studentId,  // 兼容后端API
@@ -1954,17 +1966,18 @@ function generateAIComment(studentId) {
         improvement,
         style,
         tone,
-        max_length: maxLength
+        max_length: maxLength,
+        additional_instructions: additionalInstructions  // 添加特殊风格说明
     };
     
     console.log('发送评语生成请求:', requestData);
     
     // 发送请求
-            fetch('/api/generate-comment', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+    fetch('/api/generate-comment', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
         body: JSON.stringify(requestData)
     })
     .then(response => {
@@ -1983,7 +1996,7 @@ function generateAIComment(studentId) {
             }
         });
     })
-            .then(data => {
+    .then(data => {
         console.log('评语生成结果:', data);
         
         // 隐藏加载状态

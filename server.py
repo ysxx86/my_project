@@ -1518,15 +1518,22 @@ def generate_comment():
             "improvement": data.get('improvement', '')
         }
         
-        # 格式化学生信息
-        student_info = comment_generator.format_student_info(student_info)
+        # 获取评语参数
+        style = data.get('style', '鼓励性的')
+        tone = data.get('tone', '正式的')
+        max_length = int(data.get('max_length', 200))
+        additional_instructions = data.get('additional_instructions', '')
+        
+        # 如果有额外指令，添加到学生信息中
+        if additional_instructions:
+            student_info['additional_instructions'] = additional_instructions
         
         # 生成评语
         result = comment_generator.generate_comment(
             student_info=student_info,
-            style=data.get('style', '鼓励性的'),
-            tone=data.get('tone', '正式的'),
-            max_length=int(data.get('max_length', 200))
+            style=style,
+            tone=tone,
+            max_length=max_length
         )
         
         print("评语生成结果:", result)
