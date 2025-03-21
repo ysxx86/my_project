@@ -1175,18 +1175,55 @@ def batch_update_comments():
 def api_export_comments_pdf():
     # 获取班级参数（可选）
     class_name = request.args.get('class')
+    app.logger.info(f"收到导出评语PDF请求，班级: {class_name}")
     
     try:
-        # 调用新的PDF导出函数
+        # 检查PDF导出功能是否可用
+        try:
+            from reportlab.lib import colors
+            app.logger.info("ReportLab库成功导入")
+        except ImportError as e:
+            app.logger.error(f"ReportLab库导入失败: {str(e)}")
+            return jsonify({
+                'status': 'error',
+                'message': 'PDF导出功能不可用，服务器缺少ReportLab库'
+            }), 400
+        
+        # 检查导出目录是否存在
+        EXPORTS_FOLDER = 'exports'
+        if not os.path.exists(EXPORTS_FOLDER):
+            try:
+                os.makedirs(EXPORTS_FOLDER, exist_ok=True)
+                app.logger.info(f"创建导出目录: {EXPORTS_FOLDER}")
+            except Exception as e:
+                app.logger.error(f"创建导出目录失败: {str(e)}")
+                return jsonify({
+                    'status': 'error',
+                    'message': f'创建导出目录失败: {str(e)}'
+                }), 400
+                
+        # 检查导出目录是否可写
+        if not os.access(EXPORTS_FOLDER, os.W_OK):
+            app.logger.error(f"导出目录不可写: {EXPORTS_FOLDER}")
+            return jsonify({
+                'status': 'error',
+                'message': f'导出目录 {EXPORTS_FOLDER} 不可写，请检查权限'
+            }), 400
+        
+        # 调用PDF导出函数
+        app.logger.info("调用PDF导出函数")
         result = export_comments_to_pdf(class_name)
+        app.logger.info(f"PDF导出结果: {result}")
         
         # 检查result类型，处理可能的返回值为None或元组的情况
         if result is None:
+            app.logger.error("导出函数返回None")
             return jsonify({
                 'status': 'error',
-                'message': 'PDF导出功能不可用，请确保服务器安装了reportlab库'
+                'message': 'PDF导出功能返回None，请检查服务器日志'
             }), 400
         elif isinstance(result, tuple) and len(result) == 2 and result[0] is None:
+            app.logger.error(f"导出函数返回错误元组: {result}")
             return jsonify({
                 'status': 'error',
                 'message': result[1]
@@ -1194,8 +1231,10 @@ def api_export_comments_pdf():
         
         # 正常处理字典类型的结果
         if result.get('status') == 'ok':
+            app.logger.info(f"PDF导出成功: {result.get('file_path')}")
             return jsonify(result)
         else:
+            app.logger.error(f"PDF导出失败: {result.get('message')}")
             return jsonify(result), 400  # 使用400而不是500
     except Exception as e:
         app.logger.error(f"导出评语PDF时发生错误: {str(e)}")
@@ -1908,4 +1947,22 @@ def download_template():
     return jsonify({
         'status': 'ok',
         'url': url_for('download_student_template')
+    })
+
+# 获取所有班级API
+@app.route('/api/classes', methods=['GET'])
+def get_all_classes():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # 查询所有不同的班级
+    cursor.execute('SELECT DISTINCT class FROM students WHERE class IS NOT NULL AND class != "" ORDER BY class')
+    classes = [row['class'] for row in cursor.fetchall()]
+    
+    conn.close()
+    
+    return jsonify({
+        'status': 'ok',
+        'count': len(classes),
+        'classes': classes
     })

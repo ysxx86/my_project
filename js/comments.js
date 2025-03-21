@@ -1013,10 +1013,60 @@ function exportComments() {
     
     // 获取班级信息（可选）
     const exportSettings = dataService.getExportSettings();
-    const className = exportSettings.className || '';
+    let className = exportSettings.className || '';
+    const schoolName = exportSettings.schoolName || '';
+    const schoolYear = exportSettings.schoolYear || '';
     
-    // 构建请求URL
-    const queryString = className ? `?class=${encodeURIComponent(className)}` : '';
+    console.log('导出设置：', { 班级: className, 学校: schoolName, 学年: schoolYear });
+    
+    // 构建请求URL - 使用URLSearchParams处理参数
+    const params = new URLSearchParams();
+    
+    // 添加班级参数
+    if (className && className.trim() !== '') {
+        try {
+            className = className.trim();
+            params.append('class', className);
+        } catch (e) {
+            console.error('处理班级名称时出错:', e);
+        }
+    }
+    
+    // 添加学校名称参数
+    if (schoolName && schoolName.trim() !== '') {
+        try {
+            params.append('school_name', schoolName.trim());
+        } catch (e) {
+            console.error('处理学校名称时出错:', e);
+        }
+    }
+    
+    // 添加学年参数
+    if (schoolYear && schoolYear.trim() !== '') {
+        try {
+            params.append('school_year', schoolYear.trim());
+        } catch (e) {
+            console.error('处理学年时出错:', e);
+        }
+    }
+    
+    // 生成查询字符串
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    
+    console.log('导出请求URL:', `/api/export-comments-pdf${queryString}`);
+    
+    // 显示长时间进度提示
+    setTimeout(() => {
+        // 5秒后如果仍在加载，显示长时间等待提示
+        const toastContainer = document.getElementById('toastContainer');
+        if (toastContainer) {
+            const toasts = toastContainer.querySelectorAll('.toast');
+            // 如果仍有加载通知，显示额外的提示
+            if (toasts.length > 0) {
+                showNotification('PDF生成中，请继续等待...', 'info', 8000);
+            }
+        }
+    }, 5000);
     
     // 调用导出API
     fetch(`/api/export-comments-pdf${queryString}`)
@@ -1056,9 +1106,50 @@ function exportComments() {
                 document.body.removeChild(downloadLink);
             } else {
                 // 显示错误信息
-                const errorMessage = result.data.message || '导出PDF失败，未知错误';
+                let errorMessage = '导出PDF失败，未知错误';
+                
+                // 正确提取错误信息
+                try {
+                    if (result.data) {
+                        // 如果data是字符串，直接使用
+                        if (typeof result.data === 'string') {
+                            errorMessage = result.data;
+                        } 
+                        // 如果data是对象
+                        else if (typeof result.data === 'object') {
+                            // 尝试获取message字段
+                            if (typeof result.data.message === 'string') {
+                                errorMessage = result.data.message;
+                            } 
+                            // 如果status是error并且有message
+                            else if (result.data.status === 'error' && typeof result.data.message === 'string') {
+                                errorMessage = result.data.message;
+                            }
+                            // 如果对象没有可用的message字段，尝试转换为字符串
+                            else {
+                                // 尝试使用JSON.stringify转换
+                                try {
+                                    const dataStr = JSON.stringify(result.data);
+                                    if (dataStr && dataStr !== '{}' && dataStr !== '[]') {
+                                        errorMessage = '服务器返回: ' + dataStr.substring(0, 100);
+                                    }
+                                } catch (jsonErr) {
+                                    console.error('JSON转换错误:', jsonErr);
+                                }
+                            }
+                        }
+                    }
+                    // 如果没有提取到有意义的错误信息，加上HTTP状态码
+                    if (errorMessage === '导出PDF失败，未知错误' && result.status) {
+                        errorMessage += ` (HTTP ${result.status})`;
+                    }
+                } catch (e) {
+                    console.error('解析错误消息时出错:', e);
+                    errorMessage = `解析错误消息时出错: ${e.message}`;
+                }
+                
                 showNotification(`导出PDF失败: ${errorMessage}`, 'error');
-                console.error('导出PDF失败:', result);
+                console.error('导出PDF失败详情:', result);
             }
         })
         .catch(error => {
@@ -1378,7 +1469,7 @@ function updateTemplateButtons() {
 }
 
 // 显示通知
-function showNotification(message, type = 'success') {
+function showNotification(message, type = 'success', duration = 3000) {
     // 创建一个toast元素
     const toastId = `toast-${Date.now()}`;
     const toast = document.createElement('div');
@@ -1417,9 +1508,13 @@ function showNotification(message, type = 'success') {
         document.getElementById(toastId)?.remove();
     });
     
-    // 显示Toast
-    const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+    // 显示Toast，0表示不自动关闭
+    const delay = duration === 0 ? Infinity : duration;
+    const bsToast = new bootstrap.Toast(toast, { delay: delay });
     bsToast.show();
+    
+    // 返回toast实例以便可以手动控制
+    return bsToast;
 }
 
 // 修改学生操作函数，添加跨页面通信
@@ -2354,4 +2449,4 @@ function showApiStatus(message, type) {
         default:
             statusDisplay.classList.add('alert-info');
     }
-}
+}// 文件结束

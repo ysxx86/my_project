@@ -159,7 +159,84 @@ function loadSettings() {
     const apiKey = localStorage.getItem('deepseekApiKey') || '';
     document.getElementById('deepseekApiKey').value = apiKey;
     
-    // 其他设置加载...
+    // 加载班级列表
+    loadClassList();
+    
+    // 加载导出设置
+    loadExportSettings();
+}
+
+// 加载班级列表
+function loadClassList() {
+    const classSelect = document.getElementById('className');
+    
+    // 保存当前选择的值
+    const currentValue = classSelect.value;
+    
+    // 显示加载状态
+    classSelect.innerHTML = '<option value="">加载中...</option>';
+    
+    // 从服务器获取班级列表
+    fetch('/api/classes')
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'ok' && data.classes && data.classes.length > 0) {
+                // 清空选择器
+                classSelect.innerHTML = '';
+                
+                // 添加一个空选项
+                const emptyOption = document.createElement('option');
+                emptyOption.value = '';
+                emptyOption.textContent = '-- 请选择班级 --';
+                classSelect.appendChild(emptyOption);
+                
+                // 添加班级选项
+                data.classes.forEach(className => {
+                    const option = document.createElement('option');
+                    option.value = className;
+                    option.textContent = className;
+                    classSelect.appendChild(option);
+                });
+                
+                // 尝试恢复之前的选择
+                if (currentValue) {
+                    classSelect.value = currentValue;
+                } else {
+                    // 否则尝试加载之前保存的设置
+                    const settings = JSON.parse(localStorage.getItem('export_settings') || '{}');
+                    if (settings.className) {
+                        classSelect.value = settings.className;
+                    }
+                }
+            } else {
+                classSelect.innerHTML = '<option value="">未找到班级</option>';
+            }
+        })
+        .catch(error => {
+            console.error('获取班级列表出错:', error);
+            classSelect.innerHTML = '<option value="">加载失败</option>';
+        });
+}
+
+// 加载导出设置
+function loadExportSettings() {
+    try {
+        const settings = JSON.parse(localStorage.getItem('export_settings') || '{}');
+        
+        // 设置学校名称
+        const schoolNameInput = document.getElementById('schoolName');
+        if (schoolNameInput && settings.schoolName) {
+            schoolNameInput.value = settings.schoolName;
+        }
+        
+        // 设置学年
+        const schoolYearSelect = document.getElementById('schoolYear');
+        if (schoolYearSelect && settings.schoolYear) {
+            schoolYearSelect.value = settings.schoolYear;
+        }
+    } catch (error) {
+        console.error('加载导出设置出错:', error);
+    }
 }
 
 // 绑定事件监听
@@ -249,7 +326,19 @@ function bindEventListeners() {
         }
     });
     
-    // 其他事件绑定...
+    // 绑定保存API按钮
+    document.getElementById('saveApiKeys').addEventListener('click', saveApiKeys);
+    
+    // 绑定测试API连接按钮
+    document.getElementById('testApiConnection').addEventListener('click', testApiConnection);
+    
+    // 绑定切换API Key可见性
+    document.getElementById('toggleApiVisibility').addEventListener('click', function() {
+        toggleApiKeyVisibility('deepseekApiKey', 'toggleApiVisibility');
+    });
+    
+    // 绑定保存导出设置按钮
+    document.getElementById('saveExportSettings').addEventListener('click', saveExportSettings);
 }
 
 // 显示提示信息
@@ -321,4 +410,56 @@ function showToast(message, type = 'info') {
         }
     `;
     document.head.appendChild(style);
+}
+
+// 保存导出设置
+function saveExportSettings() {
+    try {
+        const className = document.getElementById('className').value;
+        const schoolName = document.getElementById('schoolName').value;
+        const schoolYear = document.getElementById('schoolYear').value;
+        
+        // 验证必填字段
+        if (!className) {
+            Toastify({
+                text: "请选择班级名称",
+                duration: 3000,
+                close: true,
+                gravity: "top",
+                position: "right",
+                backgroundColor: "#ff6347",
+            }).showToast();
+            return;
+        }
+        
+        // 保存设置到localStorage
+        const settings = {
+            className,
+            schoolName,
+            schoolYear
+        };
+        
+        localStorage.setItem('export_settings', JSON.stringify(settings));
+        
+        // 显示成功消息
+        Toastify({
+            text: "导出设置已保存",
+            duration: 3000,
+            close: true,
+            gravity: "top",
+            position: "right",
+            backgroundColor: "#2ecc71",
+        }).showToast();
+        
+    } catch (error) {
+        console.error('保存导出设置出错:', error);
+        Toastify({
+            text: "保存设置失败: " + error.message,
+            duration: 3000,
+            close: true,
+            gravity: "top",
+            position: "right",
+            backgroundColor: "#ff6347",
+        }).showToast();
+    }
 } 
