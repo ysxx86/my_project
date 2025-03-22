@@ -1567,7 +1567,7 @@ def generate_comment():
             })
         
         # 获取学生信息
-        student_id = data.get('student_id')
+        student_id = data.get('student_id') or data.get('studentId')
         if not student_id:
             print("缺少学生ID")
             return jsonify({
@@ -1586,7 +1586,7 @@ def generate_comment():
             print(f"未找到学生: {student_id}")
             return jsonify({
                 "status": "error",
-                "message": "未找到学生"
+                "message": f"未找到ID为 {student_id} 的学生"
             })
             
         # 构建学生信息字典
@@ -1609,6 +1609,9 @@ def generate_comment():
         if additional_instructions:
             student_info['additional_instructions'] = additional_instructions
         
+        # 记录正在为哪个学生生成评语
+        print(f"正在为学生 {student_info['name']}(ID: {student_id}) 生成评语")
+        
         # 生成评语
         result = comment_generator.generate_comment(
             student_info=student_info,
@@ -1617,18 +1620,20 @@ def generate_comment():
             max_length=max_length
         )
         
-        print("评语生成结果:", result)
+        print(f"评语生成结果(学生ID: {student_id}):", result)
         
         # 返回结果
         if result["status"] == "ok":
             return jsonify({
                 "status": "ok",
-                "comment": result["comment"]
+                "comment": result["comment"],
+                "student_id": student_id
             })
         else:
             return jsonify({
                 "status": "error",
-                "message": result["message"]
+                "message": result["message"],
+                "student_id": student_id
             })
                 
     except Exception as e:

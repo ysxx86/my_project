@@ -183,6 +183,53 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 窗口大小改变时调整iframe高度
     window.addEventListener('resize', adjustIframeHeight);
+
+    // 设置侧边栏切换
+    const sidebar = document.querySelector('.sidebar');
+    const toggleBtn = document.querySelector('.sidebar-toggle');
+    const content = document.querySelector('.content');
+    
+    if (toggleBtn && sidebar) {
+        toggleBtn.addEventListener('click', function() {
+            sidebar.classList.toggle('collapsed');
+            content.classList.toggle('expanded');
+            
+            // 记住侧边栏状态
+            const isCollapsed = sidebar.classList.contains('collapsed');
+            localStorage.setItem('sidebarCollapsed', isCollapsed);
+        });
+        
+        // 恢复保存的侧边栏状态
+        const savedState = localStorage.getItem('sidebarCollapsed');
+        if (savedState === 'true') {
+            sidebar.classList.add('collapsed');
+            content.classList.add('expanded');
+        }
+    }
+    
+    // 根据当前页面设置活动菜单
+    setActiveMenuItem();
+    
+    // 设置页面标题
+    setPageTitle();
+    
+    // 全局处理模态框关闭前的焦点问题，避免aria-hidden警告
+    document.addEventListener('show.bs.modal', function(event) {
+        const modal = event.target;
+        
+        // 确保每个模态框只绑定一次事件
+        if (!modal.hasAttribute('data-focus-handler-added')) {
+            modal.setAttribute('data-focus-handler-added', 'true');
+            
+            // 添加模态框隐藏前的事件处理器
+            modal.addEventListener('hide.bs.modal', function() {
+                // 移除所有可聚焦元素的焦点，避免ARIA警告
+                const focusableElements = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+                focusableElements.forEach(el => el.blur());
+                console.log('模态框即将关闭，已清除所有元素焦点');
+            });
+        }
+    });
 });
 
 // 全局函数：显示通知
@@ -329,3 +376,24 @@ const storage = {
         localStorage.clear();
     }
 };
+
+// 设置活动菜单项
+function setActiveMenuItem() {
+    const currentPath = window.location.pathname;
+    const menuItems = document.querySelectorAll('.sidebar-menu a');
+    
+    menuItems.forEach(item => {
+        const href = item.getAttribute('href');
+        if (href && currentPath.endsWith(href)) {
+            item.classList.add('active');
+        }
+    });
+}
+
+// 设置页面标题
+function setPageTitle() {
+    const pageTitle = document.querySelector('.page-title');
+    if (pageTitle) {
+        document.title = pageTitle.textContent + ' - 班主任管理系统';
+    }
+}

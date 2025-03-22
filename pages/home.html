@@ -394,18 +394,18 @@
             // 添加数据加载
             try {
                 // 加载首页数据总览
-                loadDashboardData();
+            loadDashboardData();
                 
                 // 加载图表数据
                 loadGradeDistribution();
                 loadCommentsProgress();
-                
-                // 为快捷操作绑定点击事件
-                setupQuickActions();
-                
-                // 动态加载待办事项和最近活动
-                loadTodos();
-                loadActivities();
+            
+            // 为快捷操作绑定点击事件
+            setupQuickActions();
+            
+            // 动态加载待办事项和最近活动
+            loadTodos();
+            loadActivities();
             } catch (e) {
                 console.error('初始化仪表盘出错:', e);
             }
@@ -859,76 +859,76 @@
         // 渲染成绩图表
         function renderGradeChart(data) {
             const gradesCtx = document.getElementById('gradesChart').getContext('2d');
-            const subjects = Object.keys(data);
-            const excellentRates = subjects.map(subject => data[subject].excellent_rate);
-            
-            // 销毁旧图表（如果存在）
+                        const subjects = Object.keys(data);
+                        const excellentRates = subjects.map(subject => data[subject].excellent_rate);
+                        
+                        // 销毁旧图表（如果存在）
             if (window.gradesChart && typeof window.gradesChart.destroy === 'function') {
-                window.gradesChart.destroy();
-            }
-            
-            // 创建新图表
-            window.gradesChart = new Chart(gradesCtx, {
-                type: 'bar',
-                data: {
-                    labels: subjects,
-                    datasets: [{
-                        label: '优秀率(%)',
-                        data: excellentRates,
-                        backgroundColor: [
-                            'rgba(52, 152, 219, 0.7)',
-                            'rgba(46, 204, 113, 0.7)',
-                            'rgba(155, 89, 182, 0.7)',
-                            'rgba(52, 73, 94, 0.7)',
-                            'rgba(243, 156, 18, 0.7)',
-                            'rgba(231, 76, 60, 0.7)'
-                        ],
-                        borderColor: [
-                            'rgba(52, 152, 219, 1)',
-                            'rgba(46, 204, 113, 1)',
-                            'rgba(155, 89, 182, 1)',
-                            'rgba(52, 73, 94, 1)',
-                            'rgba(243, 156, 18, 1)',
-                            'rgba(231, 76, 60, 1)'
-                        ],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            max: 100
+                            window.gradesChart.destroy();
                         }
-                    }
-                }
-            });
-            
-            // 添加总结信息
-            const gradeCard = document.querySelector('.col-md-6:nth-child(1) .dashboard-card');
+                        
+                        // 创建新图表
+                        window.gradesChart = new Chart(gradesCtx, {
+                            type: 'bar',
+                            data: {
+                                labels: subjects,
+                                datasets: [{
+                                    label: '优秀率(%)',
+                                    data: excellentRates,
+                                    backgroundColor: [
+                                        'rgba(52, 152, 219, 0.7)',
+                                        'rgba(46, 204, 113, 0.7)',
+                                        'rgba(155, 89, 182, 0.7)',
+                                        'rgba(52, 73, 94, 0.7)',
+                                        'rgba(243, 156, 18, 0.7)',
+                            'rgba(231, 76, 60, 0.7)'
+                                    ],
+                                    borderColor: [
+                                        'rgba(52, 152, 219, 1)',
+                                        'rgba(46, 204, 113, 1)',
+                                        'rgba(155, 89, 182, 1)',
+                                        'rgba(52, 73, 94, 1)',
+                                        'rgba(243, 156, 18, 1)',
+                            'rgba(231, 76, 60, 1)'
+                                    ],
+                                    borderWidth: 1
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        max: 100
+                                    }
+                                }
+                            }
+                        });
+                        
+                        // 添加总结信息
+                        const gradeCard = document.querySelector('.col-md-6:nth-child(1) .dashboard-card');
             if (gradeCard) {
-                const existingSummary = gradeCard.querySelector('.grade-summary');
-                if (existingSummary) {
-                    existingSummary.remove();
-                }
-                
-                // 计算总体优秀率
-                const totalExcellent = subjects.reduce((sum, subject) => sum + data[subject].excellent, 0);
-                const totalStudents = subjects.reduce((sum, subject) => sum + data[subject].total, 0);
-                const overallRate = totalStudents > 0 ? Math.round(totalExcellent / totalStudents * 100) : 0;
-                
-                const summary = document.createElement('div');
-                summary.className = 'mt-3 text-center grade-summary';
-                summary.innerHTML = `
-                    <hr>
-                    <p class="mb-1">总体优秀率: <strong>${overallRate}%</strong></p>
-                    <p class="small text-muted">共有 ${totalExcellent} 名学生成绩达到优秀标准</p>
-                `;
-                
-                gradeCard.appendChild(summary);
-            }
+                        const existingSummary = gradeCard.querySelector('.grade-summary');
+                        if (existingSummary) {
+                            existingSummary.remove();
+                        }
+                        
+                        // 计算总体优秀率
+                        const totalExcellent = subjects.reduce((sum, subject) => sum + data[subject].excellent, 0);
+                        const totalStudents = subjects.reduce((sum, subject) => sum + data[subject].total, 0);
+                        const overallRate = totalStudents > 0 ? Math.round(totalExcellent / totalStudents * 100) : 0;
+                        
+                        const summary = document.createElement('div');
+                        summary.className = 'mt-3 text-center grade-summary';
+                        summary.innerHTML = `
+                            <hr>
+                            <p class="mb-1">总体优秀率: <strong>${overallRate}%</strong></p>
+                            <p class="small text-muted">共有 ${totalExcellent} 名学生成绩达到优秀标准</p>
+                        `;
+                        
+                        gradeCard.appendChild(summary);
+                    }
         }
         
         // 加载评语完成情况
@@ -1008,86 +1008,86 @@
         
         // 渲染评语图表
         function renderCommentsChart(data) {
-            const commentsCtx = document.getElementById('commentsChart').getContext('2d');
-            
-            // 销毁旧图表（如果存在）
+                        const commentsCtx = document.getElementById('commentsChart').getContext('2d');
+                        
+                        // 销毁旧图表（如果存在）
             if (window.commentsChart && typeof window.commentsChart.destroy === 'function') {
-                window.commentsChart.destroy();
-            }
-            
-            // 创建新图表
-            window.commentsChart = new Chart(commentsCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['已完成', '未完成'],
-                    datasets: [{
-                        data: [data.completed, data.incomplete],
-                        backgroundColor: [
-                            'rgba(46, 204, 113, 0.7)',
-                            'rgba(231, 76, 60, 0.7)'
-                        ],
-                        borderColor: [
-                            'rgba(46, 204, 113, 1)',
-                            'rgba(231, 76, 60, 1)'
-                        ],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom'
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const label = context.label || '';
-                                    const value = context.raw || 0;
-                                    const total = data.total;
-                                    const percentage = Math.round((value / total) * 100);
-                                    return `${label}: ${value} (${percentage}%)`;
+                            window.commentsChart.destroy();
+                        }
+                        
+                        // 创建新图表
+                        window.commentsChart = new Chart(commentsCtx, {
+                            type: 'doughnut',
+                            data: {
+                                labels: ['已完成', '未完成'],
+                                datasets: [{
+                                    data: [data.completed, data.incomplete],
+                                    backgroundColor: [
+                                        'rgba(46, 204, 113, 0.7)',
+                                        'rgba(231, 76, 60, 0.7)'
+                                    ],
+                                    borderColor: [
+                                        'rgba(46, 204, 113, 1)',
+                                        'rgba(231, 76, 60, 1)'
+                                    ],
+                                    borderWidth: 1
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        position: 'bottom'
+                                    },
+                                    tooltip: {
+                                        callbacks: {
+                                            label: function(context) {
+                                                const label = context.label || '';
+                                                const value = context.raw || 0;
+                                                const total = data.total;
+                                                const percentage = Math.round((value / total) * 100);
+                                                return `${label}: ${value} (${percentage}%)`;
+                                            }
+                                        }
+                                    }
                                 }
                             }
+                        });
+                        
+                        // 如果有未完成的评语，显示未完成的学生列表
+                        const cardElement = document.querySelector('.col-md-6:nth-child(2) .dashboard-card');
+            if (cardElement) {
+                        const existingList = cardElement.querySelector('.incomplete-list');
+                        if (existingList) {
+                            existingList.remove();
+                        }
+                        
+                        if (data.incomplete_students && data.incomplete_students.length > 0) {
+                            const incompleteList = document.createElement('div');
+                            incompleteList.className = 'mt-3 small incomplete-list';
+                            incompleteList.innerHTML = '<p class="mb-1">未完成评语的学生：</p>';
+                            
+                            const studentsList = document.createElement('ul');
+                            studentsList.className = 'list-unstyled';
+                            
+                            data.incomplete_students.slice(0, 5).forEach(student => {
+                                const listItem = document.createElement('li');
+                                listItem.innerHTML = `<i class='bx bx-user-x text-danger'></i> ${student.name}`;
+                                studentsList.appendChild(listItem);
+                            });
+                            
+                            if (data.incomplete_students.length > 5) {
+                                const moreItem = document.createElement('li');
+                                moreItem.className = 'text-muted';
+                                moreItem.textContent = `等 ${data.incomplete_students.length - 5} 名学生...`;
+                                studentsList.appendChild(moreItem);
+                            }
+                            
+                            incompleteList.appendChild(studentsList);
+                            cardElement.appendChild(incompleteList);
                         }
                     }
-                }
-            });
-            
-            // 如果有未完成的评语，显示未完成的学生列表
-            const cardElement = document.querySelector('.col-md-6:nth-child(2) .dashboard-card');
-            if (cardElement) {
-                const existingList = cardElement.querySelector('.incomplete-list');
-                if (existingList) {
-                    existingList.remove();
-                }
-                
-                if (data.incomplete_students && data.incomplete_students.length > 0) {
-                    const incompleteList = document.createElement('div');
-                    incompleteList.className = 'mt-3 small incomplete-list';
-                    incompleteList.innerHTML = '<p class="mb-1">未完成评语的学生：</p>';
-                    
-                    const studentsList = document.createElement('ul');
-                    studentsList.className = 'list-unstyled';
-                    
-                    data.incomplete_students.slice(0, 5).forEach(student => {
-                        const listItem = document.createElement('li');
-                        listItem.innerHTML = `<i class='bx bx-user-x text-danger'></i> ${student.name}`;
-                        studentsList.appendChild(listItem);
-                    });
-                    
-                    if (data.incomplete_students.length > 5) {
-                        const moreItem = document.createElement('li');
-                        moreItem.className = 'text-muted';
-                        moreItem.textContent = `等 ${data.incomplete_students.length - 5} 名学生...`;
-                        studentsList.appendChild(moreItem);
-                    }
-                    
-                    incompleteList.appendChild(studentsList);
-                    cardElement.appendChild(incompleteList);
-                }
-            }
         }
     </script>
 </body>

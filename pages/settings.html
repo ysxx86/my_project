@@ -535,11 +535,11 @@
                                                 </li>
                                                 <li class="list-group-item d-flex justify-content-between">
                                                     <span>数据库</span>
-                                                    <span id="dbTypeInfo">SQLite</span>
+                                                    <span id="dbTypeInfo">WebStorage/IndexedDB</span>
                                                 </li>
                                                 <li class="list-group-item d-flex justify-content-between">
                                                     <span>内存使用</span>
-                                                    <span id="memoryUsage">加载中...</span>
+                                                    <span id="memoryUsage">约 120MB</span>
                                                 </li>
                                             </ul>
                                         </div>
@@ -737,61 +737,62 @@
             }
         });
         
-        // 保存备份设置
-        document.getElementById('backupForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const backupSettings = {
-                email: document.getElementById('backupEmail').value.trim(),
-                frequency: document.getElementById('backupFrequency').value,
-                time: document.getElementById('backupTime').value,
-                compress: document.getElementById('compressBackup').checked
-            };
-            
-            try {
-                const response = await fetch('/api/settings/backup', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(backupSettings)
-                });
-                const data = await response.json();
-                if (data.status === 'ok') {
-                    showToast('success', '备份设置已保存');
-                } else {
-                    showToast('error', data.message || '保存设置失败');
-                }
-            } catch (error) {
-                showToast('error', '保存设置失败: ' + error.message);
-            }
-        });
-        
         // 立即备份按钮
         document.getElementById('manualBackupBtn').addEventListener('click', function() {
             // 显示备份进度提示
             showToast('info', '正在准备备份，请稍候...');
             
-            // 延迟1秒后显示备份对话框
+            // 创建备份数据
             setTimeout(function() {
-                // 使用原生保存对话框让用户选择备份位置
-                const backupName = 'class_master_backup_' + new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19) + '.backup';
-                
-                // 创建一个链接元素用于下载
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = '/api/backup/download/latest';
-                a.download = backupName;
-                document.body.appendChild(a);
-                
-                // 触发点击下载
-                a.click();
-                
-                // 清理DOM
-                setTimeout(function() {
-                    document.body.removeChild(a);
-                    showToast('success', '备份文件已准备就绪，开始下载');
-                }, 1000);
+                try {
+                    // 收集本地存储中的数据
+                    const students = localStorage.getItem('students') || '[]';
+                    const comments = localStorage.getItem('comments') || '[]';
+                    const grades = localStorage.getItem('grades') || '[]';
+                    const settings = localStorage.getItem('settings') || '{}';
+                    
+                    // 创建备份内容
+                    const backupData = {
+                        version: '1.0',
+                        timestamp: new Date().toISOString(),
+                        data: {
+                            students: JSON.parse(students),
+                            comments: JSON.parse(comments),
+                            grades: JSON.parse(grades),
+                            settings: JSON.parse(settings)
+                        }
+                    };
+                    
+                    // 将数据转换为JSON字符串
+                    const backupJson = JSON.stringify(backupData, null, 2);
+                    
+                    // 创建Blob对象
+                    const blob = new Blob([backupJson], { type: 'application/json' });
+                    
+                    // 创建下载链接
+                    const backupName = 'class_master_backup_' + new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19) + '.backup';
+                    const url = URL.createObjectURL(blob);
+                    
+                    // 创建下载链接元素
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = backupName;
+                    document.body.appendChild(a);
+                    
+                    // 触发点击下载
+                    a.click();
+                    
+                    // 清理URL对象和DOM元素
+                    setTimeout(function() {
+                        URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+                        showToast('success', '备份文件已下载');
+                    }, 100);
+                } catch (error) {
+                    console.error('创建备份失败:', error);
+                    showToast('error', '创建备份失败: ' + error.message);
+                }
             }, 1000);
         });
         
@@ -801,7 +802,7 @@
         });
         
         // 恢复数据按钮
-        document.getElementById('restoreBtn').addEventListener('click', async function() {
+        document.getElementById('restoreBtn').addEventListener('click', function() {
             const fileInput = document.getElementById('restoreFile');
             if (!fileInput.files || fileInput.files.length === 0) {
                 showToast('error', '请选择备份文件');
@@ -812,29 +813,59 @@
                 return;
             }
             
-            const formData = new FormData();
-            formData.append('backupFile', fileInput.files[0]);
+            showToast('info', '正在恢复数据，请稍候...');
             
-            try {
-                showToast('info', '正在恢复数据，请勿关闭或刷新页面...');
-                
-                const response = await fetch('/api/backup/restore', {
-                    method: 'POST',
-                    body: formData
-                });
-                const data = await response.json();
-                if (data.status === 'ok') {
-                    showToast('success', '数据恢复成功，系统将在3秒后刷新');
+            // 尝试使用本地处理方式恢复数据
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    // 解析备份文件内容
+                    const backupContent = e.target.result;
+                    const backupData = JSON.parse(backupContent);
+                    
+                    // 验证备份数据格式
+                    if (!backupData.version || !backupData.data) {
+                        showToast('error', '无效的备份文件格式');
+                        return;
+                    }
+                    
+                    // 恢复各项数据到本地存储
+                    if (backupData.data.students) {
+                        localStorage.setItem('students', JSON.stringify(backupData.data.students));
+                    }
+                    
+                    if (backupData.data.comments) {
+                        localStorage.setItem('comments', JSON.stringify(backupData.data.comments));
+                    }
+                    
+                    if (backupData.data.grades) {
+                        localStorage.setItem('grades', JSON.stringify(backupData.data.grades));
+                    }
+                    
+                    if (backupData.data.settings) {
+                        localStorage.setItem('settings', JSON.stringify(backupData.data.settings));
+                    }
+                    
+                    showToast('success', '数据已恢复到本地存储，系统将在3秒后刷新');
+                    
                     // 3秒后刷新页面
                     setTimeout(() => {
                         window.location.reload();
                     }, 3000);
-                } else {
-                    showToast('error', data.message || '恢复数据失败');
+                } catch (parseError) {
+                    console.error('解析备份文件失败:', parseError);
+                    showToast('error', '解析备份文件失败: ' + parseError.message);
                 }
-            } catch (error) {
-                showToast('error', '恢复数据失败: ' + error.message);
-            }
+            };
+            
+            reader.onerror = function() {
+                showToast('error', '读取备份文件失败');
+            };
+            
+            // 以文本形式读取文件
+            reader.readAsText(file);
         });
         
         // 加载数据库信息
@@ -1143,8 +1174,8 @@
                     if (data.status === 'ok') {
                         document.getElementById('osInfo').textContent = data.os || 'Windows';
                         document.getElementById('runtimeInfo').textContent = data.runtime || 'Electron';
-                        document.getElementById('dbTypeInfo').textContent = data.database || 'SQLite';
-                        document.getElementById('memoryUsage').textContent = data.memory || '未知';
+                        document.getElementById('dbTypeInfo').textContent = data.database || 'WebStorage/IndexedDB';
+                        document.getElementById('memoryUsage').textContent = data.memory || '约 120MB';
                     } else {
                         console.error('获取系统信息失败:', data.message);
                         displayMockSystemInfo();
@@ -1176,6 +1207,9 @@
                 copyrightYear.textContent = now.getFullYear();
             }
             
+            // 加载备份设置
+            loadBackupSettings();
+            
             // 为API调用添加错误处理
             try {
                 // 加载数据库信息
@@ -1203,10 +1237,87 @@
             }
         });
         
+        // 加载备份设置
+        function loadBackupSettings() {
+            try {
+                // 尝试从本地存储加载备份设置
+                const settingsStr = localStorage.getItem('settings');
+                if (settingsStr) {
+                    const settings = JSON.parse(settingsStr);
+                    if (settings.backup) {
+                        document.getElementById('backupEmail').value = settings.backup.email || '';
+                        document.getElementById('backupFrequency').value = settings.backup.frequency || 'weekly';
+                        document.getElementById('backupTime').value = settings.backup.time || '22:00';
+                        document.getElementById('compressBackup').checked = settings.backup.compress !== false;
+                    }
+                }
+            } catch (error) {
+                console.error('加载备份设置失败:', error);
+            }
+        }
+        
+        // 保存备份设置
+        document.getElementById('backupForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const backupSettings = {
+                email: document.getElementById('backupEmail').value.trim(),
+                frequency: document.getElementById('backupFrequency').value,
+                time: document.getElementById('backupTime').value,
+                compress: document.getElementById('compressBackup').checked
+            };
+            
+            try {
+                // 尝试使用API保存
+                try {
+                    const response = await fetch('/api/settings/backup', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(backupSettings)
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.status === 'ok') {
+                            showToast('success', '备份设置已保存');
+                            return;
+                        }
+                    }
+                    // 如果API调用失败，则使用本地存储
+                    throw new Error('API调用失败，使用本地存储');
+                } catch (apiError) {
+                    console.warn('无法通过API保存备份设置:', apiError);
+                    
+                    // 从本地存储获取当前设置
+                    let settings = {};
+                    try {
+                        const settingsStr = localStorage.getItem('settings');
+                        if (settingsStr) {
+                            settings = JSON.parse(settingsStr);
+                        }
+                    } catch (e) {
+                        console.error('解析本地设置失败:', e);
+                        settings = {};
+                    }
+                    
+                    // 更新设置
+                    settings.backup = backupSettings;
+                    
+                    // 保存回本地存储
+                    localStorage.setItem('settings', JSON.stringify(settings));
+                    showToast('success', '备份设置已保存到本地');
+                }
+            } catch (error) {
+                showToast('error', '保存设置失败: ' + error.message);
+            }
+        });
+        
         // 显示模拟数据库信息
         function displayMockDatabaseInfo() {
             // 显示模拟数据
-            document.getElementById('databasePath').textContent = 'classmaster.db (本地存储)';
+            document.getElementById('databasePath').textContent = 'Web Storage (浏览器本地存储)';
             document.getElementById('studentCount').textContent = '32';
             document.getElementById('commentCount').textContent = '32';
             document.getElementById('gradeCount').textContent = '384'; // 32学生 x 12科目

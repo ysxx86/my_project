@@ -1,11 +1,11 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>导出报告 - 班主任管理系统</title>
+    <title>�������� - �����ι���ϵͳ</title>
     <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="../css/bootstrap.min.css" rel="stylesheet">
     <link href="../css/boxicons-local.css" rel="stylesheet">
     <link href="../css/main.css" rel="stylesheet">
     <!-- Document libraries -->
@@ -180,7 +180,7 @@
 </head>
 <body>
     <div class="container-fluid">
-        <h1 class="page-title">导出报告</h1>
+        <h1 class="page-title">��������</h1>
         
         <div class="row">
             <div class="col-md-4">
@@ -188,30 +188,30 @@
                     <div class="export-icon">
                         <i class='bx bx-file'></i>
                     </div>
-                    <h2 class="export-title">选择报告模板</h2>
-                    <p class="export-desc">选择一个适合的报告模板，用于生成学生成绩综合报告单。</p>
+                    <h2 class="export-title">ѡ�񱨸�ģ��</h2>
+                    <p class="export-desc">ѡ��һ���ʺϵı���ģ�壬��������ѧ���ɼ��ۺϱ��浥��</p>
                     
                     <div id="templateContainer" class="row d-none">
-                        <!-- 隐藏模板列表，不再显示 -->
+                        <!-- ����ģ���б���������ʾ -->
                     </div>
                     
                     <div class="mt-3">
                         <input type="file" id="templateUpload" class="d-none" accept=".docx">
                         <div id="templateInfo" class="mt-2 mb-3">
                             <div id="defaultTemplate" class="alert alert-primary py-2">
-                                <i class='bx bx-check-circle me-2'></i>默认使用 <strong>泉州东海湾实验学校综合素质发展报告单</strong> 模板
+                                <i class='bx bx-check-circle me-2'></i>Ĭ��ʹ�� <strong>Ȫ�ݶ�����ʵ��ѧУ�ۺ����ʷ�չ���浥</strong> ģ��
                             </div>
                             <div id="uploadedTemplate" class="mt-2 d-none">
                                 <div class="alert alert-success py-2">
-                                    <i class='bx bx-check-circle me-2'></i>已选择自定义模板: <span id="templateName">未选择</span>
+                                    <i class='bx bx-check-circle me-2'></i>��ѡ���Զ���ģ��: <span id="templateName">δѡ��</span>
                                 </div>
                             </div>
                         </div>
                         <button class="btn btn-primary w-100" id="uploadTemplateBtn">
-                            <i class='bx bx-upload'></i> 上传自定义模板
+                            <i class='bx bx-upload'></i> �ϴ��Զ���ģ��
                         </button>
                         <div class="mt-2">
-                            <small class="text-muted">上传Word模板文件(.docx)，系统将使用该模板生成报告</small>
+                            <small class="text-muted">�ϴ�Wordģ���ļ�(.docx)��ϵͳ��ʹ�ø�ģ�����ɱ���</small>
                         </div>
                     </div>
                 </div>
@@ -222,27 +222,27 @@
                     <div class="export-icon">
                         <i class='bx bx-user-check'></i>
                     </div>
-                    <h2 class="export-title">选择学生</h2>
-                    <p class="export-desc">选择需要导出报告的学生。</p>
+                    <h2 class="export-title">ѡ��ѧ��</h2>
+                    <p class="export-desc">ѡ����Ҫ���������ѧ����</p>
                     
                     <div class="export-options">
                         <div class="form-check form-check-inline">
                             <input class="form-check-input" type="checkbox" id="selectAllStudents" checked>
-                            <label class="form-check-label" for="selectAllStudents">全选</label>
+                            <label class="form-check-label" for="selectAllStudents">ȫѡ</label>
                         </div>
                         <div class="form-check form-check-inline">
                             <input class="form-check-input" type="radio" name="sortOption" id="sortById" checked>
-                            <label class="form-check-label" for="sortById">按学号排序</label>
+                            <label class="form-check-label" for="sortById">��ѧ������</label>
                         </div>
                         <div class="form-check form-check-inline">
                             <input class="form-check-input" type="radio" name="sortOption" id="sortByName">
-                            <label class="form-check-label" for="sortByName">按姓名排序</label>
+                            <label class="form-check-label" for="sortByName">����������</label>
                         </div>
                     </div>
                     
                     <div class="student-list">
-                        <!-- 学生列表将通过JavaScript动态生成 -->
-                        <div class="text-center p-3">正在加载学生数据...</div>
+                        <!-- ѧ���б���ͨ��JavaScript��̬���� -->
+                        <div class="text-center p-3">���ڼ���ѧ������...</div>
                     </div>
                 </div>
             </div>
@@ -252,164 +252,164 @@
                     <div class="export-icon">
                         <i class='bx bx-cog'></i>
                     </div>
-                    <h2 class="export-title">导出选项</h2>
-                    <p class="export-desc">设置导出报告的相关选项。</p>
+                    <h2 class="export-title">����ѡ��</h2>
+                    <p class="export-desc">���õ�����������ѡ�</p>
                     
                     <div class="settings-group mt-4">
-                        <h3 class="settings-title">导出设置 <small class="text-muted">(所有项均为必填)</small></h3>
+                        <h3 class="settings-title">�������� <small class="text-muted">(�������Ϊ����)</small></h3>
                         
                         <div class="form-group row mb-3">
-                            <label for="schoolYear" class="col-sm-3 col-form-label">学年 <span class="text-danger">*</span></label>
+                            <label for="schoolYear" class="col-sm-3 col-form-label">ѧ�� <span class="text-danger">*</span></label>
                             <div class="col-sm-9">
                                 <input type="text" class="form-control" id="schoolYear" name="schoolYear" readonly required>
-                                <small class="form-text text-muted">与评语管理中的学年设置保持一致</small>
+                                <small class="form-text text-muted">����������е�ѧ�����ñ���һ��</small>
                             </div>
                         </div>
                         
                         <div class="form-group row mb-3">
-                            <label for="semester" class="col-sm-3 col-form-label">学期 <span class="text-danger">*</span></label>
+                            <label for="semester" class="col-sm-3 col-form-label">ѧ�� <span class="text-danger">*</span></label>
                             <div class="col-sm-9">
                                 <input type="text" class="form-control" id="semester" name="semester" readonly required>
                                 <input type="hidden" id="semesterValue" name="semesterValue">
-                                <small class="form-text text-muted">与评语管理中的学期设置保持一致</small>
+                                <small class="form-text text-muted">����������е�ѧ�����ñ���һ��</small>
                             </div>
                         </div>
                         
                         <div class="form-group row mb-3">
-                            <label for="startDate" class="col-sm-3 col-form-label">开学时间 <span class="text-danger">*</span></label>
+                            <label for="startDate" class="col-sm-3 col-form-label">��ѧʱ�� <span class="text-danger">*</span></label>
                             <div class="col-sm-9">
                                 <input type="date" class="form-control" id="startDate" name="startDate" required>
-                                <small class="form-text text-muted">上学期默认为9月1日，下学期默认为3月1日。在报告中将只显示"月日"格式(如"3月1日")，不显示年份。</small>
+                                <small class="form-text text-muted">��ѧ��Ĭ��Ϊ9��1�գ���ѧ��Ĭ��Ϊ3��1�ա��ڱ����н�ֻ��ʾ"����"��ʽ(��"3��1��")������ʾ��ݡ�</small>
                             </div>
                         </div>
                         
                         <div class="form-group row mb-3">
-                            <label for="teacherName" class="col-sm-3 col-form-label">班主任姓名 <span class="text-danger">*</span></label>
+                            <label for="teacherName" class="col-sm-3 col-form-label">���������� <span class="text-danger">*</span></label>
                             <div class="col-sm-9">
-                                <input type="text" class="form-control" id="teacherName" name="teacherName" value="肖老师" required>
+                                <input type="text" class="form-control" id="teacherName" name="teacherName" value="Ф��ʦ" required>
                             </div>
                         </div>
                         
                         <div class="form-group row mb-3">
-                            <label class="col-sm-3 col-form-label">包含内容 <span class="text-danger">*</span></label>
+                            <label class="col-sm-3 col-form-label">�������� <span class="text-danger">*</span></label>
                             <div class="col-sm-9">
                                 <div class="form-check mb-2">
                                     <input class="form-check-input" type="checkbox" id="includeBasicInfo" name="includeBasicInfo" checked required>
-                                    <label class="form-check-label" for="includeBasicInfo">基本信息（姓名、学号等）</label>
+                                    <label class="form-check-label" for="includeBasicInfo">������Ϣ��������ѧ�ŵȣ�</label>
                                 </div>
                                 <div class="form-check mb-2">
                                     <input class="form-check-input" type="checkbox" id="includeGrades" name="includeGrades" checked required>
-                                    <label class="form-check-label" for="includeGrades">成绩数据</label>
+                                    <label class="form-check-label" for="includeGrades">�ɼ�����</label>
                                 </div>
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" id="includeComments" name="includeComments" checked required>
-                                    <label class="form-check-label" for="includeComments">评语内容</label>
+                                    <label class="form-check-label" for="includeComments">��������</label>
                                 </div>
                             </div>
                         </div>
                         
                         <div class="form-group row mb-3">
-                            <label for="fileNameFormat" class="col-sm-3 col-form-label">文件命名格式 <span class="text-danger">*</span></label>
+                            <label for="fileNameFormat" class="col-sm-3 col-form-label">�ļ�������ʽ <span class="text-danger">*</span></label>
                             <div class="col-sm-9">
                                 <select class="form-control" id="fileNameFormat" name="fileNameFormat" required>
-                                    <option value="id_name" selected>学号_姓名</option>
-                                    <option value="name_id">姓名_学号</option>
-                                    <option value="id">仅学号</option>
-                                    <option value="name">仅姓名</option>
+                                    <option value="id_name" selected>ѧ��_����</option>
+                                    <option value="name_id">����_ѧ��</option>
+                                    <option value="id">��ѧ��</option>
+                                    <option value="name">������</option>
                                 </select>
                             </div>
                         </div>
                     </div>
                     
                     <button class="btn btn-primary w-100 mt-3" id="exportBtn">
-                        <i class='bx bx-export'></i> 开始导出
+                        <i class='bx bx-export'></i> ��ʼ����
                     </button>
                     
                     <div class="progress-area d-none">
                         <div class="progress mb-2">
                             <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
                         </div>
-                        <div class="small text-center">正在导出报告，请稍候...</div>
+                        <div class="small text-center">���ڵ������棬���Ժ�...</div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
     
-    <!-- 预览模态框 -->
+    <!-- Ԥ��ģ̬�� -->
     <div class="modal fade" id="previewModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">报告预览</h5>
+                    <h5 class="modal-title">����Ԥ��</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="report-preview">
-                        <!-- 预览内容将由JavaScript动态生成 -->
+                        <!-- Ԥ�����ݽ���JavaScript��̬���� -->
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">�ر�</button>
                     <button type="button" class="btn btn-primary" id="exportFromPreviewBtn">
-                        <i class='bx bx-export'></i> 导出
+                        <i class='bx bx-export'></i> ����
                     </button>
                 </div>
             </div>
         </div>
     </div>
     
-    <!-- 导出进度模态窗口 -->
+    <!-- ��������ģ̬���� -->
     <div class="modal fade" id="progressModal" tabindex="-1" aria-labelledby="progressModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="progressModalLabel">导出进度</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+                    <h5 class="modal-title" id="progressModalLabel">��������</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="�ر�"></button>
                 </div>
                 <div class="modal-body">
-                    <p id="progressText">正在导出报告，请稍候...</p>
+                    <p id="progressText">���ڵ������棬���Ժ�...</p>
                     <div class="progress">
                         <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ȡ��</button>
                 </div>
             </div>
         </div>
     </div>
     
-    <!-- 导出完成模态窗口 -->
+    <!-- �������ģ̬���� -->
     <div class="modal fade" id="exportCompleteModal" tabindex="-1" aria-labelledby="exportCompleteModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="exportCompleteModalLabel">导出完成</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+                    <h5 class="modal-title" id="exportCompleteModalLabel">�������</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="�ر�"></button>
                 </div>
                 <div class="modal-body">
                     <div class="text-center">
                         <i class="bx bx-check-circle text-success" style="font-size: 3rem;"></i>
-                        <p class="mt-3">成功导出 <span id="exportedCount">0</span> 份学生报告！</p>
+                        <p class="mt-3">�ɹ����� <span id="exportedCount">0</span> ��ѧ�����棡</p>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">确定</button>
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">ȷ��</button>
                 </div>
             </div>
         </div>
     </div>
     
-    <!-- 通知提示 -->
+    <!-- ֪ͨ��ʾ -->
     <div class="toast" id="notificationToast" role="alert" aria-live="assertive" aria-atomic="true">
         <div class="toast-header">
             <i class='bx bx-info-circle me-2'></i>
-            <strong class="me-auto">提示</strong>
+            <strong class="me-auto">��ʾ</strong>
             <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
         </div>
         <div class="toast-body">
-            操作成功
+            �����ɹ�
         </div>
     </div>
     
@@ -418,7 +418,7 @@
     <script src="../js/export.js"></script>
     <script src="../js/template-upload.js"></script>
     <script>
-        // 加载docx库
+        // ����docx��
         async function loadDocxLibraries() {
             if (typeof PizZip === 'undefined') {
                 const pizzipScript = document.createElement('script');
@@ -436,54 +436,54 @@
                 await new Promise(resolve => docxtemplaterScript.onload = resolve);
             }
 
-            // 将函数挂载到全局对象以便export.js可以访问
+            // ���������ص�ȫ�ֶ����Ա�export.js���Է���
             window.loadDocxLibraries = loadDocxLibraries;
             
             return { PizZip, Docxtemplater };
         }
         
-        // 初始化页面
+        // ��ʼ��ҳ��
         document.addEventListener('DOMContentLoaded', async function() {
-            // 加载docx库
+            // ����docx��
             try {
                 await loadDocxLibraries();
-                console.log('Docx库加载成功');
+                console.log('Docx����سɹ�');
             } catch (error) {
-                console.error('加载Docx库失败:', error);
-                showNotification('加载Docx库失败，导出功能可能不可用', 'error');
+                console.error('����Docx��ʧ��:', error);
+                showNotification('����Docx��ʧ�ܣ��������ܿ��ܲ�����', 'error');
             }
             
-            // 初始化导出设置
+            // ��ʼ����������
             initExportSettings();
             
-            // 初始化学生列表
+            // ��ʼ��ѧ���б�
             initStudentList();
             
-            // 初始化模板上传
+            // ��ʼ��ģ���ϴ�
             initTemplateUpload();
             
-            // 绑定导出按钮事件
+            // �󶨵�����ť�¼�
             document.getElementById('exportBtn').addEventListener('click', exportReports);
             
-            // 绑定上传模板按钮事件
+            // ���ϴ�ģ�尴ť�¼�
             document.getElementById('uploadTemplateBtn').addEventListener('click', function() {
                 document.getElementById('templateUpload').click();
             });
             
-            // 页面加载时检查可用模板并获取模板列表
+            // ҳ�����ʱ������ģ�岢��ȡģ���б�
             try {
-                // 检查默认模板是否存在
+                // ���Ĭ��ģ���Ƿ����
                 const response = await fetch('/api/templates');
                 if (response.ok) {
                     const data = await response.json();
                     if (data.status === 'ok' && data.templates && data.templates.length > 0) {
-                        // 更新模板卡片
+                        // ����ģ�忨Ƭ
                         const templateContainer = document.getElementById('templateContainer');
                         if (templateContainer) {
-                            // 清空现有模板
+                            // �������ģ��
                             templateContainer.innerHTML = '';
                             
-                            // 添加可用模板
+                            // ���ӿ���ģ��
                             data.templates.forEach(template => {
                                 const card = document.createElement('div');
                                 card.className = 'col-md-4 mb-3';
@@ -492,43 +492,43 @@
                                         <div class="card-body">
                                             <h5 class="card-title">${template.name}</h5>
                                             <p class="card-text">
-                                                <small class="text-muted">${template.type === 'system' ? '系统模板' : '自定义模板'}</small>
+                                                <small class="text-muted">${template.type === 'system' ? 'ϵͳģ��' : '�Զ���ģ��'}</small>
                                             </p>
                                         </div>
                                     </div>
                                 `;
                                 templateContainer.appendChild(card);
                                 
-                                // 绑定点击事件
+                                // �󶨵���¼�
                                 const templateCard = card.querySelector('.template-card');
                                 templateCard.addEventListener('click', function() {
                                     selectTemplate(this);
                                 });
                             });
                             
-                            // 选中第一个模板
+                            // ѡ�е�һ��ģ��
                             const firstTemplate = templateContainer.querySelector('.template-card');
                             if (firstTemplate) {
                                 selectTemplate(firstTemplate);
                             }
                         }
                     } else {
-                        // 未找到模板，显示警告
-                        showNotification('未找到可用的报告模板，请先上传模板', 'warning');
+                        // δ�ҵ�ģ�壬��ʾ����
+                        showNotification('δ�ҵ����õı���ģ�壬�����ϴ�ģ��', 'warning');
                     }
                 }
             } catch (error) {
-                console.error('加载模板列表失败:', error);
+                console.error('����ģ���б�ʧ��:', error);
             }
         });
         
-        // 显示通知提示
+        // ��ʾ֪ͨ��ʾ
         function showNotification(message, type = 'success') {
             const toast = document.getElementById('notificationToast');
             const toastBody = toast.querySelector('.toast-body');
             toastBody.textContent = message;
             
-            // 设置通知类型
+            // ����֪ͨ����
             toast.classList.remove('bg-success', 'bg-danger', 'bg-info', 'text-white');
             const icon = toast.querySelector('.toast-header i');
             icon.classList.remove('bx-info-circle', 'bx-check-circle', 'bx-error-circle');
@@ -547,76 +547,76 @@
                     icon.classList.add('bx-check-circle');
             }
             
-            // 显示通知
+            // ��ʾ֪ͨ
             const bsToast = new bootstrap.Toast(toast);
             bsToast.show();
         }
         
-        // 绑定预览中的导出按钮
+        // ��Ԥ���еĵ�����ť
         document.getElementById('exportFromPreviewBtn').addEventListener('click', function() {
-            // 关闭预览模态框
+            // �ر�Ԥ��ģ̬��
             const previewModal = bootstrap.Modal.getInstance(document.getElementById('previewModal'));
             previewModal.hide();
             
-            // 触发导出
+            // ��������
             document.getElementById('exportBtn').click();
         });
     </script>
-    <!-- 添加模板使用说明 -->
+    <!-- ����ģ��ʹ��˵�� -->
     <div class="card mb-4">
         <div class="card-header">
-            <h5 class="card-title mb-0">模板使用说明</h5>
+            <h5 class="card-title mb-0">ģ��ʹ��˵��</h5>
         </div>
         <div class="card-body">
-            <p>在Word模板中，您可以使用以下格式的标记，系统将自动替换为对应的学生信息：</p>
-            <p><strong>占位符格式：</strong> 使用双大括号，例如 <code>{{姓名}}</code></p>
+            <p>��Wordģ���У�������ʹ�����¸�ʽ�ı�ǣ�ϵͳ���Զ��滻Ϊ��Ӧ��ѧ����Ϣ��</p>
+            <p><strong>ռλ����ʽ��</strong> ʹ��˫�����ţ����� <code>{{����}}</code></p>
             <div class="row">
                 <div class="col-md-4">
                     <div class="card mb-3">
                         <div class="card-header">
-                            <h6 class="mb-0">基本信息</h6>
+                            <h6 class="mb-0">������Ϣ</h6>
                         </div>
                         <div class="card-body">
                             <ul class="list-group list-group-flush">
                                 <li class="list-group-item d-flex justify-content-between">
-                                    <span>学号</span>
-                                    <code>{{学号}}</code>
+                                    <span>ѧ��</span>
+                                    <code>{{ѧ��}}</code>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between">
-                                    <span>姓名</span>
-                                    <code>{{姓名}}</code>
+                                    <span>����</span>
+                                    <code>{{����}}</code>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between">
-                                    <span>性别</span>
-                                    <code>{{性别}}</code>
+                                    <span>�Ա�</span>
+                                    <code>{{�Ա�}}</code>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between">
-                                    <span>班级</span>
-                                    <code>{{班级}}</code>
+                                    <span>�༶</span>
+                                    <code>{{�༶}}</code>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between">
-                                    <span>身高</span>
-                                    <code>{{身高}}</code>
+                                    <span>����</span>
+                                    <code>{{����}}</code>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between">
-                                    <span>体重</span>
-                                    <code>{{体重}}</code>
+                                    <span>����</span>
+                                    <code>{{����}}</code>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between">
-                                    <span>肺活量</span>
-                                    <code>{{肺活量}}</code>
+                                    <span>�λ���</span>
+                                    <code>{{�λ���}}</code>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between">
-                                    <span>视力左</span>
-                                    <code>{{视力左}}</code>
+                                    <span>������</span>
+                                    <code>{{������}}</code>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between">
-                                    <span>视力右</span>
-                                    <code>{{视力右}}</code>
+                                    <span>������</span>
+                                    <code>{{������}}</code>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between">
-                                    <span>体测情况</span>
-                                    <code>{{体测情况}}</code>
+                                    <span>������</span>
+                                    <code>{{������}}</code>
                                 </li>
                             </ul>
                         </div>
@@ -625,29 +625,29 @@
                 <div class="col-md-4">
                     <div class="card mb-3">
                         <div class="card-header">
-                            <h6 class="mb-0">班级信息</h6>
+                            <h6 class="mb-0">�༶��Ϣ</h6>
                         </div>
                         <div class="card-body">
                             <ul class="list-group list-group-flush">
                                 <li class="list-group-item d-flex justify-content-between">
-                                    <span>学年</span>
-                                    <code>{{学年}}</code>
+                                    <span>ѧ��</span>
+                                    <code>{{ѧ��}}</code>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between">
-                                    <span>学期</span>
-                                    <code>{{学期}}</code>
+                                    <span>ѧ��</span>
+                                    <code>{{ѧ��}}</code>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between">
-                                    <span>开学时间</span>
-                                    <code>{{开学时间}}</code>
+                                    <span>��ѧʱ��</span>
+                                    <code>{{��ѧʱ��}}</code>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between">
-                                    <span>日期</span>
-                                    <code>{{日期}}</code>
+                                    <span>����</span>
+                                    <code>{{����}}</code>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between">
-                                    <span>班主任</span>
-                                    <code>{{班主任}}</code>
+                                    <span>������</span>
+                                    <code>{{������}}</code>
                                 </li>
                             </ul>
                         </div>
@@ -656,53 +656,53 @@
                 <div class="col-md-4">
                     <div class="card mb-3">
                         <div class="card-header">
-                            <h6 class="mb-0">评语与成绩</h6>
+                            <h6 class="mb-0">������ɼ�</h6>
                         </div>
                         <div class="card-body">
                             <ul class="list-group list-group-flush">
                                 <li class="list-group-item d-flex justify-content-between">
-                                    <span>评语</span>
-                                    <code>{{评语}}</code>
+                                    <span>����</span>
+                                    <code>{{����}}</code>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between">
-                                    <span>品质</span>
-                                    <code>{{品质}}</code>
+                                    <span>Ʒ��</span>
+                                    <code>{{Ʒ��}}</code>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between">
-                                    <span>学习</span>
-                                    <code>{{学习}}</code>
+                                    <span>ѧϰ</span>
+                                    <code>{{ѧϰ}}</code>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between">
-                                    <span>健康</span>
-                                    <code>{{健康}}</code>
+                                    <span>����</span>
+                                    <code>{{����}}</code>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between">
-                                    <span>审美</span>
-                                    <code>{{审美}}</code>
+                                    <span>����</span>
+                                    <code>{{����}}</code>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between">
-                                    <span>实践</span>
-                                    <code>{{实践}}</code>
+                                    <span>ʵ��</span>
+                                    <code>{{ʵ��}}</code>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between">
-                                    <span>生活</span>
-                                    <code>{{生活}}</code>
+                                    <span>����</span>
+                                    <code>{{����}}</code>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between">
-                                    <span>道法</span>
-                                    <code>{{道法}}</code>
+                                    <span>����</span>
+                                    <code>{{����}}</code>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between">
-                                    <span>语文</span>
-                                    <code>{{语文}}</code>
+                                    <span>����</span>
+                                    <code>{{����}}</code>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between">
-                                    <span>数学</span>
-                                    <code>{{数学}}</code>
+                                    <span>��ѧ</span>
+                                    <code>{{��ѧ}}</code>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between">
-                                    <span>英语</span>
-                                    <code>{{英语}}</code>
+                                    <span>Ӣ��</span>
+                                    <code>{{Ӣ��}}</code>
                                 </li>
                             </ul>
                         </div>
@@ -711,7 +711,7 @@
             </div>
             <div class="alert alert-info mt-3 mb-0">
                 <i class="bx bx-info-circle me-2"></i>
-                <strong>提示：</strong> 在Word模板中使用上述标记时，请确保标记的前后没有多余的空格。模板将自动替换这些标记为对应的学生信息。请使用双大括号{{}}格式的占位符。
+                <strong>��ʾ��</strong> ��Wordģ����ʹ���������ʱ����ȷ����ǵ�ǰ��û�ж���Ŀո�ģ�彫�Զ��滻��Щ���Ϊ��Ӧ��ѧ����Ϣ����ʹ��˫������{{}}��ʽ��ռλ����
             </div>
         </div>
     </div>

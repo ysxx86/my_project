@@ -841,39 +841,56 @@ function saveEditedStudent() {
 }
 
 // 删除学生
-function deleteStudent(studentId) {
-    if (confirm('确定要删除该学生吗？此操作不可恢复。')) {
-        // 显示加载状态
-        const loadingToast = showNotification('正在删除学生数据...', 'info', false);
-        
-        // 使用服务器API删除学生
-        fetch(`/api/students/${studentId}`, {
-            method: 'DELETE'
-        })
-        .then(response => response.json())
-        .then(data => {
-            // 关闭加载提示
-            if (loadingToast) {
-                loadingToast.hide();
+function deleteStudent() {
+    const studentId = document.getElementById('deleteStudentId').value;
+    const studentName = document.getElementById('deleteStudentName').textContent;
+    
+    if (!studentId) {
+        console.error('删除学生失败: 未找到学生ID');
+        showNotification('删除学生失败: 未找到学生ID', 'error');
+        return;
+    }
+    
+    // 显示删除中状态
+    const deleteBtn = document.getElementById('confirmDeleteBtn');
+    if (deleteBtn) {
+        deleteBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 删除中...';
+        deleteBtn.disabled = true;
+    }
+    
+    // 从本地存储中删除
+    try {
+        const studentsData = localStorage.getItem('students');
+        if (studentsData) {
+            const students = JSON.parse(studentsData);
+            // 检查是否使用id或student_id作为键
+            const updatedStudents = students.filter(student => 
+                (student.student_id !== studentId && student.id !== studentId)
+            );
+            localStorage.setItem('students', JSON.stringify(updatedStudents));
+            
+            // 隐藏模态框
+            const modal = bootstrap.Modal.getInstance(document.getElementById('deleteStudentModal'));
+            if (modal) {
+                modal.hide();
             }
             
-            if (data.status === 'ok') {
-                // 刷新学生列表
-                loadStudentsFromServer();
-                showNotification('学生删除成功');
-            } else {
-                showNotification('学生删除失败: ' + (data.message || '未知错误'), 'error');
-            }
-        })
-        .catch(error => {
-            console.error('删除学生时出错:', error);
-            showNotification('删除学生时出错: ' + error.message, 'error');
+            // 显示成功提示
+            showNotification(`学生 "${studentName}" 已从本地数据中删除`, 'success');
             
-            // 关闭加载提示
-            if (loadingToast) {
-                loadingToast.hide();
-            }
-        });
+            // 刷新学生列表
+            loadStudentsFromServer();
+            return;
+        }
+    } catch (e) {
+        console.error('从本地存储删除学生时出错:', e);
+        showNotification('删除学生失败: ' + e.message, 'error');
+    } finally {
+        // 恢复按钮状态
+        if (deleteBtn) {
+            deleteBtn.innerHTML = '确认删除';
+            deleteBtn.disabled = false;
+        }
     }
 }
 
@@ -1533,9 +1550,12 @@ function loadStudentsFromServer() {
         </div>
     `;
     
-    // 从服务器获取学生数据
+    // 尝试从服务器加载数据
     fetch('/api/students', {
-        method: 'GET'
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
     })
     .then(response => {
         if (!response.ok) {
@@ -1545,14 +1565,7 @@ function loadStudentsFromServer() {
     })
     .then(data => {
         if (data.error) {
-            cardsContainer.innerHTML = `
-                <div class="col-12">
-                    <div class="alert alert-danger">
-                        <i class='bx bx-error-circle'></i> ${data.error}
-                    </div>
-                </div>
-            `;
-            return;
+            throw new Error(data.error);
         }
         
         const students = data.students;
@@ -1564,6 +1577,14 @@ function loadStudentsFromServer() {
                 emptyState.classList.remove('d-none');
             }
             return;
+        }
+        
+        // 将服务器数据同步到本地存储
+        try {
+            localStorage.setItem('students', JSON.stringify(students));
+            console.log('已将学生数据同步到本地存储');
+        } catch (e) {
+            console.error('无法将学生数据保存到本地存储:', e);
         }
         
         // 隐藏空状态
@@ -1581,23 +1602,64 @@ function loadStudentsFromServer() {
         console.log(`已加载 ${students.length} 名学生数据`);
     })
     .catch(error => {
-        console.error('加载学生数据时出错:', error);
-        cardsContainer.innerHTML = `
-            <div class="col-12">
-                <div class="alert alert-danger">
-                    <i class='bx bx-error-circle'></i> 加载学生数据时出错，请确保后端服务器已启动并且可以访问。错误详情: ${error.message}
+        console.error('从服务器加载学生数据失败，尝试从本地存储加载:', error);
+        
+        // 从本地存储加载学生数据
+        try {
+            const studentsData = localStorage.getItem('students');
+            if (studentsData) {
+                const students = JSON.parse(studentsData);
+                
+                if (students && students.length > 0) {
+                    // 隐藏空状态
+                    if (emptyState) {
+                        emptyState.classList.add('d-none');
+                    }
+                    
+                    // 渲染学生卡片
+                    cardsContainer.innerHTML = '';
+                    students.forEach(student => {
+                        const studentCard = createStudentCard(student);
+                        cardsContainer.appendChild(studentCard);
+                    });
+                    
+                    console.log(`从本地存储加载了 ${students.length} 名学生数据`);
+                    return;
+                }
+            }
+            
+            // 如果本地也没有数据，显示空状态
+            cardsContainer.innerHTML = '';
+            if (emptyState) {
+                emptyState.classList.remove('d-none');
+            } else {
+                cardsContainer.innerHTML = `
+                    <div class="col-12 text-center mt-4">
+                        <div class="alert alert-info">
+                            <i class='bx bx-info-circle me-2'></i> 没有找到学生数据。您可以添加新学生或导入学生数据。
+                        </div>
+                    </div>
+                `;
+            }
+        } catch (localError) {
+            console.error('从本地存储加载学生数据失败:', localError);
+            
+            cardsContainer.innerHTML = `
+                <div class="col-12">
+                    <div class="alert alert-danger">
+                        <i class='bx bx-error-circle'></i> 无法加载学生数据。服务器连接失败，本地存储访问也出错: ${localError.message}
+                    </div>
+                    <div class="alert alert-info">
+                        <h5>排查步骤：</h5>
+                        <ol>
+                            <li>确认浏览器没有禁用本地存储</li>
+                            <li>清除浏览器缓存后重试</li>
+                            <li>检查浏览器控制台(F12)获取更多错误信息</li>
+                        </ol>
+                    </div>
                 </div>
-                <div class="alert alert-info">
-                    <h5>排查步骤：</h5>
-                    <ol>
-                        <li>确认后端服务器正在运行</li>
-                        <li>验证网络连接正常</li>
-                        <li>检查浏览器控制台(F12)获取更多错误信息</li>
-                        <li>尝试重新启动服务器和浏览器</li>
-                    </ol>
-                </div>
-            </div>
-        `;
+            `;
+        }
     });
 }
 

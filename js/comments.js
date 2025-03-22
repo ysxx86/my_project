@@ -2003,27 +2003,30 @@ function showAICommentAssistant(studentId, studentName) {
         
         document.body.appendChild(modalElement);
         
-        // 绑定生成按钮事件
-        document.getElementById('generateAICommentBtn').addEventListener('click', function() {
-            generateAIComment(studentId);
-        });
-        
-        // 绑定重新生成按钮事件
-        document.getElementById('generateAnotherBtn').addEventListener('click', function() {
-            generateAIComment(studentId);
-        });
-        
-        // 绑定使用评语按钮事件
-        document.getElementById('useAICommentBtn').addEventListener('click', function() {
-            useAIComment(studentId);
-        });
-        
         // 绑定API设置按钮事件 - 现在打开模态框而不是跳转
         document.getElementById('openApiSettingsBtn').addEventListener('click', function(e) {
             e.preventDefault();
             showApiSettingsModal();
         });
+        
+        // 绑定模态框隐藏前的事件处理器
+        modalElement.addEventListener('hide.bs.modal', function() {
+            // 移除所有按钮的焦点，避免ARIA警告
+            const focusableElements = modalElement.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+            focusableElements.forEach(el => el.blur());
+        });
     }
+    
+    // 保存当前学生ID到模态框中的隐藏字段
+    if (!modalElement.querySelector('#currentStudentId')) {
+        const hiddenField = document.createElement('input');
+        hiddenField.type = 'hidden';
+        hiddenField.id = 'currentStudentId';
+        modalElement.appendChild(hiddenField);
+    }
+    
+    // 更新当前学生ID
+    document.getElementById('currentStudentId').value = studentId;
     
     // 设置学生姓名
     document.getElementById('aiModalStudentName').textContent = studentName;
@@ -2031,6 +2034,49 @@ function showAICommentAssistant(studentId, studentName) {
     // 清空生成的评语预览
     document.getElementById('aiCommentPreview').style.display = 'none';
     document.getElementById('aiCommentContent').textContent = '';
+    
+    // 每次打开模态框时重新绑定事件，使用当前的学生ID
+    const generateBtn = document.getElementById('generateAICommentBtn');
+    const generateAnotherBtn = document.getElementById('generateAnotherBtn');
+    const useAICommentBtn = document.getElementById('useAICommentBtn');
+    
+    // 移除旧的事件监听器
+    const newGenerateBtn = generateBtn.cloneNode(true);
+    generateBtn.parentNode.replaceChild(newGenerateBtn, generateBtn);
+    
+    const newGenerateAnotherBtn = generateAnotherBtn ? generateAnotherBtn.cloneNode(true) : null;
+    if (generateAnotherBtn && newGenerateAnotherBtn) {
+        generateAnotherBtn.parentNode.replaceChild(newGenerateAnotherBtn, generateAnotherBtn);
+    }
+    
+    const newUseAICommentBtn = useAICommentBtn ? useAICommentBtn.cloneNode(true) : null;
+    if (useAICommentBtn && newUseAICommentBtn) {
+        useAICommentBtn.parentNode.replaceChild(newUseAICommentBtn, useAICommentBtn);
+    }
+    
+    // 添加新的事件监听器
+    document.getElementById('generateAICommentBtn').addEventListener('click', function() {
+        // 使用getCurrentStudentId()函数获取当前正在操作的学生ID
+        const currentId = document.getElementById('currentStudentId').value;
+        console.log('生成评语按钮点击，当前学生ID:', currentId);
+        generateAIComment(currentId);
+    });
+    
+    if (newGenerateAnotherBtn) {
+        document.getElementById('generateAnotherBtn').addEventListener('click', function() {
+            const currentId = document.getElementById('currentStudentId').value;
+            console.log('重新生成按钮点击，当前学生ID:', currentId);
+            generateAIComment(currentId);
+        });
+    }
+    
+    if (newUseAICommentBtn) {
+        document.getElementById('useAICommentBtn').addEventListener('click', function() {
+            const currentId = document.getElementById('currentStudentId').value;
+            console.log('使用评语按钮点击，当前学生ID:', currentId);
+            useAIComment(currentId);
+        });
+    }
     
     // 打开模态框
     const modal = new bootstrap.Modal(modalElement);
@@ -2113,6 +2159,13 @@ function generateAIComment(studentId) {
         
         // 检查响应状态
         if (data.status === 'ok') {
+            // 验证返回的学生ID与请求的学生ID是否一致
+            if (data.student_id && data.student_id !== studentId) {
+                console.error(`学生ID不匹配: 请求ID=${studentId}, 返回ID=${data.student_id}`);
+                showNotification('服务器返回了错误的学生评语数据，请重试', 'error');
+                return;
+            }
+            
             // 获取评语内容（兼容可能的不同字段名）
             const commentContent = data.comment || data.content;
             
@@ -2131,12 +2184,12 @@ function generateAIComment(studentId) {
             aiCommentPreview.style.display = 'block';
             
             showNotification('评语生成成功', 'success');
-                } else {
-                    // 显示错误消息
+        } else {
+            // 显示错误消息
             showNotification(`评语生成失败: ${data.message || '未知错误'}`, 'error');
-                }
-            })
-            .catch(error => {
+        }
+    })
+    .catch(error => {
         console.error('评语生成请求出错:', error);
         document.getElementById('aiGeneratingIndicator').style.display = 'none';
         showNotification(`评语生成出错: ${error.message}`, 'error');
@@ -2183,6 +2236,11 @@ function useAIComment(studentId) {
         })
         .then(data => {
             if (data.status === 'ok') {
+                // 移除模态框中所有按钮的焦点，避免ARIA警告
+                const modalElement = document.getElementById('aiCommentAssistantModal');
+                const focusableElements = modalElement.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+                focusableElements.forEach(el => el.blur());
+                
                 // 关闭模态框
                 const modal = bootstrap.Modal.getInstance(document.getElementById('aiCommentAssistantModal'));
                 if (modal) {

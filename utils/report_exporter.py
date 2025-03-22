@@ -27,6 +27,118 @@ class ReportExporter:
         self.templates_dir = templates_dir
         # 确保模板目录存在
         os.makedirs(os.path.join(templates_dir, "custom"), exist_ok=True)
+        
+        # 内置默认模板数据（作为最后备选）
+        self.has_default_backup = False
+        try:
+            # 导入docx库创建一个基础模板
+            import docx
+            self.default_template = self._create_default_template()
+            self.has_default_backup = True
+            logger.info("成功创建内置默认模板")
+        except Exception as e:
+            logger.warning(f"无法创建内置默认模板: {str(e)}")
+    
+    def _create_default_template(self) -> bytes:
+        """
+        创建一个简单的默认模板，当其他模板都不可用时使用
+        
+        Returns:
+            bytes: 模板文件的二进制数据
+        """
+        try:
+            from docx import Document
+            from docx.shared import Pt, Cm, RGBColor
+            from docx.enum.text import WD_ALIGN_PARAGRAPH
+            
+            # 创建文档
+            doc = Document()
+            
+            # 设置页边距
+            for section in doc.sections:
+                section.top_margin = Cm(2)
+                section.bottom_margin = Cm(2)
+                section.left_margin = Cm(2.5)
+                section.right_margin = Cm(2.5)
+            
+            # 添加标题
+            title = doc.add_paragraph()
+            title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            title_run = title.add_run("学生综合素质评价报告")
+            title_run.font.size = Pt(22)
+            title_run.font.bold = True
+            
+            # 添加学生基本信息
+            info_table = doc.add_table(rows=2, cols=4)
+            info_table.style = 'Table Grid'
+            
+            # 填充表格
+            cells = [
+                ('学生姓名', '{{ 姓名 }}', '学生学号', '{{ 学号 }}'),
+                ('班级', '{{ 班级 }}', '学年学期', '{{ 学年 }}{{ 学期 }}')
+            ]
+            
+            for i, row in enumerate(cells):
+                for j in range(0, 4, 2):
+                    info_table.cell(i, j).text = row[j]
+                    info_table.cell(i, j+1).text = row[j+1]
+            
+            # 添加学生评语部分
+            doc.add_paragraph()
+            comment_para = doc.add_paragraph()
+            comment_para.add_run("学生评语").bold = True
+            doc.add_paragraph('{{ 评语 }}')
+            
+            # 添加学生成绩部分
+            doc.add_paragraph()
+            grade_para = doc.add_paragraph()
+            grade_para.add_run("学习成绩").bold = True
+            
+            subjects = [
+                ('语文', '{{ 语文 }}', '数学', '{{ 数学 }}', '英语', '{{ 英语 }}'),
+                ('道法', '{{ 道法 }}', '科学', '{{ 科学 }}', '体育', '{{ 体育 }}'),
+                ('音乐', '{{ 音乐 }}', '美术', '{{ 美术 }}', '劳动', '{{ 劳动 }}'),
+                ('信息', '{{ 信息 }}', '综合', '{{ 综合 }}', '书法', '{{ 书法 }}')
+            ]
+            
+            grade_table = doc.add_table(rows=len(subjects), cols=6)
+            grade_table.style = 'Table Grid'
+            
+            for i, row in enumerate(subjects):
+                for j in range(0, 6, 2):
+                    grade_table.cell(i, j).text = row[j]
+                    grade_table.cell(i, j+1).text = row[j+1]
+            
+            # 添加页脚签名
+            doc.add_paragraph()
+            doc.add_paragraph()
+            signature = doc.add_paragraph()
+            signature.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+            signature.add_run("教师签名：{{ 教师姓名 }}")
+            date_para = doc.add_paragraph()
+            date_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+            date_para.add_run("日期：{{ 日期 }}")
+            
+            # 导出为bytes
+            buffer = io.BytesIO()
+            doc.save(buffer)
+            buffer.seek(0)
+            return buffer.getvalue()
+            
+        except Exception as e:
+            logger.error(f"创建默认模板时出错: {str(e)}")
+            logger.error(traceback.format_exc())
+            # 如果出错，返回一个最小的有效docx文件
+            from docx import Document
+            doc = Document()
+            doc.add_paragraph("学生评价报告")
+            doc.add_paragraph("学生姓名: {{ 姓名 }}")
+            doc.add_paragraph("评语: {{ 评语 }}")
+            
+            buffer = io.BytesIO()
+            doc.save(buffer)
+            buffer.seek(0)
+            return buffer.getvalue()
     
     def get_template_path(self, template_id: str) -> str:
         """
@@ -38,8 +150,16 @@ class ReportExporter:
         Returns:
             str: 模板文件的完整路径
         """
+        # 特别添加泉州东海湾实验学校模板路径
+        if template_id == "泉州东海湾实验学校综合素质发展报告单":
+            template_path = os.path.join(self.templates_dir, "泉州东海湾实验学校综合素质发展报告单.docx")
+            if os.path.exists(template_path):
+                return template_path
+        
         if template_id == "default":
             return os.path.join(self.templates_dir, "default_template.docx")
+        elif template_id and os.path.exists(os.path.join(self.templates_dir, f"{template_id}.docx")):
+            return os.path.join(self.templates_dir, f"{template_id}.docx")
         else:
             return os.path.join(self.templates_dir, "custom", f"{template_id}.docx")
     
@@ -62,6 +182,24 @@ class ReportExporter:
         """
         # 获取学期文本
         semester_text = "第一学期" if settings.get('semester') == '1' else "第二学期"
+        
+        # 处理开学时间，转换为"月日"格式
+        start_date = settings.get('startDate', '')
+        start_date_text = ''
+        if start_date:
+            try:
+                # 尝试解析日期 (格式为YYYY-MM-DD)
+                date_parts = start_date.split('-')
+                if len(date_parts) == 3:
+                    # 移除前导零
+                    month = str(int(date_parts[1]))
+                    day = str(int(date_parts[2]))
+                    start_date_text = f"{month}月{day}日"
+                else:
+                    start_date_text = start_date
+            except Exception as e:
+                logger.warning(f"处理开学时间格式出错: {e}")
+                start_date_text = start_date
         
         # 安全访问字典的辅助函数
         def safe_get(d, key, default=''):
@@ -93,7 +231,7 @@ class ReportExporter:
             # 报告信息
             "学年": settings.get('schoolYear', ''),
             "学期": semester_text,
-            "开学时间": settings.get('startDate', ''),
+            "开学时间": start_date_text,
             "学校名称": settings.get('schoolName', '学校名称未设置'),
             "班主任": settings.get('teacherName', '班主任姓名未设置'),
             "教师姓名": settings.get('teacherName', '教师姓名未设置'),
@@ -181,25 +319,40 @@ class ReportExporter:
                 logger.error("未安装docxtpl库")
                 return False, "未安装docxtpl库，请运行 'pip install docxtpl' 安装"
             
-            # 检查模板文件
+            # 检查模板文件是否存在，如果不存在且有内置默认模板，则使用内置模板
+            use_builtin_template = False
             if not os.path.exists(template_path):
-                logger.error(f"模板文件不存在: {template_path}")
-                return False, f"模板文件不存在: {template_path}"
-            
-            logger.info(f"使用模板: {template_path}")
+                logger.warning(f"模板文件不存在: {template_path}")
+                if self.has_default_backup:
+                    logger.info("将使用内置默认模板")
+                    use_builtin_template = True
+                else:
+                    return False, f"模板文件不存在: {template_path}，且无法创建内置默认模板"
             
             # 准备数据
             context = self.prepare_template_data(student, comment, grades, settings)
             logger.debug(f"准备模板数据完成: {len(context)} 个字段")
-            logger.debug(f"模板数据内容: {context}")
             
             # 生成报告
             try:
-                doc = DocxTemplate(template_path)
+                if use_builtin_template:
+                    # 使用内存中的模板
+                    doc_buffer = io.BytesIO(self.default_template)
+                    doc = DocxTemplate(doc_buffer)
+                else:
+                    # 尝试加载模板文件
+                    try:
+                        doc = DocxTemplate(template_path)
+                    except Exception as template_error:
+                        logger.error(f"加载模板文件失败: {str(template_error)}")
+                        if self.has_default_backup:
+                            logger.info("模板加载失败，将使用内置默认模板")
+                            doc_buffer = io.BytesIO(self.default_template)
+                            doc = DocxTemplate(doc_buffer)
+                        else:
+                            return False, f"模板文件加载失败: {str(template_error)}"
                 
-                # 注意：移除了自定义占位符格式设置，使用默认的{{ }}格式
-                # 如果模板使用的是{{ 姓名 }}这种格式，就无需特殊配置
-                
+                # 渲染模板
                 doc.render(context)
                 
                 # 保存到内存
@@ -212,6 +365,24 @@ class ReportExporter:
                 error_msg = f"模板渲染错误: {str(e)}"
                 logger.error(error_msg)
                 logger.error(traceback.format_exc())
+                
+                # 如果渲染失败但有内置模板，尝试使用内置模板
+                if not use_builtin_template and self.has_default_backup:
+                    logger.info("模板渲染失败，尝试使用内置默认模板")
+                    try:
+                        doc_buffer = io.BytesIO(self.default_template)
+                        doc = DocxTemplate(doc_buffer)
+                        doc.render(context)
+                        
+                        output = io.BytesIO()
+                        doc.save(output)
+                        output.seek(0)
+                        
+                        return True, output.getvalue()
+                    except Exception as backup_error:
+                        logger.error(f"使用内置默认模板也失败: {str(backup_error)}")
+                        return False, f"模板渲染错误: {str(e)}，并且内置默认模板也失败: {str(backup_error)}"
+                
                 return False, error_msg
                 
         except Exception as e:
@@ -248,16 +419,27 @@ class ReportExporter:
             # 检查模板ID是否有效
             if not template_id:
                 logger.error("未提供模板ID")
-                return False, "未提供模板ID"
-                
-            # 获取模板路径
-            template_path = self.get_template_path(template_id)
-            if not os.path.exists(template_path):
-                logger.error(f"模板文件不存在: {template_path}")
-                return False, f"模板文件不存在: {template_path}"
+                if self.has_default_backup:
+                    logger.info("未提供模板ID，将使用内置默认模板")
+                    template_path = None  # 稍后在处理每个学生时使用内置模板
+                else:
+                    return False, "未提供模板ID"
+            else:
+                # 获取模板路径
+                template_path = self.get_template_path(template_id)
+                # 如果指定模板不存在，但有内置默认模板，使用内置模板
+                if not os.path.exists(template_path) and self.has_default_backup:
+                    logger.warning(f"模板文件不存在: {template_path}，将使用内置默认模板")
+                    template_path = None  # 稍后在处理每个学生时使用内置模板
+                elif not os.path.exists(template_path):
+                    logger.error(f"模板文件不存在: {template_path}")
+                    return False, f"模板文件不存在: {template_path}"
                 
             logger.info(f"开始批量导出报告，学生数量: {len(students)}, 使用模板: {template_id}")
-            logger.info(f"模板路径: {template_path}")
+            if template_path:
+                logger.info(f"模板路径: {template_path}")
+            else:
+                logger.info("将使用内置默认模板")
                 
             # 创建临时目录
             with tempfile.TemporaryDirectory() as temp_dir:
@@ -290,8 +472,10 @@ class ReportExporter:
                         
                         # 生成报告
                         logger.info(f"为学生 {student_id} 生成报告...")
+                        
+                        # 传递实际模板路径或None（使用内置模板）
                         success, result = self.export_single_report(
-                            template_path, student, comment, grade, settings
+                            template_path or "", student, comment, grade, settings
                         )
                         
                         if success:
@@ -329,6 +513,11 @@ class ReportExporter:
                         zip_data = f.read()
                     
                     logger.info(f"成功导出 {success_count}/{len(students)} 个学生报告")
+                    
+                    # 如果有部分失败，添加到返回的消息中
+                    message = f"成功导出 {success_count}/{len(students)} 个学生报告"
+                    if len(error_messages) > 0:
+                        message += f"，{len(error_messages)} 个学生报告生成失败"
                     
                     return True, zip_data
                 else:

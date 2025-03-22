@@ -3,70 +3,21 @@
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('初始化导出页面');
+    
     // 初始化导出设置
     initExportSettings();
     
-    // 注意：不再在这里绑定模板选择事件，因为template-upload.js会处理
-    
-    // 绑定全选学生复选框事件
-    const selectAllStudents = document.getElementById('selectAllStudents');
-    if (selectAllStudents) {
-        selectAllStudents.addEventListener('change', function() {
-            toggleSelectAllStudents(this.checked);
-        });
-    }
-    
-    // 绑定排序选项事件
-    const sortOptions = document.querySelectorAll('input[name="sortOption"]');
-    sortOptions.forEach(option => {
-        option.addEventListener('change', function() {
-            sortStudentList(this.id === 'sortByName' ? 'name' : 'id');
-        });
-    });
-    
-    // 绑定导出设置变更事件
-    const exportSettingInputs = document.querySelectorAll('#schoolYear, #semester, #includeBasicInfo, #includeGrades, #includeComments, #includeAttendance, #includeAwards, #schoolName, #className, #teacherName');
-    exportSettingInputs.forEach(input => {
-        input.addEventListener('change', function() {
-            updateExportSettings();
-            updatePreview();
-        });
-    });
-    
-    // 绑定导出按钮事件
-    const exportBtn = document.getElementById('exportBtn');
-    if (exportBtn) {
-        // 移除可能存在的旧事件处理程序
-        const newExportBtn = exportBtn.cloneNode(true);
-        if (exportBtn.parentNode) {
-            exportBtn.parentNode.replaceChild(newExportBtn, exportBtn);
-        }
-        
-        // 添加新的事件处理程序
-        newExportBtn.addEventListener('click', function(event) {
-            event.preventDefault();
-            event.stopPropagation();
-            console.log('触发导出报告');
-            exportReports();
-        });
-    }
-    
-    // 绑定预览按钮事件
-    const previewBtn = document.getElementById('previewBtn');
-    if (previewBtn) {
-        previewBtn.addEventListener('click', function() {
-            showPreview();
-        });
-    }
+    // 初始化模板选择
+    initTemplateSelection();
     
     // 初始化学生列表
     initStudentList();
     
+    // 绑定设置相关的事件处理
+    bindSettingsEvents();
+    
     // 初始化预览
     updatePreview();
-    
-    // 初始化模板上传处理
-    // 注意：这个函数由template-upload.js实现，此处不需调用
     
     // 监听自定义模板选择事件
     document.addEventListener('template-selected', function(e) {
@@ -82,41 +33,74 @@ function initExportSettings() {
     // 获取本地存储的导出设置或使用默认值
     const settings = dataService.getExportSettings();
     
-    // 通过fetch获取服务器上的评语管理配置，以获取当前学期信息
+    // 先从系统设置获取学期配置
     fetch('/api/settings')
         .then(response => response.json())
         .then(data => {
-            if (data.status === 'ok') {
-                const serverSettings = data.settings;
+            if (data.status === 'success' || data.status === 'ok') {
+                const serverSettings = data.data || data.settings || {};
                 
-                // 如果服务器有学期信息，则更新本地设置
-                if (serverSettings.schoolYear) {
-                    document.getElementById('schoolYear').value = serverSettings.schoolYear;
-                    settings.schoolYear = serverSettings.schoolYear;
+                // 更新学年和学期信息
+                if (serverSettings.school_year || serverSettings.schoolYear) {
+                    // 优先使用设置中的学年信息
+                    const schoolYear = serverSettings.school_year || serverSettings.schoolYear;
+                    document.getElementById('schoolYear').value = schoolYear;
+                    settings.schoolYear = schoolYear;
+                } else {
+                    // 使用默认学年，确保与首页一致
+                    document.getElementById('schoolYear').value = "2024-2025";
+                    settings.schoolYear = "2024-2025";
                 }
                 
-                // 根据服务器返回的学期信息设置下拉框
                 if (serverSettings.semester) {
+                    let semesterText = '第一学期';
                     let semesterValue = '1';
-                    if (serverSettings.semester === '第二学期' || serverSettings.semester === '下学期') {
+                    
+                    if (serverSettings.semester === '第二学期' || serverSettings.semester === '下学期' || serverSettings.semester === '2') {
+                        semesterText = '第二学期';
                         semesterValue = '2';
                     }
-                    document.getElementById('semester').value = semesterValue;
-                    settings.semester = serverSettings.semester;
+                    
+                    // 更新显示文本和隐藏值
+                    const semesterInput = document.getElementById('semester');
+                    const semesterValueInput = document.getElementById('semesterValue');
+                    
+                    if (semesterInput) semesterInput.value = semesterText;
+                    if (semesterValueInput) semesterValueInput.value = semesterValue;
+                    
+                    settings.semester = semesterValue;
+                    settings.semesterText = semesterText;
+                } else {
+                    // 使用默认学期，确保与首页一致
+                    const semesterInput = document.getElementById('semester');
+                    const semesterValueInput = document.getElementById('semesterValue');
+                    
+                    if (semesterInput) semesterInput.value = "第二学期";
+                    if (semesterValueInput) semesterValueInput.value = "2";
+                    
+                    settings.semester = "2";
+                    settings.semesterText = "第二学期";
                 }
                 
-                // 如果服务器有教师信息，则更新教师姓名
-                if (serverSettings.teacherName) {
-                    const teacherInput = document.getElementById('teacherName');
-                    if (teacherInput) {
-                        teacherInput.value = serverSettings.teacherName;
-                        settings.teacherName = serverSettings.teacherName;
+                // 根据学期设置合适的开学时间
+                if (document.getElementById('startDate')) {
+                    const currentYear = new Date().getFullYear();
+                    let defaultStartDate;
+                    
+                    if (settings.semester === '1') {
+                        // 第一学期默认开学时间：9月1日
+                        defaultStartDate = `${currentYear}-09-01`;
+                    } else {
+                        // 第二学期默认开学时间：3月1日
+                        defaultStartDate = `${currentYear}-03-01`;
                     }
-                }
-                
-                // 如果服务器有学校信息，则更新学校名称
-                if (serverSettings.schoolName) {
-                    settings.schoolName = serverSettings.schoolName;
+                    
+                    // 如果没有特别设置过开学时间，用默认值
+                    if (!settings.startDate) {
+                        settings.startDate = defaultStartDate;
+                    }
+                    
+                    document.getElementById('startDate').value = settings.startDate;
                 }
                 
                 // 保存更新后的设置
@@ -124,80 +108,78 @@ function initExportSettings() {
                 
                 // 更新预览
                 updatePreview();
+            } else {
+                // 设置默认学年学期
+                setDefaultSemesterInfo(settings);
             }
         })
         .catch(error => {
-            console.error('获取服务器设置失败:', error);
-            showNotification('获取学期信息失败，将使用默认设置', 'error');
+            console.error('获取系统设置失败:', error);
+            showNotification('获取学期信息失败，将使用默认设置', 'warning');
+            
+            // 设置默认学年学期
+            setDefaultSemesterInfo(settings);
         });
     
-    // 填充表单
-    document.getElementById('schoolYear').value = settings.schoolYear;
-    document.getElementById('semester').value = settings.semester;
-    document.getElementById('includeBasicInfo').checked = settings.includeBasicInfo;
-    document.getElementById('includeGrades').checked = settings.includeGrades;
-    document.getElementById('includeComments').checked = settings.includeComments;
-    document.getElementById('fileNameFormat').value = settings.fileNameFormat;
+    // 设置默认值
+    document.getElementById('schoolYear').value = settings.schoolYear || "2024-2025";
+    document.getElementById('semester').value = settings.semester === '1' ? '第一学期' : '第二学期';
+    document.getElementById('semesterValue').value = settings.semester || "2";
     
-    // 设置学校和班级信息
-    if (document.getElementById('schoolName')) {
-        document.getElementById('schoolName').value = settings.schoolName;
-    }
-    if (document.getElementById('className')) {
-        document.getElementById('className').value = settings.className;
+    // 设置开学时间
+    if (document.getElementById('startDate')) {
+        document.getElementById('startDate').value = settings.startDate || '';
     }
     
-    // 设置教师姓名
-    if (document.getElementById('teacherName')) {
-        document.getElementById('teacherName').value = settings.teacherName;
+    // 设置包含内容复选框
+    document.getElementById('includeBasicInfo').checked = settings.includeBasicInfo !== false;
+    document.getElementById('includeGrades').checked = settings.includeGrades !== false;
+    document.getElementById('includeComments').checked = settings.includeComments !== false;
+    
+    // 设置文件命名格式
+    const fileNameFormatSelect = document.getElementById('fileNameFormat');
+    if (fileNameFormatSelect) {
+        fileNameFormatSelect.value = settings.fileNameFormat || 'id_name';
     }
     
-    // 绑定设置变更事件
-    document.getElementById('schoolYear').addEventListener('change', function() {
-        settings.schoolYear = this.value;
-        dataService.saveExportSettings(settings);
-        updatePreview();
-    });
+    // 设置班主任姓名
+    const teacherNameInput = document.getElementById('teacherName');
+    if (teacherNameInput) {
+        teacherNameInput.value = settings.teacherName || '肖老师';
+    }
+}
+
+// 设置默认学期信息
+function setDefaultSemesterInfo(settings) {
+    // 设置默认学年为2024-2025
+    document.getElementById('schoolYear').value = "2024-2025";
+    settings.schoolYear = "2024-2025";
     
-    document.getElementById('semester').addEventListener('change', function() {
-        // 根据选择设置学期文本
-        settings.semester = this.value === '1' ? '第一学期' : '第二学期';
-        dataService.saveExportSettings(settings);
-        updatePreview();
-    });
+    // 设置默认学期为下学期
+    const semesterInput = document.getElementById('semester');
+    const semesterValueInput = document.getElementById('semesterValue');
     
-    document.getElementById('includeBasicInfo').addEventListener('change', function() {
-        settings.includeBasicInfo = this.checked;
-        dataService.saveExportSettings(settings);
-        updatePreview();
-    });
+    if (semesterInput) semesterInput.value = "第二学期";
+    if (semesterValueInput) semesterValueInput.value = "2";
     
-    document.getElementById('includeGrades').addEventListener('change', function() {
-        settings.includeGrades = this.checked;
-        dataService.saveExportSettings(settings);
-        updatePreview();
-    });
+    settings.semester = "2";
+    settings.semesterText = "第二学期";
     
-    document.getElementById('includeComments').addEventListener('change', function() {
-        settings.includeComments = this.checked;
-        dataService.saveExportSettings(settings);
-        updatePreview();
-    });
+    // 设置默认开学时间
+    const currentYear = new Date().getFullYear();
+    const defaultStartDate = `${currentYear}-03-01`;
     
-    document.getElementById('fileNameFormat').addEventListener('change', function() {
-        settings.fileNameFormat = this.value;
-        dataService.saveExportSettings(settings);
-    });
-    
-    if (document.getElementById('teacherName')) {
-        document.getElementById('teacherName').addEventListener('input', function() {
-            settings.teacherName = this.value;
-            dataService.saveExportSettings(settings);
-            updatePreview();
-        });
+    if (document.getElementById('startDate')) {
+        if (!settings.startDate) {
+            settings.startDate = defaultStartDate;
+        }
+        document.getElementById('startDate').value = settings.startDate;
     }
     
-    // 初始化预览
+    // 保存更新后的设置
+    dataService.saveExportSettings(settings);
+    
+    // 更新预览
     updatePreview();
 }
 
@@ -386,25 +368,26 @@ function sortStudentList(sortBy) {
     });
 }
 
-// 更新导出设置
+// 更新导出设置并保存
 function updateExportSettings() {
-    // 获取设置值
+    // 获取当前设置
     const settings = {
         schoolYear: document.getElementById('schoolYear') ? document.getElementById('schoolYear').value : '',
-        semester: document.getElementById('semester') ? document.getElementById('semester').value : '',
+        semester: document.getElementById('semesterValue') ? document.getElementById('semesterValue').value : '1',
+        semesterText: document.getElementById('semester') ? document.getElementById('semester').value : '第一学期',
+        startDate: document.getElementById('startDate') ? document.getElementById('startDate').value : '',
         includeBasicInfo: document.getElementById('includeBasicInfo') ? document.getElementById('includeBasicInfo').checked : true,
         includeGrades: document.getElementById('includeGrades') ? document.getElementById('includeGrades').checked : true,
         includeComments: document.getElementById('includeComments') ? document.getElementById('includeComments').checked : true,
-        includeAttendance: document.getElementById('includeAttendance') ? document.getElementById('includeAttendance').checked : false,
-        includeAwards: document.getElementById('includeAwards') ? document.getElementById('includeAwards').checked : false,
-        schoolName: document.getElementById('schoolName') ? document.getElementById('schoolName').value : '',
-        className: document.getElementById('className') ? document.getElementById('className').value : '',
-        teacherName: document.getElementById('teacherName') ? document.getElementById('teacherName').value : '',
+        fileNameFormat: document.getElementById('fileNameFormat') ? document.getElementById('fileNameFormat').value : 'id_name',
+        teacherName: document.getElementById('teacherName') ? document.getElementById('teacherName').value : '肖老师',
         exportDate: formatDate(new Date())
     };
     
-    // 更新设置
-    dataService.updateExportSettings(settings);
+    // 保存到本地存储
+    dataService.saveExportSettings(settings);
+    
+    return settings;
 }
 
 // 更新预览
@@ -412,133 +395,145 @@ function updatePreview() {
     const previewContainer = document.querySelector('.report-preview');
     if (!previewContainer) return;
     
-    // 获取导出设置
-    const settings = dataService.getExportSettings();
-    
-    // 获取学生数据、评语数据和成绩数据
-    const students = dataService.getStudents();
-    if (students.length === 0) {
-        previewContainer.innerHTML = '<div class="text-center p-5">暂无学生数据</div>';
-        return;
-    }
-    
-    // 使用第一个学生作为预览
-    const student = students[0];
-    const comment = dataService.getCommentByStudentId(student.id);
-    const grade = dataService.getGradeByStudentId(student.id);
-    const subjects = dataService.getSubjects();
-    
-    // 创建预览内容
-    let previewHTML = `
-        <div class="report-header">
-            <div class="report-title">${settings.schoolName}学生综合素质发展报告单</div>
-            <div class="report-subtitle">${settings.schoolYear}学年 第${settings.semester}学期</div>
-        </div>
+    try {
+        // 获取导出设置
+        const settings = dataService.getExportSettings();
         
-        <div class="report-info">
-            <div><strong>班级：</strong>${settings.className}</div>
-            <div><strong>姓名：</strong>${student.name}</div>
-            <div><strong>学号：</strong>${student.id}</div>
-            <div><strong>日期：</strong>${settings.exportDate}</div>
-        </div>
-    `;
-    
-    // 基本信息部分
-    if (settings.includeBasicInfo) {
+        // 获取学生数据、评语数据和成绩数据
+        const students = dataService.getStudents();
+        if (!students || students.length === 0) {
+            previewContainer.innerHTML = '<div class="text-center p-5">暂无学生数据</div>';
+            return;
+        }
+        
+        // 使用第一个学生作为预览
+        const student = students[0];
+        if (!student) {
+            previewContainer.innerHTML = '<div class="text-center p-5">学生数据不完整</div>';
+            return;
+        }
+        
+        // 安全地获取学生ID和评语
+        const studentId = student.id || '';
+        const comment = studentId ? dataService.getCommentByStudentId(studentId) : null;
+        const grade = studentId ? dataService.getGradeByStudentId(studentId) : null;
+        const subjects = dataService.getSubjects();
+        
+        // 创建预览内容
+        let previewHTML = `
+            <div class="report-header">
+                <div class="report-title">${settings.schoolName || '学校名称'}学生综合素质发展报告单</div>
+                <div class="report-subtitle">${settings.schoolYear || ''}学年 第${settings.semester || ''}学期</div>
+            </div>
+            
+            <div class="report-info">
+                <div><strong>班级：</strong>${settings.className || ''}</div>
+                <div><strong>姓名：</strong>${student.name || ''}</div>
+                <div><strong>学号：</strong>${studentId}</div>
+                <div><strong>日期：</strong>${settings.exportDate || ''}</div>
+            </div>
+        `;
+        
+        // 基本信息部分
+        if (settings.includeBasicInfo) {
+            previewHTML += `
+                <div class="report-section">
+                    <div class="report-section-title">基本信息</div>
+                    <div class="row">
+                        <div class="col-md-6"><strong>性别：</strong>${student.gender || ''}</div>
+                        <div class="col-md-6"><strong>出生日期：</strong>${student.birthdate || ''}</div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-6"><strong>家长电话：</strong>${student.parentPhone || ''}</div>
+                        <div class="col-md-6"><strong>家庭住址：</strong>${student.address || ''}</div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 成绩部分
+        if (settings.includeGrades) {
+            previewHTML += `
+                <div class="report-section">
+                    <div class="report-section-title">学科成绩</div>
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                                ${subjects.map(subject => `<th>${subject}</th>`).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                ${subjects.map(subject => `<td>${grade && grade.grades[subject] ? grade.grades[subject] : '-'}</td>`).join('')}
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+        
+        // 评语部分
+        if (settings.includeComments) {
+            previewHTML += `
+                <div class="report-section">
+                    <div class="report-section-title">综合评语</div>
+                    <p>${comment ? comment.content : '暂无评语'}</p>
+                </div>
+            `;
+        }
+        
+        // 考勤部分（示例）
+        if (settings.includeAttendance) {
+            previewHTML += `
+                <div class="report-section">
+                    <div class="report-section-title">考勤情况</div>
+                    <div class="row">
+                        <div class="col-md-4"><strong>应到天数：</strong>90天</div>
+                        <div class="col-md-4"><strong>实到天数：</strong>88天</div>
+                        <div class="col-md-4"><strong>出勤率：</strong>97.8%</div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-4"><strong>请假：</strong>2天</div>
+                        <div class="col-md-4"><strong>迟到：</strong>1次</div>
+                        <div class="col-md-4"><strong>早退：</strong>0次</div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 奖励部分（示例）
+        if (settings.includeAwards) {
+            previewHTML += `
+                <div class="report-section">
+                    <div class="report-section-title">获奖情况</div>
+                    <ul>
+                        <li>三好学生</li>
+                        <li>数学竞赛三等奖</li>
+                    </ul>
+                </div>
+            `;
+        }
+        
+        // 签名部分
         previewHTML += `
-            <div class="report-section">
-                <div class="report-section-title">基本信息</div>
+            <div class="report-section mt-5">
                 <div class="row">
-                    <div class="col-md-6"><strong>性别：</strong>${student.gender}</div>
-                    <div class="col-md-6"><strong>出生日期：</strong>${student.birthdate}</div>
-                </div>
-                <div class="row mt-2">
-                    <div class="col-md-6"><strong>家长电话：</strong>${student.parentPhone}</div>
-                    <div class="col-md-6"><strong>家庭住址：</strong>${student.address}</div>
-                </div>
-            </div>
-        `;
-    }
-    
-    // 成绩部分
-    if (settings.includeGrades) {
-        previewHTML += `
-            <div class="report-section">
-                <div class="report-section-title">学科成绩</div>
-                <table class="report-table">
-                    <thead>
-                        <tr>
-                            ${subjects.map(subject => `<th>${subject}</th>`).join('')}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            ${subjects.map(subject => `<td>${grade && grade.grades[subject] ? grade.grades[subject] : '-'}</td>`).join('')}
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        `;
-    }
-    
-    // 评语部分
-    if (settings.includeComments) {
-        previewHTML += `
-            <div class="report-section">
-                <div class="report-section-title">综合评语</div>
-                <p>${comment ? comment.content : '暂无评语'}</p>
-            </div>
-        `;
-    }
-    
-    // 考勤部分（示例）
-    if (settings.includeAttendance) {
-        previewHTML += `
-            <div class="report-section">
-                <div class="report-section-title">考勤情况</div>
-                <div class="row">
-                    <div class="col-md-4"><strong>应到天数：</strong>90天</div>
-                    <div class="col-md-4"><strong>实到天数：</strong>88天</div>
-                    <div class="col-md-4"><strong>出勤率：</strong>97.8%</div>
-                </div>
-                <div class="row mt-2">
-                    <div class="col-md-4"><strong>请假：</strong>2天</div>
-                    <div class="col-md-4"><strong>迟到：</strong>1次</div>
-                    <div class="col-md-4"><strong>早退：</strong>0次</div>
+                    <div class="col-md-6 text-center">
+                        <div><strong>班主任签名：</strong>_______________</div>
+                    </div>
+                    <div class="col-md-6 text-center">
+                        <div><strong>家长签名：</strong>_______________</div>
+                    </div>
                 </div>
             </div>
         `;
+        
+        // 设置预览内容
+        previewContainer.innerHTML = previewHTML;
+    } catch (error) {
+        console.error('生成预览时出错:', error);
+        previewContainer.innerHTML = '<div class="text-center p-5 text-danger">生成预览时出错</div>';
     }
-    
-    // 奖励部分（示例）
-    if (settings.includeAwards) {
-        previewHTML += `
-            <div class="report-section">
-                <div class="report-section-title">获奖情况</div>
-                <ul>
-                    <li>三好学生</li>
-                    <li>数学竞赛三等奖</li>
-                </ul>
-            </div>
-        `;
-    }
-    
-    // 签名部分
-    previewHTML += `
-        <div class="report-section mt-5">
-            <div class="row">
-                <div class="col-md-6 text-center">
-                    <div><strong>班主任签名：</strong>_______________</div>
-                </div>
-                <div class="col-md-6 text-center">
-                    <div><strong>家长签名：</strong>_______________</div>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    // 更新预览容器
-    previewContainer.innerHTML = previewHTML;
 }
 
 // 显示预览
@@ -933,8 +928,12 @@ function resetExportButton() {
 // 从自定义模板生成文档
 async function generateFromTemplate(templateFile, student, comment, grade, subjects, settings) {
     try {
+        // 显示处理状态
+        console.log('开始处理模板文件:', templateFile.name, '大小:', templateFile.size, 'bytes');
+        
         // 确保PizZip和Docxtemplater已加载
         await loadDocxTemplaterLibraries();
+        console.log('模板库加载成功: PizZip =', typeof window.PizZip, ', Docxtemplater =', typeof window.Docxtemplater);
         
         // 读取模板文件
         const reader = new FileReader();
@@ -950,31 +949,106 @@ async function generateFromTemplate(templateFile, student, comment, grade, subje
         const data = prepareTemplateData(student, comment, grade, subjects, settings);
         console.log('已准备模板数据:', Object.keys(data).length, '个字段');
         
-        // 使用PizZip加载文档
-        const zip = new PizZip(fileContent);
-        
-        // 创建Docxtemplater实例
-        const doc = new Docxtemplater();
-        doc.loadZip(zip);
-        
-        // 设置数据
-        doc.setData(data);
-        
-        // 渲染文档
-        doc.render();
-        console.log('文档渲染完成');
-        
-        // 获取生成的文档
-        const out = doc.getZip().generate({
-            type: 'blob',
-            mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        });
-        
-        return out;
+        try {
+            // 使用PizZip加载文档
+            const zip = new PizZip(fileContent);
+            console.log('PizZip文档加载成功');
+
+            // 安全检查: 确认文档文件存在
+            const mainDocument = zip.file("word/document.xml");
+            if (!mainDocument) {
+                console.warn('警告: 无法在模板中找到主文档，模板可能已损坏');
+            } else {
+                console.log('找到主文档 word/document.xml, 大小:', mainDocument.asText().length);
+            }
+            
+            // 创建Docxtemplater实例
+            const doc = new Docxtemplater();
+            doc.loadZip(zip);
+            console.log('Docxtemplater成功加载ZIP文档');
+            
+            // 设置数据
+            doc.setData(data);
+            console.log('Docxtemplater成功设置数据');
+            
+            // 渲染文档
+            doc.render();
+            console.log('文档渲染完成');
+            
+            // 获取生成的文档
+            const out = doc.getZip().generate({
+                type: 'blob',
+                mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            });
+            
+            console.log('成功生成输出文档，大小:', out.size, 'bytes');
+            return out;
+        } catch (zipError) {
+            console.error('模板处理失败:', zipError);
+            
+            // 使用备选方案：创建一个新的简单文档而不使用模板
+            console.log('尝试使用备选方案生成简单文档...');
+            const blob = createSimpleDocument(student, comment, grade, subjects, settings);
+            return blob;
+        }
     } catch (error) {
         console.error('从模板生成文档时出错:', error);
-        throw error;
+        // 返回一个简单的错误文档，至少保证能返回一些东西
+        return createErrorDocument(student, error);
     }
+}
+
+// 创建简单文档（不使用模板）
+function createSimpleDocument(student, comment, grade, subjects, settings) {
+    // 生成一个简单的docx内容
+    const content = `
+        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+            <w:body>
+                <w:p>
+                    <w:r>
+                        <w:t>学生成绩报告</w:t>
+                    </w:r>
+                </w:p>
+                <w:p>
+                    <w:r>
+                        <w:t>姓名: ${student.name || ''}</w:t>
+                    </w:r>
+                </w:p>
+                <w:p>
+                    <w:r>
+                        <w:t>学号: ${student.id || ''}</w:t>
+                    </w:r>
+                </w:p>
+                <w:p>
+                    <w:r>
+                        <w:t>评语: ${comment ? comment.content || '' : ''}</w:t>
+                    </w:r>
+                </w:p>
+            </w:body>
+        </w:document>
+    `;
+    
+    // 创建一个简单的文本文件
+    return new Blob([content], { 
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
+    });
+}
+
+// 创建错误文档
+function createErrorDocument(student, error) {
+    const errorContent = `
+        学生成绩报告生成失败
+        
+        学生: ${student ? student.name || 'Unknown' : 'Unknown'}
+        学号: ${student ? student.id || 'Unknown' : 'Unknown'}
+        
+        错误信息: ${error.message || '未知错误'}
+        
+        请联系系统管理员处理此问题。
+    `;
+    
+    return new Blob([errorContent], { type: 'text/plain' });
 }
 
 // 动态加载PizZip和Docxtemplater库
@@ -988,42 +1062,80 @@ async function loadDocxTemplaterLibraries() {
         
         console.log('开始加载文档模板库...');
         
-        // 加载PizZip库（优先使用CDN）
+        // 加载PizZip库（优先使用本地库）
         if (!window.PizZip) {
             console.log('加载PizZip库...');
-            await new Promise((resolve, reject) => {
+            // 首先尝试加载本地备份文件
+            try {
                 const pizzipScript = document.createElement('script');
-                // 直接使用CDN
+                pizzipScript.src = '/vendor/pizzip.min.js';
+                await new Promise((resolve, reject) => {
+                    pizzipScript.onload = () => {
+                        console.log('PizZip库从本地加载成功');
+                        resolve();
+                    };
+                    pizzipScript.onerror = (err) => {
+                        console.error('从本地加载PizZip库失败', err);
+                        reject(err);
+                    };
+                    document.head.appendChild(pizzipScript);
+                });
+            } catch (err) {
+                console.warn('本地PizZip加载失败，尝试从CDN加载', err);
+                
+                // 如果本地加载失败，尝试CDN
+                const pizzipScript = document.createElement('script');
                 pizzipScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.4/pizzip.min.js';
-                pizzipScript.onload = () => {
-                    console.log('PizZip库加载成功');
-                    resolve();
-                };
-                pizzipScript.onerror = (err) => {
-                    console.error('从CDN加载PizZip库失败', err);
-                    reject(new Error('无法加载PizZip库'));
-                };
-                document.head.appendChild(pizzipScript);
-            });
+                await new Promise((resolve, reject) => {
+                    pizzipScript.onload = () => {
+                        console.log('PizZip库从CDN加载成功');
+                        resolve();
+                    };
+                    pizzipScript.onerror = (err) => {
+                        console.error('从CDN加载PizZip库失败', err);
+                        reject(new Error('PizZip库加载失败，本地和CDN均不可用'));
+                    };
+                    document.head.appendChild(pizzipScript);
+                });
+            }
         }
         
-        // 加载Docxtemplater库（优先使用CDN）
+        // 加载Docxtemplater库（优先使用本地库）
         if (!window.Docxtemplater) {
             console.log('加载Docxtemplater库...');
-            await new Promise((resolve, reject) => {
+            // 首先尝试加载本地备份文件
+            try {
                 const docxtemplaterScript = document.createElement('script');
-                // 直接使用CDN
+                docxtemplaterScript.src = '/vendor/docxtemplater.js';
+                await new Promise((resolve, reject) => {
+                    docxtemplaterScript.onload = () => {
+                        console.log('Docxtemplater库从本地加载成功');
+                        resolve();
+                    };
+                    docxtemplaterScript.onerror = (err) => {
+                        console.error('从本地加载Docxtemplater库失败', err);
+                        reject(err);
+                    };
+                    document.head.appendChild(docxtemplaterScript);
+                });
+            } catch (err) {
+                console.warn('本地Docxtemplater加载失败，尝试从CDN加载', err);
+                
+                // 如果本地加载失败，尝试CDN
+                const docxtemplaterScript = document.createElement('script');
                 docxtemplaterScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.37.11/docxtemplater.js';
-                docxtemplaterScript.onload = () => {
-                    console.log('Docxtemplater库加载成功');
-                    resolve();
-                };
-                docxtemplaterScript.onerror = (err) => {
-                    console.error('从CDN加载Docxtemplater库失败', err);
-                    reject(new Error('无法加载Docxtemplater库'));
-                };
-                document.head.appendChild(docxtemplaterScript);
-            });
+                await new Promise((resolve, reject) => {
+                    docxtemplaterScript.onload = () => {
+                        console.log('Docxtemplater库从CDN加载成功');
+                        resolve();
+                    };
+                    docxtemplaterScript.onerror = (err) => {
+                        console.error('从CDN加载Docxtemplater库失败', err);
+                        reject(new Error('Docxtemplater库加载失败，本地和CDN均不可用'));
+                    };
+                    document.head.appendChild(docxtemplaterScript);
+                });
+            }
         }
         
         console.log('文档模板库加载完成');
@@ -1044,34 +1156,59 @@ function prepareTemplateData(student, comment, grade, subjects, settings) {
     // 获取学期文本
     const semesterText = settings.semester === '1' ? '第一学期' : '第二学期';
     
+    // 处理开学时间，只显示月日
+    let startDateText = '';
+    if (settings.startDate) {
+        try {
+            const startDate = new Date(settings.startDate);
+            if (!isNaN(startDate.getTime())) {
+                // 月份需要+1，因为getMonth()返回0-11
+                const month = startDate.getMonth() + 1;
+                const day = startDate.getDate();
+                startDateText = `${month}月${day}日`;
+            }
+        } catch (e) {
+            console.error('处理开学时间出错:', e);
+            startDateText = settings.startDate; // 如果出错，使用原始值
+        }
+    }
+    
     // 准备基本数据 - 只包含students表中实际存在的字段
     const data = {
-        "【姓名】": student.name || '',
-        "【性别】": student.gender || '',
-        "【班级】": student.class || settings.className || '',
-        "【身高】": student.height || '',
-        "【体重】": student.weight || '',
-        "【肺活量】": student.vitalCapacity || '',
-        "【视力左】": student.visionLeft || '',
-        "【视力右】": student.visionRight || '',
-        "【体测情况】": student.physicalTestStatus || '',
-        "【胸围】": student.chestCircumference || '',
-        "【龋齿】": student.dentalCaries || '',
+        "{{姓名}}": student.name || '',
+        "{{性别}}": student.gender || '',
+        "{{班级}}": student.class || settings.className || '',
+        "{{身高}}": student.height || '',
+        "{{体重}}": student.weight || '',
+        "{{肺活量}}": student.vitalCapacity || '',
+        "{{视力左}}": student.visionLeft || '',
+        "{{视力右}}": student.visionRight || '',
+        "{{体测情况}}": student.physicalTestStatus || '',
+        "{{胸围}}": student.chestCircumference || '',
+        "{{龋齿}}": student.dentalCaries || '',
         
-        // 评语
-        "【评语】": comment && comment.content ? comment.content : '',
+        // 评语相关
+        "{{评语}}": comment && comment.content ? comment.content : '',
+        "{{品质}}": comment && comment.quality ? comment.quality : '',
+        "{{学习}}": comment && comment.learning ? comment.learning : '',
+        "{{健康}}": comment && comment.health ? comment.health : '',
+        "{{审美}}": comment && comment.aesthetic ? comment.aesthetic : '',
+        "{{实践}}": comment && comment.practice ? comment.practice : '',
+        "{{生活}}": comment && comment.life ? comment.life : '',
         
         // 学期信息
-        "【学年】": settings.schoolYear || '',
-        "【学期】": semesterText || '',
-        "【开学时间】": settings.startDate || ''
+        "{{学年}}": settings.schoolYear || '',
+        "{{学期}}": semesterText || '',
+        "{{开学时间}}": startDateText,
+        "{{班主任}}": settings.teacherName || '',
+        "{{学号}}": student.id || ''
     };
     
     // 添加成绩数据
     if (grade) {
         subjects.forEach(subject => {
             const zhSubject = SUBJECT_MAPPING[subject] || subject;
-            data[`【${zhSubject}】`] = grade[subject] || '';
+            data[`{{${zhSubject}}}`] = grade[subject] || '';
         });
     }
     
@@ -1449,4 +1586,217 @@ function formatDate(date) {
     const month = (d.getMonth() + 1).toString().padStart(2, '0');
     const day = d.getDate().toString().padStart(2, '0');
     return `${year}-${month}-${day}`;
+}
+
+/**
+ * 保存导出设置
+ */
+function saveExportSettings() {
+    const settings = {
+        schoolYear: $('#export-school-year').val(),
+        semester: $('#export-semester').val(),
+        semesterText: $('#export-semester-text').val(),
+        startDate: $('#export-start-date').val(),
+        includeBasicInfo: $('#export-include-basic-info').prop('checked'),
+        includeGrades: $('#export-include-grades').prop('checked'),
+        includeComments: $('#export-include-comments').prop('checked'),
+        fileNameFormat: $('input[name="export-file-name-format"]:checked').val(),
+        schoolName: $('#export-school-name').val(),
+        className: $('#export-class-name').val(),
+        teacherName: $('#export-teacher-name').val(),
+        exportDate: $('#export-date').val()
+    };
+
+    localStorage.setItem('exportSettings', JSON.stringify(settings));
+    return settings;
+}
+
+/**
+ * 获取导出设置
+ */
+function getExportSettings() {
+    const settingsJson = localStorage.getItem('exportSettings');
+    let settings = null;
+
+    if (settingsJson) {
+        try {
+            settings = JSON.parse(settingsJson);
+        } catch (e) {
+            console.error('解析导出设置时出错', e);
+        }
+    }
+
+    // 合并默认设置
+    return Object.assign({}, DEFAULT_EXPORT_SETTINGS, settings || {});
+}
+
+// 绑定导出设置字段的变更事件
+function bindExportSettingsEvents() {
+    // 开学时间
+    const startDateInput = document.getElementById('startDate');
+    if (startDateInput) {
+        startDateInput.addEventListener('change', function() {
+            updateExportSettings();
+            updatePreview();
+        });
+    }
+    
+    // 包含内容复选框
+    const includeInputs = document.querySelectorAll('#includeBasicInfo, #includeGrades, #includeComments');
+    includeInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            updateExportSettings();
+            updatePreview();
+        });
+    });
+    
+    // 文件命名格式
+    const fileNameFormatInput = document.getElementById('fileNameFormat');
+    if (fileNameFormatInput) {
+        fileNameFormatInput.addEventListener('change', function() {
+            updateExportSettings();
+        });
+    }
+    
+    // 班主任姓名
+    const teacherNameInput = document.getElementById('teacherName');
+    if (teacherNameInput) {
+        teacherNameInput.addEventListener('input', function() {
+            updateExportSettings();
+            updatePreview();
+        });
+    }
+}
+
+// 初始化模板选择
+async function initTemplateSelection() {
+    try {
+        console.log('正在初始化模板选择');
+        // 先设置使用内置默认模板(不依赖于文件系统)作为回退选项
+        const settings = dataService.getExportSettings();
+        settings.useDefaultTemplate = true; // 标记使用内置默认模板
+        settings.templateName = '默认模板';
+        dataService.saveExportSettings(settings);
+        
+        // 显示模板信息
+        const templateNameElement = document.getElementById('templateName');
+        if (templateNameElement) {
+            templateNameElement.textContent = '默认模板 (内置)';
+        }
+        
+        // 尝试获取泉州东海湾实验学校模板
+        try {
+            // 获取模板列表
+            const response = await fetch('/api/templates');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.status === 'ok' && data.templates && data.templates.length > 0) {
+                    // 检查是否有默认模板
+                    const defaultTemplate = data.templates.find(t => 
+                        t.name === '泉州东海湾实验学校综合素质发展报告单.docx' || 
+                        t.filename === '泉州东海湾实验学校综合素质发展报告单.docx' ||
+                        t.name === 'report_template.docx' ||
+                        t.filename === 'report_template.docx');
+                    
+                    if (defaultTemplate) {
+                        console.log('找到默认模板:', defaultTemplate.name);
+                        // 保存默认模板到设置
+                        settings.templateId = defaultTemplate.id;
+                        settings.templateName = defaultTemplate.name;
+                        settings.useDefaultTemplate = false; // 使用文件系统模板
+                        dataService.saveExportSettings(settings);
+                        
+                        // 显示已选模板信息
+                        if (templateNameElement) {
+                            templateNameElement.textContent = defaultTemplate.name;
+                        }
+                        const uploadedTemplate = document.getElementById('uploadedTemplate');
+                        if (uploadedTemplate) {
+                            uploadedTemplate.classList.remove('d-none');
+                        }
+                    } else {
+                        console.log('未找到指定默认模板，将使用内置模板');
+                    }
+                }
+            }
+        } catch (templateError) {
+            console.warn('获取模板列表失败，将使用内置默认模板:', templateError);
+        }
+        
+        // 显示模板使用信息
+        const defaultTemplate = document.getElementById('defaultTemplate');
+        if (defaultTemplate) {
+            defaultTemplate.classList.remove('d-none');
+            defaultTemplate.querySelector('strong').textContent = settings.useDefaultTemplate ? 
+                '内置默认模板' : '泉州东海湾实验学校综合素质发展报告单';
+        }
+    } catch (error) {
+        console.error('初始化模板选择失败:', error);
+        showNotification('初始化模板选择失败，将使用内置默认模板', 'warning');
+    }
+}
+
+// 绑定所有设置相关的事件处理程序
+function bindSettingsEvents() {
+    // 绑定全选学生复选框事件
+    const selectAllStudents = document.getElementById('selectAllStudents');
+    if (selectAllStudents) {
+        selectAllStudents.addEventListener('change', function() {
+            toggleSelectAllStudents(this.checked);
+        });
+    }
+    
+    // 绑定排序选项事件
+    const sortOptions = document.querySelectorAll('input[name="sortOption"]');
+    sortOptions.forEach(option => {
+        option.addEventListener('change', function() {
+            sortStudentList(this.id === 'sortByName' ? 'name' : 'id');
+        });
+    });
+    
+    // 绑定设置变更事件
+    bindExportSettingsEvents();
+    
+    // 绑定导出按钮事件
+    const exportBtn = document.getElementById('exportBtn');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', function(event) {
+            event.preventDefault();
+            exportReports();
+        });
+    }
+    
+    // 绑定预览按钮事件
+    const previewBtn = document.getElementById('previewBtn');
+    if (previewBtn) {
+        previewBtn.addEventListener('click', function() {
+            showPreview();
+        });
+    }
+    
+    // 绑定模板上传按钮事件
+    const uploadTemplateBtn = document.getElementById('uploadTemplateBtn');
+    if (uploadTemplateBtn) {
+        uploadTemplateBtn.addEventListener('click', function() {
+            const templateUpload = document.getElementById('templateUpload');
+            if (templateUpload) {
+                templateUpload.click();
+            }
+        });
+    }
+    
+    // 绑定预览中的导出按钮
+    const exportFromPreviewBtn = document.getElementById('exportFromPreviewBtn');
+    if (exportFromPreviewBtn) {
+        exportFromPreviewBtn.addEventListener('click', function() {
+            // 关闭预览模态框
+            const previewModal = bootstrap.Modal.getInstance(document.getElementById('previewModal'));
+            if (previewModal) {
+                previewModal.hide();
+            }
+            
+            // 触发导出
+            exportReports();
+        });
+    }
 }

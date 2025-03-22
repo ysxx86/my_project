@@ -480,6 +480,26 @@
         </div>
     </div>
 
+    <!-- 删除学生确认模态框 -->
+    <div class="modal fade" id="deleteStudentModal" tabindex="-1" aria-labelledby="deleteStudentModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="deleteStudentModalLabel">删除学生</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="deleteStudentId">
+                    <p>确定要删除学生 <span id="deleteStudentName" class="fw-bold"></span> 吗？此操作不可恢复。</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-danger" id="confirmDeleteBtn">确认删除</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 添加Toast容器 -->
     <div id="toastContainer" class="toast-container position-fixed bottom-0 end-0 p-3">
         <!-- 动态生成的通知将被添加到这里 -->
