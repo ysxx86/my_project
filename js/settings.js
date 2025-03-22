@@ -169,6 +169,7 @@ function loadSettings() {
 // 加载班级列表
 function loadClassList() {
     const classSelect = document.getElementById('className');
+    if (!classSelect) return; // 如果元素不存在则返回
     
     // 保存当前选择的值
     const currentValue = classSelect.value;
@@ -176,46 +177,90 @@ function loadClassList() {
     // 显示加载状态
     classSelect.innerHTML = '<option value="">加载中...</option>';
     
+    // 从本地存储获取班级列表（如果有）
+    const savedClasses = localStorage.getItem('class_list');
+    if (savedClasses) {
+        try {
+            const classes = JSON.parse(savedClasses);
+            populateClassList(classSelect, classes, currentValue);
+            return;
+        } catch (e) {
+            console.error('解析本地班级列表失败', e);
+        }
+    }
+    
     // 从服务器获取班级列表
-    fetch('/api/classes')
-        .then(response => response.json())
+    fetch('https://14ii558tb394.vicp.fun/api/classes')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('API请求失败: ' + response.status);
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.status === 'ok' && data.classes && data.classes.length > 0) {
-                // 清空选择器
-                classSelect.innerHTML = '';
-                
-                // 添加一个空选项
-                const emptyOption = document.createElement('option');
-                emptyOption.value = '';
-                emptyOption.textContent = '-- 请选择班级 --';
-                classSelect.appendChild(emptyOption);
-                
-                // 添加班级选项
-                data.classes.forEach(className => {
-                    const option = document.createElement('option');
-                    option.value = className;
-                    option.textContent = className;
-                    classSelect.appendChild(option);
-                });
-                
-                // 尝试恢复之前的选择
-                if (currentValue) {
-                    classSelect.value = currentValue;
-                } else {
-                    // 否则尝试加载之前保存的设置
-                    const settings = JSON.parse(localStorage.getItem('export_settings') || '{}');
-                    if (settings.className) {
-                        classSelect.value = settings.className;
-                    }
-                }
+                // 保存班级列表到本地存储
+                localStorage.setItem('class_list', JSON.stringify(data.classes));
+                populateClassList(classSelect, data.classes, currentValue);
             } else {
-                classSelect.innerHTML = '<option value="">未找到班级</option>';
+                // 使用模拟数据
+                useDefaultClasses(classSelect, currentValue);
             }
         })
         .catch(error => {
             console.error('获取班级列表出错:', error);
-            classSelect.innerHTML = '<option value="">加载失败</option>';
+            // 使用模拟数据
+            useDefaultClasses(classSelect, currentValue);
         });
+}
+
+// 填充班级列表下拉框
+function populateClassList(selectElement, classes, currentValue) {
+    // 清空选择器
+    selectElement.innerHTML = '';
+    
+    // 添加一个空选项
+    const emptyOption = document.createElement('option');
+    emptyOption.value = '';
+    emptyOption.textContent = '-- 请选择班级 --';
+    selectElement.appendChild(emptyOption);
+    
+    // 添加班级选项
+    classes.forEach(className => {
+        const option = document.createElement('option');
+        option.value = className;
+        option.textContent = className;
+        selectElement.appendChild(option);
+    });
+    
+    // 尝试恢复之前的选择
+    if (currentValue) {
+        selectElement.value = currentValue;
+    } else {
+        // 否则尝试加载之前保存的设置
+        const settings = JSON.parse(localStorage.getItem('export_settings') || '{}');
+        if (settings.className) {
+            selectElement.value = settings.className;
+        }
+    }
+}
+
+// 使用默认班级数据
+function useDefaultClasses(selectElement, currentValue) {
+    const defaultClasses = [
+        '高一(1)班', '高一(2)班', '高一(3)班', '高一(4)班', '高一(5)班', '高一(6)班',
+        '高二(1)班', '高二(2)班', '高二(3)班', '高二(4)班', '高二(5)班', '高二(6)班',
+        '高三(1)班', '高三(2)班', '高三(3)班', '高三(4)班', '高三(5)班', '高三(6)班',
+        '初一(1)班', '初一(2)班', '初一(3)班', '初一(4)班', '初一(5)班', '初一(6)班',
+        '初二(1)班', '初二(2)班', '初二(3)班', '初二(4)班', '初二(5)班', '初二(6)班',
+        '初三(1)班', '初三(2)班', '初三(3)班', '初三(4)班', '初三(5)班', '初三(6)班'
+    ];
+    
+    // 保存到本地存储
+    localStorage.setItem('class_list', JSON.stringify(defaultClasses));
+    
+    // 填充班级列表
+    populateClassList(selectElement, defaultClasses, currentValue);
 }
 
 // 加载导出设置
@@ -242,32 +287,35 @@ function loadExportSettings() {
 // 绑定事件监听
 function bindEventListeners() {
     // 保存DeepSeek API设置
-    document.getElementById('saveDeepseekApiBtn').addEventListener('click', function() {
-        const apiKey = document.getElementById('deepseekApiKey').value.trim();
-        localStorage.setItem('deepseekApiKey', apiKey);
-        
-        // 如果有API端点，也可以发送到服务器
-        fetch('/api/settings/deepseek', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ api_key: apiKey })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                showToast('DeepSeek API设置已保存', 'success');
-            } else {
-                showToast('保存设置失败: ' + data.message, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('保存API设置出错:', error);
-            // 即使服务器请求失败，也保存在本地
-            showToast('已保存到本地，但同步到服务器失败', 'warning');
+    const saveDeepseekApiBtn = document.getElementById('saveDeepseekApiBtn');
+    if (saveDeepseekApiBtn) {
+        saveDeepseekApiBtn.addEventListener('click', function() {
+            const apiKey = document.getElementById('deepseekApiKey').value.trim();
+            localStorage.setItem('deepseekApiKey', apiKey);
+            
+            // 如果有API端点，也可以发送到服务器
+            fetch('/api/settings/deepseek', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ api_key: apiKey })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showToast('DeepSeek API设置已保存', 'success');
+                } else {
+                    showToast('保存设置失败: ' + data.message, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('保存API设置出错:', error);
+                // 即使服务器请求失败，也保存在本地
+                showToast('已保存到本地，但同步到服务器失败', 'warning');
+            });
         });
-    });
+    }
     
     // 测试DeepSeek API连接
     document.getElementById('testDeepseekApiBtn').addEventListener('click', function() {
@@ -311,34 +359,49 @@ function bindEventListeners() {
     });
     
     // API密钥显示/隐藏切换
-    document.getElementById('toggleDeepseekKeyBtn').addEventListener('click', function() {
-        const apiKeyInput = document.getElementById('deepseekApiKey');
-        const iconElement = this.querySelector('i');
-        
-        if (apiKeyInput.type === 'password') {
-            apiKeyInput.type = 'text';
-            iconElement.classList.remove('bx-show');
-            iconElement.classList.add('bx-hide');
-        } else {
-            apiKeyInput.type = 'password';
-            iconElement.classList.remove('bx-hide');
-            iconElement.classList.add('bx-show');
-        }
-    });
+    const toggleDeepseekKeyBtn = document.getElementById('toggleDeepseekKeyBtn');
+    if (toggleDeepseekKeyBtn) {
+        toggleDeepseekKeyBtn.addEventListener('click', function() {
+            const apiKeyInput = document.getElementById('deepseekApiKey');
+            const iconElement = this.querySelector('i');
+            
+            if (apiKeyInput.type === 'password') {
+                apiKeyInput.type = 'text';
+                iconElement.classList.remove('bx-show');
+                iconElement.classList.add('bx-hide');
+            } else {
+                apiKeyInput.type = 'password';
+                iconElement.classList.remove('bx-hide');
+                iconElement.classList.add('bx-show');
+            }
+        });
+    }
     
     // 绑定保存API按钮
-    document.getElementById('saveApiKeys').addEventListener('click', saveApiKeys);
+    const saveApiKeysBtn = document.getElementById('saveApiKeys');
+    if (saveApiKeysBtn) {
+        saveApiKeysBtn.addEventListener('click', saveApiKeys);
+    }
     
     // 绑定测试API连接按钮
-    document.getElementById('testApiConnection').addEventListener('click', testApiConnection);
+    const testApiConnectionBtn = document.getElementById('testApiConnection');
+    if (testApiConnectionBtn) {
+        testApiConnectionBtn.addEventListener('click', testApiConnection);
+    }
     
     // 绑定切换API Key可见性
-    document.getElementById('toggleApiVisibility').addEventListener('click', function() {
-        toggleApiKeyVisibility('deepseekApiKey', 'toggleApiVisibility');
-    });
+    const toggleApiVisibilityBtn = document.getElementById('toggleApiVisibility');
+    if (toggleApiVisibilityBtn) {
+        toggleApiVisibilityBtn.addEventListener('click', function() {
+            toggleApiKeyVisibility('deepseekApiKey', 'toggleApiVisibility');
+        });
+    }
     
     // 绑定保存导出设置按钮
-    document.getElementById('saveExportSettings').addEventListener('click', saveExportSettings);
+    const saveExportSettingsBtn = document.getElementById('saveExportSettings');
+    if (saveExportSettingsBtn) {
+        saveExportSettingsBtn.addEventListener('click', saveExportSettings);
+    }
 }
 
 // 显示提示信息

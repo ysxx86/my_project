@@ -207,46 +207,45 @@ function renderGradesTable(grades) {
     
     // 清空表格
     gradesTable.innerHTML = '';
-    console.log('表格已清空，准备添加学生行');
     
-    // 添加学生行
+    // 分班级渲染学生成绩表
+    console.log('开始渲染成绩表格');
     let currentClass = null;
+    const subjectsToRender = [
+        'daof', 'yuwen', 'shuxue', 'yingyu', 'laodong', 
+        'tiyu', 'yinyue', 'meishu', 'kexue', 'zonghe', 'xinxi', 'shufa'
+    ];
     
-    console.log(`开始遍历 ${grades.length} 个学生记录`);
-    grades.forEach((grade, index) => {
-        console.log(`处理第${index+1}个学生: ${grade.student_name}, 班级: ${grade.class}`);
-        
-        // 不显示班级标题，因为所有学生都是同一个班级
-        
-        // 直接处理学生行
-        console.log(`开始创建学生行: ${grade.student_name}`);
-        
-        // 创建学生成绩行
-        const row = document.createElement('tr');
-        row.setAttribute('data-student-id', grade.student_id);
-        row.setAttribute('data-student-name', grade.student_name);
-        row.setAttribute('data-student-class', grade.class || '');
-        
-        // 学号单元格
-        const idCell = document.createElement('td');
-        idCell.textContent = grade.student_id;
-        row.appendChild(idCell);
-        
-        // 姓名单元格
-        const nameCell = document.createElement('td');
-        nameCell.textContent = grade.student_name;
-        row.appendChild(nameCell);
-        
-        // 各科成绩单元格
-        subjects.forEach(subject => {
-            const cell = document.createElement('td');
-            // 检查成绩是否存在，不存在则显示为空
-            const gradeValue = grade[subject] !== undefined ? grade[subject] : '';
+    grades.forEach(studentGrade => {
+        // 如果是新班级，添加班级标题行
+        if (currentClass !== studentGrade.class) {
+            currentClass = studentGrade.class;
             
-            // 创建成绩下拉选择器
+            const classRow = document.createElement('tr');
+            classRow.className = 'table-light';
+            classRow.innerHTML = `<td colspan="14"><strong>${currentClass}</strong></td>`;
+            gradesTable.appendChild(classRow);
+        }
+        
+        // 创建学生行
+        const row = document.createElement('tr');
+        row.setAttribute('data-student-id', studentGrade.student_id);
+        
+        // 添加学号和姓名单元格
+        row.innerHTML = `
+            <td>${studentGrade.student_id}</td>
+            <td>${studentGrade.student_name}</td>
+        `;
+        
+        // 添加各科目成绩单元格
+        subjectsToRender.forEach(subject => {
+            const cell = document.createElement('td');
+            const gradeValue = studentGrade[subject] !== undefined ? studentGrade[subject] : '';
+            
+            // 创建成绩选择框
             const select = document.createElement('select');
             select.className = 'form-select form-select-sm grade-select';
-            select.setAttribute('data-student-id', grade.student_id);
+            select.setAttribute('data-student-id', studentGrade.student_id);
             select.setAttribute('data-subject', subject);
             
             // 添加选项（支持优、良、及格、待及格四个等级）

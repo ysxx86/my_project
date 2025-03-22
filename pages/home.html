@@ -142,6 +142,37 @@
             height: 250px;
             margin-top: 20px;
         }
+        
+        /* 数据加载占位符样式 */
+        .loading-placeholder {
+            display: inline-block;
+            position: relative;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading-pulse 1.5s infinite;
+            min-width: 80px;
+            border-radius: 4px;
+        }
+        
+        @keyframes loading-pulse {
+            0% {
+                background-position: 200% 0;
+            }
+            100% {
+                background-position: -200% 0;
+            }
+        }
+        
+        /* 缓存数据提示样式 */
+        .cached-data-notice {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            display: inline-block;
+            margin-top: 8px;
+        }
     </style>
 </head>
 <body>
@@ -153,11 +184,11 @@
             <div class="col-md-6">
                 <div class="d-flex align-items-center mb-3">
                     <i class='bx bx-user me-2'></i>
-                    <span>当前班级：五年级三班</span>
+                    <span>当前班级：<span class="loading-placeholder">加载中...</span></span>
                 </div>
                 <div class="d-flex align-items-center">
                     <i class='bx bx-calendar me-2'></i>
-                    <span>学期：2023-2024学年第二学期</span>
+                    <span>学期：<span class="loading-placeholder">加载中...</span></span>
                 </div>
             </div>
             <div class="col-md-6 text-md-end mt-3 mt-md-0">
@@ -177,7 +208,7 @@
             <div class="dashboard-card text-center">
                 <i class='bx bx-user dashboard-icon'></i>
                 <h3 class="dashboard-title">学生总数</h3>
-                <div class="dashboard-value">36</div>
+                <div class="dashboard-value">--</div>
                 <p class="dashboard-desc">班级学生总人数</p>
             </div>
         </div>
@@ -185,7 +216,7 @@
             <div class="dashboard-card text-center">
                 <i class='bx bx-message-square-detail dashboard-icon'></i>
                 <h3 class="dashboard-title">评语完成</h3>
-                <div class="dashboard-value">28</div>
+                <div class="dashboard-value">--</div>
                 <p class="dashboard-desc">已完成评语的学生数</p>
             </div>
         </div>
@@ -193,7 +224,7 @@
             <div class="dashboard-card text-center">
                 <i class='bx bx-bar-chart-alt-2 dashboard-icon'></i>
                 <h3 class="dashboard-title">成绩录入</h3>
-                <div class="dashboard-value">32</div>
+                <div class="dashboard-value">--</div>
                 <p class="dashboard-desc">已录入成绩的学生数</p>
             </div>
         </div>
@@ -201,7 +232,7 @@
             <div class="dashboard-card text-center">
                 <i class='bx bx-export dashboard-icon'></i>
                 <h3 class="dashboard-title">报告生成</h3>
-                <div class="dashboard-value">24</div>
+                <div class="dashboard-value">--</div>
                 <p class="dashboard-desc">已生成报告的学生数</p>
             </div>
         </div>
@@ -360,25 +391,35 @@
     <script>
         // 页面加载完成后执行
         document.addEventListener('DOMContentLoaded', function() {
-            // 加载首页数据
-            loadDashboardData();
-            
-            // 为快捷操作绑定点击事件
-            setupQuickActions();
-            
-            // 动态加载待办事项和最近活动
-            loadTodos();
-            loadActivities();
-            
-            // 加载成绩分布和评语完成情况图表
-            loadGradeDistribution();
-            loadCommentsProgress();
+            // 添加数据加载
+            try {
+                // 加载首页数据总览
+                loadDashboardData();
+                
+                // 加载图表数据
+                loadGradeDistribution();
+                loadCommentsProgress();
+                
+                // 为快捷操作绑定点击事件
+                setupQuickActions();
+                
+                // 动态加载待办事项和最近活动
+                loadTodos();
+                loadActivities();
+            } catch (e) {
+                console.error('初始化仪表盘出错:', e);
+            }
         });
         
         // 加载首页基本数据
         function loadDashboardData() {
             fetch('/api/dashboard/info')
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('API请求失败: ' + response.status);
+                    }
+                    return response.json();
+                })
                 .then(result => {
                     if (result.status === 'success') {
                         const data = result.data;
@@ -413,16 +454,89 @@
                         cards[3].querySelector('.dashboard-desc').textContent = `已生成报告的学生数 (${data.reports_percentage}%)`;
                     } else {
                         console.error('获取仪表盘数据失败', result.message);
-                        // 添加错误处理，在UI上显示错误信息
-                        const errorMsg = document.createElement('div');
-                        errorMsg.className = 'alert alert-danger';
-                        errorMsg.textContent = '获取数据失败，请刷新页面重试';
-                        document.querySelector('.welcome-banner').after(errorMsg);
+                        showErrorMessage('获取数据失败，请刷新页面重试');
                     }
                 })
                 .catch(error => {
                     console.error('API请求失败', error);
+                    showErrorMessage('服务器连接失败，请检查网络连接');
+                    // 尝试从本地存储获取上次缓存的数据
+                    loadCachedDashboardData();
                 });
+        }
+        
+        // 从本地缓存加载数据
+        function loadCachedDashboardData() {
+            const cachedData = localStorage.getItem('dashboard_data');
+            if (cachedData) {
+                try {
+                    const data = JSON.parse(cachedData);
+                    // 使用缓存数据更新UI，但显示提示表明这是缓存数据
+                    updateDashboardWithData(data);
+                    
+                    const warningMsg = document.createElement('div');
+                    warningMsg.className = 'alert alert-warning mt-3';
+                    warningMsg.innerHTML = '<i class="bx bx-info-circle"></i> 显示的是缓存数据，非实时信息';
+                    document.querySelector('.welcome-banner').after(warningMsg);
+                } catch (e) {
+                    console.error('解析缓存数据出错:', e);
+                }
+            }
+        }
+        
+        // 使用数据更新仪表盘
+        function updateDashboardWithData(data) {
+            // 更新班级和学期信息
+            const classInfo = document.querySelector('.welcome-banner .col-md-6:first-child');
+            if (classInfo) {
+                classInfo.innerHTML = `
+                    <div class="d-flex align-items-center mb-3">
+                        <i class='bx bx-user me-2'></i>
+                        <span>当前班级：${data.current_class || '未设置'}</span>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <i class='bx bx-calendar me-2'></i>
+                        <span>学期：${data.current_semester || '未设置'}</span>
+                    </div>
+                `;
+            }
+            
+            // 更新数据概览
+            const cards = document.querySelectorAll('.dashboard-card');
+            if (cards.length >= 4) {
+                // 学生总数
+                const studentCard = cards[0];
+                studentCard.querySelector('.dashboard-value').textContent = data.total_students || '0';
+                
+                // 评语完成
+                const commentCard = cards[1];
+                commentCard.querySelector('.dashboard-value').textContent = data.comments_completed || '0';
+                commentCard.querySelector('.dashboard-desc').textContent = 
+                    `已完成评语的学生数 (${data.comments_percentage || '0'}%)`;
+                
+                // 成绩录入
+                const gradeCard = cards[2];
+                gradeCard.querySelector('.dashboard-value').textContent = data.grades_completed || '0';
+                gradeCard.querySelector('.dashboard-desc').textContent = 
+                    `已录入成绩的学生数 (${data.grades_percentage || '0'}%)`;
+                
+                // 报告生成
+                const reportCard = cards[3];
+                reportCard.querySelector('.dashboard-value').textContent = data.reports_ready || '0';
+                reportCard.querySelector('.dashboard-desc').textContent = 
+                    `已生成报告的学生数 (${data.reports_percentage || '0'}%)`;
+            }
+        }
+        
+        // 显示错误信息
+        function showErrorMessage(message) {
+            const errorMsg = document.createElement('div');
+            errorMsg.className = 'alert alert-danger alert-dismissible fade show';
+            errorMsg.innerHTML = `
+                <i class="bx bx-error-circle me-2"></i>${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            document.querySelector('.welcome-banner').after(errorMsg);
         }
         
         // 设置快捷操作的点击事件
@@ -669,189 +783,311 @@
         
         // 加载成绩分布
         function loadGradeDistribution() {
+            // 检查图表元素是否存在
+            const gradesCtx = document.getElementById('gradesChart');
+            if (!gradesCtx) return;
+            
             fetch('/api/dashboard/grade-distribution')
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('API请求失败:' + response.status);
+                    }
+                    return response.json();
+                })
                 .then(result => {
                     if (result.status === 'success') {
-                        const data = result.data;
-                        const subjects = Object.keys(data);
-                        const excellentRates = subjects.map(subject => data[subject].excellent_rate);
-                        
-                        // 创建图表
-                        const gradesCtx = document.getElementById('gradesChart').getContext('2d');
-                        
-                        // 销毁旧图表（如果存在）
-                        if (window.gradesChart) {
-                            window.gradesChart.destroy();
-                        }
-                        
-                        // 创建新图表
-                        window.gradesChart = new Chart(gradesCtx, {
-                            type: 'bar',
-                            data: {
-                                labels: subjects,
-                                datasets: [{
-                                    label: '优秀率(%)',
-                                    data: excellentRates,
-                                    backgroundColor: [
-                                        'rgba(52, 152, 219, 0.7)',
-                                        'rgba(46, 204, 113, 0.7)',
-                                        'rgba(155, 89, 182, 0.7)',
-                                        'rgba(52, 73, 94, 0.7)',
-                                        'rgba(243, 156, 18, 0.7)',
-                                        'rgba(231, 76, 60, 0.7)',
-                                        'rgba(26, 188, 156, 0.7)',
-                                        'rgba(241, 196, 15, 0.7)'
-                                    ],
-                                    borderColor: [
-                                        'rgba(52, 152, 219, 1)',
-                                        'rgba(46, 204, 113, 1)',
-                                        'rgba(155, 89, 182, 1)',
-                                        'rgba(52, 73, 94, 1)',
-                                        'rgba(243, 156, 18, 1)',
-                                        'rgba(231, 76, 60, 1)',
-                                        'rgba(26, 188, 156, 1)',
-                                        'rgba(241, 196, 15, 1)'
-                                    ],
-                                    borderWidth: 1
-                                }]
-                            },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                scales: {
-                                    y: {
-                                        beginAtZero: true,
-                                        max: 100
-                                    }
-                                }
-                            }
-                        });
-                        
-                        // 添加总结信息
-                        const gradeCard = document.querySelector('.col-md-6:nth-child(1) .dashboard-card');
-                        const existingSummary = gradeCard.querySelector('.grade-summary');
-                        if (existingSummary) {
-                            existingSummary.remove();
-                        }
-                        
-                        // 计算总体优秀率
-                        const totalExcellent = subjects.reduce((sum, subject) => sum + data[subject].excellent, 0);
-                        const totalStudents = subjects.reduce((sum, subject) => sum + data[subject].total, 0);
-                        const overallRate = totalStudents > 0 ? Math.round(totalExcellent / totalStudents * 100) : 0;
-                        
-                        const summary = document.createElement('div');
-                        summary.className = 'mt-3 text-center grade-summary';
-                        summary.innerHTML = `
-                            <hr>
-                            <p class="mb-1">总体优秀率: <strong>${overallRate}%</strong></p>
-                            <p class="small text-muted">共有 ${totalExcellent} 名学生成绩达到优秀标准</p>
-                        `;
-                        
-                        gradeCard.appendChild(summary);
+                        // 渲染图表并缓存数据
+                        renderGradeChart(result.data);
+                        localStorage.setItem('grade_distribution_data', JSON.stringify(result.data));
                     } else {
                         console.error('获取成绩分布失败', result.message);
+                        // 尝试使用缓存数据
+                        loadCachedGradeData();
                     }
                 })
                 .catch(error => {
                     console.error('API请求失败', error);
+                    // 尝试使用缓存数据
+                    loadCachedGradeData();
                 });
+        }
+        
+        // 从缓存加载成绩数据
+        function loadCachedGradeData() {
+            const cachedData = localStorage.getItem('grade_distribution_data');
+            if (cachedData) {
+                try {
+                    const data = JSON.parse(cachedData);
+                    renderGradeChart(data);
+                    
+                    // 显示使用缓存数据的提示
+                    const gradeCard = document.querySelector('.col-md-6:nth-child(1) .dashboard-card');
+                    if (gradeCard && !gradeCard.querySelector('.cached-data-notice')) {
+                        const notice = document.createElement('div');
+                        notice.className = 'cached-data-notice text-muted small mt-2';
+                        notice.innerHTML = '<i class="bx bx-info-circle"></i> 显示的是缓存数据';
+                        gradeCard.appendChild(notice);
+                    }
+                } catch (e) {
+                    console.error('解析缓存成绩数据出错:', e);
+                    showGradeDataError();
+                }
+            } else {
+                showGradeDataError();
+            }
+        }
+        
+        // 显示成绩数据加载错误
+        function showGradeDataError() {
+            const gradeCard = document.querySelector('.col-md-6:nth-child(1) .dashboard-card');
+            if (gradeCard) {
+                const chartContainer = gradeCard.querySelector('.chart-container');
+                if (chartContainer) {
+                    chartContainer.innerHTML = `
+                        <div class="alert alert-warning text-center py-5">
+                            <i class="bx bx-error-circle fs-1"></i>
+                            <p class="mt-3">无法加载成绩数据</p>
+                            <button class="btn btn-sm btn-outline-primary mt-2" onclick="loadGradeDistribution()">
+                                <i class="bx bx-refresh"></i> 重试
+                            </button>
+                        </div>
+                    `;
+                }
+            }
+        }
+        
+        // 渲染成绩图表
+        function renderGradeChart(data) {
+            const gradesCtx = document.getElementById('gradesChart').getContext('2d');
+            const subjects = Object.keys(data);
+            const excellentRates = subjects.map(subject => data[subject].excellent_rate);
+            
+            // 销毁旧图表（如果存在）
+            if (window.gradesChart && typeof window.gradesChart.destroy === 'function') {
+                window.gradesChart.destroy();
+            }
+            
+            // 创建新图表
+            window.gradesChart = new Chart(gradesCtx, {
+                type: 'bar',
+                data: {
+                    labels: subjects,
+                    datasets: [{
+                        label: '优秀率(%)',
+                        data: excellentRates,
+                        backgroundColor: [
+                            'rgba(52, 152, 219, 0.7)',
+                            'rgba(46, 204, 113, 0.7)',
+                            'rgba(155, 89, 182, 0.7)',
+                            'rgba(52, 73, 94, 0.7)',
+                            'rgba(243, 156, 18, 0.7)',
+                            'rgba(231, 76, 60, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgba(52, 152, 219, 1)',
+                            'rgba(46, 204, 113, 1)',
+                            'rgba(155, 89, 182, 1)',
+                            'rgba(52, 73, 94, 1)',
+                            'rgba(243, 156, 18, 1)',
+                            'rgba(231, 76, 60, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    }
+                }
+            });
+            
+            // 添加总结信息
+            const gradeCard = document.querySelector('.col-md-6:nth-child(1) .dashboard-card');
+            if (gradeCard) {
+                const existingSummary = gradeCard.querySelector('.grade-summary');
+                if (existingSummary) {
+                    existingSummary.remove();
+                }
+                
+                // 计算总体优秀率
+                const totalExcellent = subjects.reduce((sum, subject) => sum + data[subject].excellent, 0);
+                const totalStudents = subjects.reduce((sum, subject) => sum + data[subject].total, 0);
+                const overallRate = totalStudents > 0 ? Math.round(totalExcellent / totalStudents * 100) : 0;
+                
+                const summary = document.createElement('div');
+                summary.className = 'mt-3 text-center grade-summary';
+                summary.innerHTML = `
+                    <hr>
+                    <p class="mb-1">总体优秀率: <strong>${overallRate}%</strong></p>
+                    <p class="small text-muted">共有 ${totalExcellent} 名学生成绩达到优秀标准</p>
+                `;
+                
+                gradeCard.appendChild(summary);
+            }
         }
         
         // 加载评语完成情况
         function loadCommentsProgress() {
+            // 检查图表元素是否存在
+            const commentsCtx = document.getElementById('commentsChart');
+            if (!commentsCtx) return;
+            
             fetch('/api/dashboard/comments')
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('API请求失败:' + response.status);
+                    }
+                    return response.json();
+                })
                 .then(result => {
                     if (result.status === 'success') {
-                        const data = result.data;
-                        
-                        // 创建图表
-                        const commentsCtx = document.getElementById('commentsChart').getContext('2d');
-                        
-                        // 销毁旧图表（如果存在）
-                        if (window.commentsChart) {
-                            window.commentsChart.destroy();
-                        }
-                        
-                        // 创建新图表
-                        window.commentsChart = new Chart(commentsCtx, {
-                            type: 'doughnut',
-                            data: {
-                                labels: ['已完成', '未完成'],
-                                datasets: [{
-                                    data: [data.completed, data.incomplete],
-                                    backgroundColor: [
-                                        'rgba(46, 204, 113, 0.7)',
-                                        'rgba(231, 76, 60, 0.7)'
-                                    ],
-                                    borderColor: [
-                                        'rgba(46, 204, 113, 1)',
-                                        'rgba(231, 76, 60, 1)'
-                                    ],
-                                    borderWidth: 1
-                                }]
-                            },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                plugins: {
-                                    legend: {
-                                        position: 'bottom'
-                                    },
-                                    tooltip: {
-                                        callbacks: {
-                                            label: function(context) {
-                                                const label = context.label || '';
-                                                const value = context.raw || 0;
-                                                const total = data.total;
-                                                const percentage = Math.round((value / total) * 100);
-                                                return `${label}: ${value} (${percentage}%)`;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        });
-                        
-                        // 如果有未完成的评语，显示未完成的学生列表
-                        const cardElement = document.querySelector('.col-md-6:nth-child(2) .dashboard-card');
-                        const existingList = cardElement.querySelector('.incomplete-list');
-                        if (existingList) {
-                            existingList.remove();
-                        }
-                        
-                        if (data.incomplete_students && data.incomplete_students.length > 0) {
-                            const incompleteList = document.createElement('div');
-                            incompleteList.className = 'mt-3 small incomplete-list';
-                            incompleteList.innerHTML = '<p class="mb-1">未完成评语的学生：</p>';
-                            
-                            const studentsList = document.createElement('ul');
-                            studentsList.className = 'list-unstyled';
-                            
-                            data.incomplete_students.slice(0, 5).forEach(student => {
-                                const listItem = document.createElement('li');
-                                listItem.innerHTML = `<i class='bx bx-user-x text-danger'></i> ${student.name}`;
-                                studentsList.appendChild(listItem);
-                            });
-                            
-                            if (data.incomplete_students.length > 5) {
-                                const moreItem = document.createElement('li');
-                                moreItem.className = 'text-muted';
-                                moreItem.textContent = `等 ${data.incomplete_students.length - 5} 名学生...`;
-                                studentsList.appendChild(moreItem);
-                            }
-                            
-                            incompleteList.appendChild(studentsList);
-                            cardElement.appendChild(incompleteList);
-                        }
+                        // 渲染图表并缓存数据
+                        renderCommentsChart(result.data);
+                        localStorage.setItem('comments_progress_data', JSON.stringify(result.data));
                     } else {
                         console.error('获取评语完成情况失败', result.message);
+                        // 尝试使用缓存数据
+                        loadCachedCommentsData();
                     }
                 })
                 .catch(error => {
                     console.error('API请求失败', error);
+                    // 尝试使用缓存数据
+                    loadCachedCommentsData();
                 });
+        }
+        
+        // 从缓存加载评语数据
+        function loadCachedCommentsData() {
+            const cachedData = localStorage.getItem('comments_progress_data');
+            if (cachedData) {
+                try {
+                    const data = JSON.parse(cachedData);
+                    renderCommentsChart(data);
+                    
+                    // 显示使用缓存数据的提示
+                    const commentsCard = document.querySelector('.col-md-6:nth-child(2) .dashboard-card');
+                    if (commentsCard && !commentsCard.querySelector('.cached-data-notice')) {
+                        const notice = document.createElement('div');
+                        notice.className = 'cached-data-notice text-muted small mt-2';
+                        notice.innerHTML = '<i class="bx bx-info-circle"></i> 显示的是缓存数据';
+                        commentsCard.appendChild(notice);
+                    }
+                } catch (e) {
+                    console.error('解析缓存评语数据出错:', e);
+                    showCommentsDataError();
+                }
+            } else {
+                showCommentsDataError();
+            }
+        }
+        
+        // 显示评语数据加载错误
+        function showCommentsDataError() {
+            const commentsCard = document.querySelector('.col-md-6:nth-child(2) .dashboard-card');
+            if (commentsCard) {
+                const chartContainer = commentsCard.querySelector('.chart-container');
+                if (chartContainer) {
+                    chartContainer.innerHTML = `
+                        <div class="alert alert-warning text-center py-5">
+                            <i class="bx bx-error-circle fs-1"></i>
+                            <p class="mt-3">无法加载评语完成数据</p>
+                            <button class="btn btn-sm btn-outline-primary mt-2" onclick="loadCommentsProgress()">
+                                <i class="bx bx-refresh"></i> 重试
+                            </button>
+                        </div>
+                    `;
+                }
+            }
+        }
+        
+        // 渲染评语图表
+        function renderCommentsChart(data) {
+            const commentsCtx = document.getElementById('commentsChart').getContext('2d');
+            
+            // 销毁旧图表（如果存在）
+            if (window.commentsChart && typeof window.commentsChart.destroy === 'function') {
+                window.commentsChart.destroy();
+            }
+            
+            // 创建新图表
+            window.commentsChart = new Chart(commentsCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['已完成', '未完成'],
+                    datasets: [{
+                        data: [data.completed, data.incomplete],
+                        backgroundColor: [
+                            'rgba(46, 204, 113, 0.7)',
+                            'rgba(231, 76, 60, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgba(46, 204, 113, 1)',
+                            'rgba(231, 76, 60, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.raw || 0;
+                                    const total = data.total;
+                                    const percentage = Math.round((value / total) * 100);
+                                    return `${label}: ${value} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // 如果有未完成的评语，显示未完成的学生列表
+            const cardElement = document.querySelector('.col-md-6:nth-child(2) .dashboard-card');
+            if (cardElement) {
+                const existingList = cardElement.querySelector('.incomplete-list');
+                if (existingList) {
+                    existingList.remove();
+                }
+                
+                if (data.incomplete_students && data.incomplete_students.length > 0) {
+                    const incompleteList = document.createElement('div');
+                    incompleteList.className = 'mt-3 small incomplete-list';
+                    incompleteList.innerHTML = '<p class="mb-1">未完成评语的学生：</p>';
+                    
+                    const studentsList = document.createElement('ul');
+                    studentsList.className = 'list-unstyled';
+                    
+                    data.incomplete_students.slice(0, 5).forEach(student => {
+                        const listItem = document.createElement('li');
+                        listItem.innerHTML = `<i class='bx bx-user-x text-danger'></i> ${student.name}`;
+                        studentsList.appendChild(listItem);
+                    });
+                    
+                    if (data.incomplete_students.length > 5) {
+                        const moreItem = document.createElement('li');
+                        moreItem.className = 'text-muted';
+                        moreItem.textContent = `等 ${data.incomplete_students.length - 5} 名学生...`;
+                        studentsList.appendChild(moreItem);
+                    }
+                    
+                    incompleteList.appendChild(studentsList);
+                    cardElement.appendChild(incompleteList);
+                }
+            }
         }
     </script>
 </body>

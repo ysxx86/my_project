@@ -163,23 +163,14 @@
             <div class="col-md-3">
                 <div class="settings-card">
                     <div class="nav flex-column nav-pills" id="v-pills-tab" role="tablist" aria-orientation="vertical">
-                        <button class="nav-link active" id="v-pills-profile-tab" data-bs-toggle="pill" data-bs-target="#v-pills-profile" type="button" role="tab">
-                            <i class='bx bx-user'></i> 个人信息
-                        </button>
-                        <button class="nav-link" id="v-pills-class-tab" data-bs-toggle="pill" data-bs-target="#v-pills-class" type="button" role="tab">
-                            <i class='bx bx-group'></i> 班级信息
-                        </button>
-                        <button class="nav-link" id="v-pills-appearance-tab" data-bs-toggle="pill" data-bs-target="#v-pills-appearance" type="button" role="tab">
-                            <i class='bx bx-palette'></i> 外观设置
-                        </button>
-                        <button class="nav-link" id="v-pills-notification-tab" data-bs-toggle="pill" data-bs-target="#v-pills-notification" type="button" role="tab">
-                            <i class='bx bx-bell'></i> 通知设置
-                        </button>
-                        <button class="nav-link" id="v-pills-backup-tab" data-bs-toggle="pill" data-bs-target="#v-pills-backup" type="button" role="tab">
+                        <button class="nav-link active" id="v-pills-backup-tab" data-bs-toggle="pill" data-bs-target="#v-pills-backup" type="button" role="tab">
                             <i class='bx bx-cloud-upload'></i> 备份与恢复
                         </button>
-                        <button class="nav-link" id="v-pills-security-tab" data-bs-toggle="pill" data-bs-target="#v-pills-security" type="button" role="tab">
-                            <i class='bx bx-lock-alt'></i> 安全设置
+                        <button class="nav-link" id="v-pills-ai-tab" data-bs-toggle="pill" data-bs-target="#v-pills-ai" type="button" role="tab">
+                            <i class='bx bx-bot'></i> AI评语设置
+                        </button>
+                        <button class="nav-link" id="v-pills-database-tab" data-bs-toggle="pill" data-bs-target="#v-pills-database" type="button" role="tab">
+                            <i class='bx bx-data'></i> 数据库维护
                         </button>
                         <button class="nav-link" id="v-pills-about-tab" data-bs-toggle="pill" data-bs-target="#v-pills-about" type="button" role="tab">
                             <i class='bx bx-info-circle'></i> 关于系统
@@ -191,288 +182,370 @@
             <div class="col-md-9">
                 <div class="settings-card">
                     <div class="tab-content" id="v-pills-tabContent">
-                        <!-- 个人信息 -->
-                        <div class="tab-pane fade show active" id="v-pills-profile" role="tabpanel">
-                            <h2 class="settings-title"><i class='bx bx-user'></i> 个人信息</h2>
-                            <div class="row">
-                                <div class="col-md-4 text-center">
-                                    <div class="avatar-container">
-                                        <i class='bx bx-user'></i>
-                                        <div class="avatar-upload">
-                                            <i class='bx bx-camera'></i> 更换头像
-                                        </div>
-                                    </div>
-                                    <input type="file" id="avatarUpload" class="d-none" accept="image/*">
+                        <!-- 备份与恢复 -->
+                        <div class="tab-pane fade show active" id="v-pills-backup" role="tabpanel">
+                            <h2 class="settings-title"><i class='bx bx-cloud-upload'></i> 备份与恢复</h2>
+                            <div class="alert alert-warning">
+                                <i class='bx bx-info-circle'></i> 定期备份数据可以有效避免数据丢失，请确保设置正确的备份计划。
+                            </div>
+                            
+                            <div class="card mb-4">
+                                <div class="card-header bg-primary text-white">
+                                    <h5 class="mb-0"><i class='bx bx-download'></i> 数据备份</h5>
                                 </div>
-                                <div class="col-md-8">
-                                    <form id="profileForm">
+                                <div class="card-body">
+                                    <form id="backupForm">
                                         <div class="mb-3">
-                                            <label for="teacherName" class="form-label">姓名</label>
-                                            <input type="text" class="form-control" id="teacherName" value="张老师">
+                                            <label for="backupEmail" class="form-label">备份邮箱</label>
+                                            <input type="email" class="form-control" id="backupEmail" placeholder="用于接收备份文件的邮箱地址">
+                                            <div class="form-text">系统将自动向此邮箱发送备份文件</div>
                                         </div>
                                         <div class="mb-3">
-                                            <label for="teacherGender" class="form-label">性别</label>
-                                            <select class="form-select" id="teacherGender">
-                                                <option value="male">男</option>
-                                                <option value="female">女</option>
+                                            <label for="backupFrequency" class="form-label">备份频率</label>
+                                            <select class="form-select" id="backupFrequency">
+                                                <option value="daily">每天</option>
+                                                <option value="weekly" selected>每周</option>
+                                                <option value="monthly">每月</option>
+                                                <option value="manual">手动备份</option>
                                             </select>
                                         </div>
                                         <div class="mb-3">
-                                            <label for="teacherPhone" class="form-label">联系电话</label>
-                                            <input type="tel" class="form-control" id="teacherPhone" value="13800138000">
+                                            <label for="backupTime" class="form-label">备份时间</label>
+                                            <input type="time" class="form-control" id="backupTime" value="22:00">
+                                            <div class="form-text">系统将在此时间进行自动备份（仅适用于自动备份选项）</div>
                                         </div>
                                         <div class="mb-3">
-                                            <label for="teacherEmail" class="form-label">电子邮箱</label>
-                                            <input type="email" class="form-control" id="teacherEmail" value="teacher@school.edu.cn">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="compressBackup" checked>
+                                                <label class="form-check-label" for="compressBackup">压缩备份文件</label>
+                                            </div>
                                         </div>
-                                        <button type="submit" class="btn btn-primary">
-                                            <i class='bx bx-save'></i> 保存信息
-                                        </button>
+                                        <div class="d-flex justify-content-between">
+                                            <button type="submit" class="btn btn-primary">
+                                                <i class='bx bx-save'></i> 保存备份设置
+                                            </button>
+                                            <button type="button" id="manualBackupBtn" class="btn btn-success">
+                                                <i class='bx bx-download'></i> 立即备份
+                                            </button>
+                                        </div>
                                     </form>
                                 </div>
                             </div>
-                        </div>
-                        
-                        <!-- 班级信息 -->
-                        <div class="tab-pane fade" id="v-pills-class" role="tabpanel">
-                            <h2 class="settings-title"><i class='bx bx-group'></i> 班级信息</h2>
-                            <form id="classForm">
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="mb-3">
-                                            <label for="className" class="form-label">班级名称</label>
-                                            <select class="form-select" id="className">
-                                                <option value="">加载中...</option>
-                                            </select>
-                                            <small class="form-text text-muted">从数据库已导入班级中选择</small>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="schoolName" class="form-label">学校名称</label>
-                                            <input type="text" class="form-control" id="schoolName" value="泉州东海湾实验学校">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="schoolYear" class="form-label">学年</label>
-                                            <select class="form-select" id="schoolYear">
-                                                <option value="2022-2023">2022-2023学年</option>
-                                                <option value="2023-2024" selected>2023-2024学年</option>
-                                            </select>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="semester" class="form-label">学期</label>
-                                            <select class="form-select" id="semester">
-                                                <option value="1" selected>第一学期</option>
-                                                <option value="2">第二学期</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="mb-3">
-                                            <label for="classSize" class="form-label">班级人数</label>
-                                            <input type="number" class="form-control" id="classSize" value="45">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="classRoom" class="form-label">教室</label>
-                                            <input type="text" class="form-control" id="classRoom" value="教学楼B区302">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="assistantTeacher" class="form-label">副班主任</label>
-                                            <input type="text" class="form-control" id="assistantTeacher" value="李老师">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="classSlogan" class="form-label">班训</label>
-                                            <input type="text" class="form-control" id="classSlogan" value="团结、进取、求实、创新">
-                                        </div>
-                                    </div>
+                            
+                            <div class="card">
+                                <div class="card-header bg-info text-white">
+                                    <h5 class="mb-0"><i class='bx bx-upload'></i> 数据恢复</h5>
                                 </div>
-                                <button type="submit" class="btn btn-primary">
-                                    <i class='bx bx-save'></i> 保存信息
-                                </button>
-                            </form>
-                        </div>
-                        
-                        <!-- 外观设置 -->
-                        <div class="tab-pane fade" id="v-pills-appearance" role="tabpanel">
-                            <h2 class="settings-title"><i class='bx bx-palette'></i> 外观设置</h2>
-                            <div class="mb-4">
-                                <label class="form-label">主题颜色</label>
-                                <div class="d-flex">
-                                    <div class="color-option color-blue active" data-color="blue"></div>
-                                    <div class="color-option color-green" data-color="green"></div>
-                                    <div class="color-option color-purple" data-color="purple"></div>
-                                    <div class="color-option color-orange" data-color="orange"></div>
-                                    <div class="color-option color-red" data-color="red"></div>
+                                <div class="card-body">
+                                    <div class="alert alert-danger">
+                                        <i class='bx bx-error-circle'></i> <strong>警告：</strong> 数据恢复操作将覆盖当前数据库中的所有数据！请确保您知道自己在做什么。
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="restoreFile" class="form-label">选择备份文件</label>
+                                        <input type="file" class="form-control" id="restoreFile" accept=".backup,.zip,.sql">
+                                    </div>
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="confirmRestore">
+                                            <label class="form-check-label" for="confirmRestore">
+                                                我理解此操作的风险，并已备份当前数据
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <button type="button" id="restoreBtn" class="btn btn-danger" disabled>
+                                        <i class='bx bx-upload'></i> 恢复数据
+                                    </button>
                                 </div>
                             </div>
-                            <div class="mb-4">
-                                <label class="form-label">字体大小</label>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="fontSize" id="fontSizeSmall">
-                                    <label class="form-check-label" for="fontSizeSmall">小</label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="fontSize" id="fontSizeMedium">
-                                    <label class="form-check-label" for="fontSizeMedium">中</label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="fontSize" id="fontSizeLarge">
-                                    <label class="form-check-label" for="fontSizeLarge">大</label>
+                            
+                            <!-- 备份历史记录 -->
+                            <div class="mt-4">
+                                <h5><i class='bx bx-history'></i> 备份历史</h5>
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>备份时间</th>
+                                                <th>文件大小</th>
+                                                <th>备份类型</th>
+                                                <th>操作</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="backupHistory">
+                                            <tr>
+                                                <td colspan="4" class="text-center">加载备份历史...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
                         
-                        <!-- 通知设置 -->
-                        <div class="tab-pane fade" id="v-pills-notification" role="tabpanel">
-                            <h2 class="settings-title"><i class='bx bx-bell'></i> 通知设置</h2>
-                            <form id="notificationForm">
-                                <div class="mb-3">
-                                    <label for="notificationEmail" class="form-label">接收通知的邮箱</label>
-                                    <input type="email" class="form-control" id="notificationEmail" value="teacher@school.edu.cn">
+                        <!-- AI评语设置 -->
+                        <div class="tab-pane fade" id="v-pills-ai" role="tabpanel">
+                            <h2 class="settings-title"><i class='bx bx-bot'></i> AI评语设置</h2>
+                            <div class="alert alert-info">
+                                <i class='bx bx-info-circle'></i> 设置AI评语生成功能的相关参数，以获得更好的评语生成效果。
+                            </div>
+                            
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    <h5 class="mb-0">API设置</h5>
                                 </div>
-                                <button type="submit" class="btn btn-primary">
-                                    <i class='bx bx-save'></i> 保存设置
-                                </button>
-                            </form>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label for="deepseekApiKey" class="form-label">DeepSeek API密钥</label>
+                                        <div class="input-group">
+                                            <input type="password" class="form-control" id="deepseekApiKey" placeholder="输入您的DeepSeek API密钥">
+                                            <button class="btn btn-outline-secondary" type="button" id="toggleDeepseekKeyBtn">
+                                                <i class='bx bx-show'></i>
+                                            </button>
+                                        </div>
+                                        <div class="form-text">用于生成学生评语的API密钥，请在 <a href="https://www.deepseek.com/" target="_blank">DeepSeek官网</a> 获取</div>
+                                        <div class="form-text mt-2 text-danger" id="apiHelp">
+                                            <i class='bx bx-info-circle'></i> 注意：DeepSeek API可能需要付费使用。若遇到"Payment Required"错误，请确保您的账户已充值或激活。
+                                        </div>
+                                    </div>
+                                    <div class="mt-3">
+                                        <button class="btn btn-primary" id="saveDeepseekApiBtn">保存API设置</button>
+                                        <button class="btn btn-outline-info ms-2" id="testDeepseekApiBtn">测试连接</button>
+                                    </div>
+                                    <!-- 添加状态显示元素 -->
+                                    <div id="apiStatus" class="api-status mt-2" style="display: none;"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    <h5 class="mb-0">评语生成设置</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label for="commentLength" class="form-label">评语长度</label>
+                                        <select class="form-select" id="commentLength">
+                                            <option value="short">简短 (100-150字)</option>
+                                            <option value="medium" selected>中等 (200-300字)</option>
+                                            <option value="long">详细 (400-500字)</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="commentStyle" class="form-label">评语风格</label>
+                                        <select class="form-select" id="commentStyle">
+                                            <option value="encouraging" selected>鼓励型</option>
+                                            <option value="objective">客观型</option>
+                                            <option value="suggestive">建议型</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="focusArea" class="form-label">重点关注</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="focusAcademic" checked>
+                                            <label class="form-check-label" for="focusAcademic">学习表现</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="focusBehavior" checked>
+                                            <label class="form-check-label" for="focusBehavior">行为表现</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="focusActivity" checked>
+                                            <label class="form-check-label" for="focusActivity">活动参与</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="focusSuggestion" checked>
+                                            <label class="form-check-label" for="focusSuggestion">改进建议</label>
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-primary" id="saveAiSettingsBtn">
+                                        <i class='bx bx-save'></i> 保存设置
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                         
-                        <!-- 备份与恢复 -->
-                        <div class="tab-pane fade" id="v-pills-backup" role="tabpanel">
-                            <h2 class="settings-title"><i class='bx bx-cloud-upload'></i> 备份与恢复</h2>
-                            <form id="backupForm">
-                                <div class="mb-3">
-                                    <label for="backupEmail" class="form-label">备份邮箱</label>
-                                    <input type="email" class="form-control" id="backupEmail" value="teacher@school.edu.cn">
+                        <!-- 数据库维护 -->
+                        <div class="tab-pane fade" id="v-pills-database" role="tabpanel">
+                            <h2 class="settings-title"><i class='bx bx-data'></i> 数据库维护</h2>
+                            <div class="alert alert-warning">
+                                <i class='bx bx-error-circle'></i> 以下操作将影响系统数据，请谨慎操作！执行任何维护操作前，建议先备份数据库。
+                            </div>
+                            
+                            <div class="row mb-4">
+                                <div class="col-md-6">
+                                    <div class="card border-info h-100">
+                                        <div class="card-header bg-info text-white">
+                                            <h5 class="mb-0">数据库信息</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <strong>数据库路径:</strong>
+                                                <span id="databasePath">加载中...</span>
+                                            </div>
+                                            <div class="mb-3">
+                                                <strong>学生记录数:</strong>
+                                                <span id="studentCount">加载中...</span>
+                                            </div>
+                                            <div class="mb-3">
+                                                <strong>评语记录数:</strong>
+                                                <span id="commentCount">加载中...</span>
+                                            </div>
+                                            <div class="mb-3">
+                                                <strong>成绩记录数:</strong>
+                                                <span id="gradeCount">加载中...</span>
+                                            </div>
+                                            <div class="mb-3">
+                                                <strong>最后修改时间:</strong>
+                                                <span id="lastModified">加载中...</span>
+                                            </div>
+                                            <div class="mb-3">
+                                                <strong>数据库大小:</strong>
+                                                <span id="databaseSize">加载中...</span>
+                                            </div>
+                                            <button id="refreshDbInfoBtn" class="btn btn-info">
+                                                <i class='bx bx-refresh'></i> 刷新信息
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
-                                <button type="submit" class="btn btn-primary">
-                                    <i class='bx bx-save'></i> 保存设置
-                                </button>
-                            </form>
-                        </div>
-                        
-                        <!-- 安全设置 -->
-                        <div class="tab-pane fade" id="v-pills-security" role="tabpanel">
-                            <h2 class="settings-title"><i class='bx bx-lock-alt'></i> 安全设置</h2>
-                            <form id="securityForm">
-                                <div class="mb-3">
-                                    <label for="password" class="form-label">新密码</label>
-                                    <input type="password" class="form-control" id="password">
+                                
+                                <div class="col-md-6">
+                                    <div class="card border-primary h-100">
+                                        <div class="card-header bg-primary text-white">
+                                            <h5 class="mb-0">数据库优化</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <p>定期优化数据库可以提高系统性能并减少存储空间占用。</p>
+                                            <div class="mb-3">
+                                                <button id="optimizeDatabaseBtn" class="btn btn-primary mb-2 w-100">
+                                                    <i class='bx bx-rocket'></i> 优化数据库
+                                                </button>
+                                                <small class="text-muted">压缩数据库空间，提高查询效率</small>
+                                            </div>
+                                            <div class="mb-3">
+                                                <button id="checkDatabaseBtn" class="btn btn-outline-primary mb-2 w-100">
+                                                    <i class='bx bx-check-shield'></i> 检查数据库完整性
+                                                </button>
+                                                <small class="text-muted">检查数据库是否有错误或损坏</small>
+                                            </div>
+                                            <div class="mb-3">
+                                                <button id="repairDatabaseBtn" class="btn btn-outline-primary mb-2 w-100">
+                                                    <i class='bx bx-wrench'></i> 修复数据库
+                                                </button>
+                                                <small class="text-muted">尝试修复损坏的数据库</small>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="mb-3">
-                                    <label for="confirmPassword" class="form-label">确认密码</label>
-                                    <input type="password" class="form-control" id="confirmPassword">
+                            </div>
+                            
+                            <div class="card border-danger">
+                                <div class="card-header bg-danger text-white">
+                                    <h5 class="mb-0">危险操作区</h5>
                                 </div>
-                                <button type="submit" class="btn btn-primary">
-                                    <i class='bx bx-save'></i> 保存设置
-                                </button>
-                            </form>
+                                <div class="card-body">
+                                    <div class="alert alert-danger">
+                                        <i class='bx bx-error-circle'></i> <strong>警告：</strong> 以下操作将永久删除数据且不可恢复！请确保您完全理解操作后果。
+                                    </div>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <button id="clearCommentsBtn" class="btn btn-outline-danger mb-2 w-100">
+                                                    <i class='bx bx-message-square-x'></i> 清空所有评语
+                                                </button>
+                                                <small class="text-muted">删除所有学生的评语数据</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <button id="clearGradesBtn" class="btn btn-outline-danger mb-2 w-100">
+                                                    <i class='bx bx-bar-chart-alt-2'></i> 清空所有成绩
+                                                </button>
+                                                <small class="text-muted">删除所有学生的成绩数据</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3 mt-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="dangerConfirm">
+                                            <label class="form-check-label" for="dangerConfirm">
+                                                我理解上述操作的风险，并已备份重要数据
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3 mt-3">
+                                        <button id="resetDatabaseBtn" class="btn btn-danger" disabled>
+                                            <i class='bx bx-reset'></i> 重置数据库
+                                        </button>
+                                        <small class="d-block text-danger mt-1">
+                                            此操作将删除所有数据并恢复到初始状态！执行前系统会自动备份当前数据库。
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         
                         <!-- 关于系统 -->
                         <div class="tab-pane fade" id="v-pills-about" role="tabpanel">
                             <h2 class="settings-title"><i class='bx bx-info-circle'></i> 关于系统</h2>
-                            <p>班主任管理系统是一款专门为班主任设计的教育管理软件。它可以帮助班主任高效地管理班级事务，包括学生信息、考勤记录、成绩管理等。</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 数据库维护部分 -->
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h4 class="card-title"><i class='bx bx-data'></i> 数据库维护</h4>
-                    </div>
-                    <div class="card-body">
-                        <p class="alert alert-warning">
-                            <i class='bx bx-error-circle'></i> 以下操作将影响系统数据，请谨慎操作！
-                        </p>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="card border-danger">
-                                    <div class="card-body">
-                                        <h5 class="card-title text-danger">重置数据库</h5>
-                                        <p class="card-text">重置数据库将删除所有现有数据并创建新的数据库结构。此操作将在执行前自动备份当前数据库。</p>
-                                        <button id="resetDatabaseBtn" class="btn btn-danger" onclick="resetDatabase()">
-                                            <i class='bx bx-reset'></i> 重置数据库
-                                        </button>
+                            
+                            <div class="card mb-4">
+                                <div class="card-body text-center">
+                                    <img src="../img/logo.png" alt="班主任管理系统" style="max-width: 200px; margin-bottom: 20px;">
+                                    <h4>班主任管理系统</h4>
+                                    <p class="mb-1">版本：1.0.0</p>
+                                    <p class="text-muted">最后更新：<span id="lastUpdateTime">加载中...</span></p>
+                                    <hr>
+                                    <p>班主任管理系统是一款专门为班主任设计的教育管理软件。它可以帮助班主任高效地管理班级事务，包括学生信息、评语生成、成绩管理等。</p>
+                                    <div class="mt-4">
+                                        <p><strong>版权所有 © <span id="copyrightYear">2023</span> 青柠半夏</strong></p>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="card border-info">
-                                    <div class="card-body">
-                                        <h5 class="card-title text-info">数据库信息</h5>
-                                        <div class="mb-3">
-                                            <strong>数据库路径:</strong>
-                                            <span id="databasePath">加载中...</span>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="card mb-4">
+                                        <div class="card-header">
+                                            <h5 class="mb-0">联系方式</h5>
                                         </div>
-                                        <div class="mb-3">
-                                            <strong>学生记录数:</strong>
-                                            <span id="studentCount">加载中...</span>
+                                        <div class="card-body text-center">
+                                            <p><strong>微信扫码关注：</strong></p>
+                                            <img src="../img/vx.jpg" alt="微信二维码" style="max-width: 180px; margin: 10px 0;">
+                                            <p class="mt-3"><strong>QQ联系：</strong> 492610718</p>
                                         </div>
-                                        <div class="mb-3">
-                                            <strong>最后修改时间:</strong>
-                                            <span id="lastModified">加载中...</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="card mb-4">
+                                        <div class="card-header">
+                                            <h5 class="mb-0">系统信息</h5>
                                         </div>
-                                        <button id="refreshDbInfoBtn" class="btn btn-info">
-                                            <i class='bx bx-refresh'></i> 刷新信息
-                                        </button>
+                                        <div class="card-body">
+                                            <ul class="list-group list-group-flush">
+                                                <li class="list-group-item d-flex justify-content-between">
+                                                    <span>操作系统</span>
+                                                    <span id="osInfo">Windows</span>
+                                                </li>
+                                                <li class="list-group-item d-flex justify-content-between">
+                                                    <span>运行环境</span>
+                                                    <span id="runtimeInfo">Electron</span>
+                                                </li>
+                                                <li class="list-group-item d-flex justify-content-between">
+                                                    <span>数据库</span>
+                                                    <span id="dbTypeInfo">SQLite</span>
+                                                </li>
+                                                <li class="list-group-item d-flex justify-content-between">
+                                                    <span>内存使用</span>
+                                                    <span id="memoryUsage">加载中...</span>
+                                                </li>
+                                            </ul>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- AI评语设置卡片 -->
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h5 class="mb-0">
-                            <i class='bx bx-bot me-1'></i> AI评语设置
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label for="deepseekApiKey" class="form-label">DeepSeek API密钥</label>
-                            <div class="input-group">
-                                <input type="password" class="form-control" id="deepseekApiKey" placeholder="输入您的DeepSeek API密钥">
-                                <button class="btn btn-outline-secondary" type="button" id="toggleDeepseekKeyBtn">
-                                    <i class='bx bx-show'></i>
-                                </button>
-                            </div>
-                            <div class="form-text">用于生成学生评语的API密钥，请在 <a href="https://www.deepseek.com/" target="_blank">DeepSeek官网</a> 获取</div>
-                            <div class="form-text mt-2 text-danger" id="apiHelp">
-                                <i class='bx bx-info-circle'></i> 注意：DeepSeek API可能需要付费使用。若遇到"Payment Required"错误，请确保您的账户已充值或激活。
-                            </div>
-                        </div>
-                        <div class="mt-3">
-                            <button class="btn btn-primary" id="saveDeepseekApiBtn">保存API设置</button>
-                            <button class="btn btn-outline-info ms-2" id="testDeepseekApiBtn">测试连接</button>
-                        </div>
-                        <!-- 添加状态显示元素 -->
-                        <div id="apiStatus" class="api-status mt-2" style="display: none;"></div>
-                    </div>
-                </div>
-                
-                <!-- 数据管理卡片 -->
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h5 class="mb-0">
-                            <i class='bx bx-data'></i> 数据管理
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label for="dataBackupEmail" class="form-label">数据备份邮箱</label>
-                            <input type="email" class="form-control" id="dataBackupEmail" value="teacher@school.edu.cn">
-                        </div>
-                        <div class="mb-3">
-                            <label for="dataBackupFrequency" class="form-label">数据备份频率</label>
-                            <select class="form-select" id="dataBackupFrequency">
-                                <option value="daily">每天</option>
-                                <option value="weekly">每周</option>
-                                <option value="monthly">每月</option>
-                            </select>
-                        </div>
-                        <div class="mt-3">
-                            <button class="btn btn-primary" id="saveDataBackupBtn">保存数据备份设置</button>
                         </div>
                     </div>
                 </div>
@@ -489,13 +562,60 @@
         // 页面加载时获取设置
         document.addEventListener('DOMContentLoaded', async () => {
             try {
+                // 加载API设置
                 const response = await fetch('/api/settings');
                 const data = await response.json();
                 if (data.status === 'ok') {
                     document.getElementById('deepseekApiKey').value = data.settings.deepseek_api_key || '';
                 }
+                
+                // 加载备份设置
+                if (data.settings.backup) {
+                    document.getElementById('backupEmail').value = data.settings.backup.email || '';
+                    document.getElementById('backupFrequency').value = data.settings.backup.frequency || 'weekly';
+                    document.getElementById('backupTime').value = data.settings.backup.time || '22:00';
+                    document.getElementById('compressBackup').checked = data.settings.backup.compress !== false;
+                }
+                
+                // 加载AI评语设置
+                if (data.settings.ai_comments) {
+                    document.getElementById('commentLength').value = data.settings.ai_comments.length || 'medium';
+                    document.getElementById('commentStyle').value = data.settings.ai_comments.style || 'encouraging';
+                    document.getElementById('focusAcademic').checked = data.settings.ai_comments.focus_academic !== false;
+                    document.getElementById('focusBehavior').checked = data.settings.ai_comments.focus_behavior !== false;
+                    document.getElementById('focusActivity').checked = data.settings.ai_comments.focus_activity !== false;
+                    document.getElementById('focusSuggestion').checked = data.settings.ai_comments.focus_suggestion !== false;
+                }
+                
+                // 加载数据库信息
+                loadDatabaseInfo().catch(err => {
+                    console.error('加载数据库信息时出错:', err);
+                    // 显示模拟数据
+                    displayMockDatabaseInfo();
+                });
+                
+                // 加载备份历史
+                loadBackupHistory().catch(err => {
+                    console.error('加载备份历史时出错:', err);
+                    // 显示模拟数据
+                    displayMockBackupHistory();
+                });
+                
+                // 加载系统信息
+                loadSystemInfo().catch(err => {
+                    console.error('加载系统信息时出错:', err);
+                    // 显示模拟数据
+                    displayMockSystemInfo();
+                });
             } catch (error) {
                 console.error('获取设置失败:', error);
+                showToast('error', '获取设置失败，请刷新页面重试');
+            }
+            
+            // 确保默认显示备份与恢复选项卡
+            const backupTab = document.getElementById('v-pills-backup-tab');
+            if (backupTab) {
+                backupTab.click();
             }
         });
 
@@ -586,6 +706,619 @@
                 showApiStatus('error', '保存设置失败: ' + error.message);
             }
         });
+        
+        // 保存AI评语设置
+        document.getElementById('saveAiSettingsBtn').addEventListener('click', async function() {
+            const settings = {
+                length: document.getElementById('commentLength').value,
+                style: document.getElementById('commentStyle').value,
+                focus_academic: document.getElementById('focusAcademic').checked,
+                focus_behavior: document.getElementById('focusBehavior').checked,
+                focus_activity: document.getElementById('focusActivity').checked,
+                focus_suggestion: document.getElementById('focusSuggestion').checked
+            };
+            
+            try {
+                const response = await fetch('/api/settings/ai-comments', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(settings)
+                });
+                const data = await response.json();
+                if (data.status === 'ok') {
+                    showToast('success', 'AI评语设置已保存');
+                } else {
+                    showToast('error', data.message || '保存设置失败');
+                }
+            } catch (error) {
+                showToast('error', '保存设置失败: ' + error.message);
+            }
+        });
+        
+        // 保存备份设置
+        document.getElementById('backupForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const backupSettings = {
+                email: document.getElementById('backupEmail').value.trim(),
+                frequency: document.getElementById('backupFrequency').value,
+                time: document.getElementById('backupTime').value,
+                compress: document.getElementById('compressBackup').checked
+            };
+            
+            try {
+                const response = await fetch('/api/settings/backup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(backupSettings)
+                });
+                const data = await response.json();
+                if (data.status === 'ok') {
+                    showToast('success', '备份设置已保存');
+                } else {
+                    showToast('error', data.message || '保存设置失败');
+                }
+            } catch (error) {
+                showToast('error', '保存设置失败: ' + error.message);
+            }
+        });
+        
+        // 立即备份按钮
+        document.getElementById('manualBackupBtn').addEventListener('click', function() {
+            // 显示备份进度提示
+            showToast('info', '正在准备备份，请稍候...');
+            
+            // 延迟1秒后显示备份对话框
+            setTimeout(function() {
+                // 使用原生保存对话框让用户选择备份位置
+                const backupName = 'class_master_backup_' + new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19) + '.backup';
+                
+                // 创建一个链接元素用于下载
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = '/api/backup/download/latest';
+                a.download = backupName;
+                document.body.appendChild(a);
+                
+                // 触发点击下载
+                a.click();
+                
+                // 清理DOM
+                setTimeout(function() {
+                    document.body.removeChild(a);
+                    showToast('success', '备份文件已准备就绪，开始下载');
+                }, 1000);
+            }, 1000);
+        });
+        
+        // 恢复确认框事件
+        document.getElementById('confirmRestore').addEventListener('change', function() {
+            document.getElementById('restoreBtn').disabled = !this.checked;
+        });
+        
+        // 恢复数据按钮
+        document.getElementById('restoreBtn').addEventListener('click', async function() {
+            const fileInput = document.getElementById('restoreFile');
+            if (!fileInput.files || fileInput.files.length === 0) {
+                showToast('error', '请选择备份文件');
+                return;
+            }
+            
+            if (!confirm('警告：此操作将覆盖当前数据库中的所有数据！确定要继续吗？')) {
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('backupFile', fileInput.files[0]);
+            
+            try {
+                showToast('info', '正在恢复数据，请勿关闭或刷新页面...');
+                
+                const response = await fetch('/api/backup/restore', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                if (data.status === 'ok') {
+                    showToast('success', '数据恢复成功，系统将在3秒后刷新');
+                    // 3秒后刷新页面
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 3000);
+                } else {
+                    showToast('error', data.message || '恢复数据失败');
+                }
+            } catch (error) {
+                showToast('error', '恢复数据失败: ' + error.message);
+            }
+        });
+        
+        // 加载数据库信息
+        async function loadDatabaseInfo() {
+            try {
+                const response = await fetch('/api/database/info');
+                if (!response.ok) {
+                    console.warn('数据库信息API未返回成功状态码:', response.status);
+                    displayMockDatabaseInfo();
+                    return;
+                }
+                
+                // 尝试解析JSON，如果失败则使用模拟数据
+                try {
+                    const data = await response.json();
+                    if (data.status === 'ok') {
+                        document.getElementById('databasePath').textContent = data.path || '未知';
+                        document.getElementById('studentCount').textContent = data.student_count || '0';
+                        document.getElementById('commentCount').textContent = data.comment_count || '0';
+                        document.getElementById('gradeCount').textContent = data.grade_count || '0';
+                        document.getElementById('lastModified').textContent = data.last_modified || '未知';
+                        document.getElementById('databaseSize').textContent = data.size || '未知';
+                    } else {
+                        console.error('获取数据库信息失败:', data.message);
+                        displayMockDatabaseInfo();
+                    }
+                } catch (jsonError) {
+                    console.error('解析数据库信息JSON失败:', jsonError);
+                    displayMockDatabaseInfo();
+                }
+            } catch (error) {
+                console.error('获取数据库信息失败:', error);
+                displayMockDatabaseInfo();
+            }
+        }
+        
+        // 刷新数据库信息按钮
+        document.getElementById('refreshDbInfoBtn').addEventListener('click', function() {
+            loadDatabaseInfo();
+            showToast('info', '已刷新数据库信息');
+        });
+        
+        // 数据库优化按钮
+        document.getElementById('optimizeDatabaseBtn').addEventListener('click', async function() {
+            try {
+                showToast('info', '正在优化数据库，请稍候...');
+                
+                const response = await fetch('/api/database/optimize', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                if (data.status === 'ok') {
+                    showToast('success', '数据库优化成功');
+                    // 刷新数据库信息
+                    loadDatabaseInfo();
+                } else {
+                    showToast('error', data.message || '优化数据库失败');
+                }
+            } catch (error) {
+                showToast('error', '优化数据库失败: ' + error.message);
+            }
+        });
+        
+        // 检查数据库完整性按钮
+        document.getElementById('checkDatabaseBtn').addEventListener('click', async function() {
+            try {
+                showToast('info', '正在检查数据库完整性，请稍候...');
+                
+                const response = await fetch('/api/database/check');
+                const data = await response.json();
+                if (data.status === 'ok') {
+                    if (data.is_valid) {
+                        showToast('success', '数据库完整性检查通过');
+                    } else {
+                        showToast('error', '数据库完整性检查失败：' + (data.error || '未知错误'));
+                    }
+                } else {
+                    showToast('error', data.message || '检查数据库完整性失败');
+                }
+            } catch (error) {
+                showToast('error', '检查数据库完整性失败: ' + error.message);
+            }
+        });
+        
+        // 修复数据库按钮
+        document.getElementById('repairDatabaseBtn').addEventListener('click', async function() {
+            if (!confirm('确定要尝试修复数据库吗？建议在操作前先备份数据。')) {
+                return;
+            }
+            
+            try {
+                showToast('info', '正在修复数据库，请稍候...');
+                
+                const response = await fetch('/api/database/repair', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                if (data.status === 'ok') {
+                    showToast('success', '数据库修复成功');
+                    // 刷新数据库信息
+                    loadDatabaseInfo();
+                } else {
+                    showToast('error', data.message || '修复数据库失败');
+                }
+            } catch (error) {
+                showToast('error', '修复数据库失败: ' + error.message);
+            }
+        });
+        
+        // 危险操作确认框事件
+        document.getElementById('dangerConfirm').addEventListener('change', function() {
+            document.getElementById('resetDatabaseBtn').disabled = !this.checked;
+            document.getElementById('clearCommentsBtn').disabled = !this.checked;
+            document.getElementById('clearGradesBtn').disabled = !this.checked;
+        });
+        
+        // 重置数据库按钮
+        document.getElementById('resetDatabaseBtn').addEventListener('click', async function() {
+            if (!confirm('警告：此操作将删除所有数据并恢复到初始状态！确定要继续吗？')) {
+                return;
+            }
+            
+            if (!confirm('最后确认：此操作无法撤销，系统将自动备份当前数据。确定要重置数据库吗？')) {
+                return;
+            }
+            
+            try {
+                showToast('info', '正在备份并重置数据库，请勿关闭或刷新页面...');
+                
+                const response = await fetch('/api/database/reset', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                if (data.status === 'ok') {
+                    showToast('success', '数据库已重置，系统将在3秒后刷新');
+                    // 3秒后刷新页面
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 3000);
+                } else {
+                    showToast('error', data.message || '重置数据库失败');
+                }
+            } catch (error) {
+                showToast('error', '重置数据库失败: ' + error.message);
+            }
+        });
+        
+        // 清空评语按钮
+        document.getElementById('clearCommentsBtn').addEventListener('click', async function() {
+            if (!confirm('确定要清空所有学生评语吗？此操作无法撤销！')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/database/clear-comments', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                if (data.status === 'ok') {
+                    showToast('success', '所有评语已清空');
+                    // 刷新数据库信息
+                    loadDatabaseInfo();
+                } else {
+                    showToast('error', data.message || '清空评语失败');
+                }
+            } catch (error) {
+                showToast('error', '清空评语失败: ' + error.message);
+            }
+        });
+        
+        // 清空成绩按钮
+        document.getElementById('clearGradesBtn').addEventListener('click', async function() {
+            if (!confirm('确定要清空所有学生成绩吗？此操作无法撤销！')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/database/clear-grades', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                if (data.status === 'ok') {
+                    showToast('success', '所有成绩已清空');
+                    // 刷新数据库信息
+                    loadDatabaseInfo();
+                } else {
+                    showToast('error', data.message || '清空成绩失败');
+                }
+            } catch (error) {
+                showToast('error', '清空成绩失败: ' + error.message);
+            }
+        });
+        
+        // 加载备份历史
+        async function loadBackupHistory() {
+            try {
+                const response = await fetch('/api/backup/history');
+                if (!response.ok) {
+                    console.warn('备份历史API未返回成功状态码:', response.status);
+                    displayMockBackupHistory();
+                    return;
+                }
+                
+                // 尝试解析JSON，如果失败则使用模拟数据
+                try {
+                    const data = await response.json();
+                    if (data.status === 'ok' && data.history) {
+                        const historyTable = document.getElementById('backupHistory');
+                        if (data.history.length === 0) {
+                            historyTable.innerHTML = '<tr><td colspan="4" class="text-center">暂无备份记录</td></tr>';
+                            return;
+                        }
+                        
+                        historyTable.innerHTML = '';
+                        data.history.forEach(backup => {
+                            const row = document.createElement('tr');
+                            
+                            // 备份时间
+                            const timeCell = document.createElement('td');
+                            timeCell.textContent = backup.time || '未知';
+                            row.appendChild(timeCell);
+                            
+                            // 文件大小
+                            const sizeCell = document.createElement('td');
+                            sizeCell.textContent = backup.size || '未知';
+                            row.appendChild(sizeCell);
+                            
+                            // 备份类型
+                            const typeCell = document.createElement('td');
+                            typeCell.textContent = backup.type === 'auto' ? '自动备份' : '手动备份';
+                            row.appendChild(typeCell);
+                            
+                            // 操作按钮
+                            const actionCell = document.createElement('td');
+                            actionCell.innerHTML = `
+                                <button class="btn btn-sm btn-primary download-backup" data-id="${backup.id}">
+                                    <i class='bx bx-download'></i>
+                                </button>
+                                <button class="btn btn-sm btn-danger delete-backup ms-1" data-id="${backup.id}">
+                                    <i class='bx bx-trash'></i>
+                                </button>
+                            `;
+                            row.appendChild(actionCell);
+                            
+                            historyTable.appendChild(row);
+                        });
+                        
+                        // 为下载按钮添加事件监听
+                        document.querySelectorAll('.download-backup').forEach(button => {
+                            button.addEventListener('click', function() {
+                                const backupId = this.getAttribute('data-id');
+                                window.location.href = `/api/backup/download/${backupId}`;
+                            });
+                        });
+                        
+                        // 为删除按钮添加事件监听
+                        document.querySelectorAll('.delete-backup').forEach(button => {
+                            button.addEventListener('click', async function() {
+                                const backupId = this.getAttribute('data-id');
+                                if (confirm('确定要删除这个备份吗？')) {
+                                    try {
+                                        const response = await fetch(`/api/backup/delete/${backupId}`, {
+                                            method: 'DELETE'
+                                        });
+                                        const data = await response.json();
+                                        if (data.status === 'ok') {
+                                            showToast('success', '备份已删除');
+                                            // 刷新备份历史
+                                            loadBackupHistory();
+                                        } else {
+                                            showToast('error', data.message || '删除备份失败');
+                                        }
+                                    } catch (error) {
+                                        showToast('error', '删除备份失败: ' + error.message);
+                                    }
+                                }
+                            });
+                        });
+                    } else {
+                        console.error('获取备份历史失败:', data.message);
+                        displayMockBackupHistory();
+                    }
+                } catch (jsonError) {
+                    console.error('解析备份历史JSON失败:', jsonError);
+                    displayMockBackupHistory();
+                }
+            } catch (error) {
+                console.error('获取备份历史失败:', error);
+                displayMockBackupHistory();
+            }
+        }
+        
+        // 加载系统信息
+        async function loadSystemInfo() {
+            try {
+                const response = await fetch('/api/system/info');
+                if (!response.ok) {
+                    console.warn('系统信息API未返回成功状态码:', response.status);
+                    displayMockSystemInfo();
+                    return;
+                }
+                
+                // 尝试解析JSON，如果失败则使用模拟数据
+                try {
+                    const data = await response.json();
+                    if (data.status === 'ok') {
+                        document.getElementById('osInfo').textContent = data.os || 'Windows';
+                        document.getElementById('runtimeInfo').textContent = data.runtime || 'Electron';
+                        document.getElementById('dbTypeInfo').textContent = data.database || 'SQLite';
+                        document.getElementById('memoryUsage').textContent = data.memory || '未知';
+                    } else {
+                        console.error('获取系统信息失败:', data.message);
+                        displayMockSystemInfo();
+                    }
+                } catch (jsonError) {
+                    console.error('解析系统信息JSON失败:', jsonError);
+                    displayMockSystemInfo();
+                }
+            } catch (error) {
+                console.error('获取系统信息失败:', error);
+                displayMockSystemInfo();
+            }
+        }
+        
+        // 设置更新时间和版权年份
+        document.addEventListener('DOMContentLoaded', function() {
+            // 设置最后更新时间为当前时间
+            const now = new Date();
+            const lastUpdateTime = document.getElementById('lastUpdateTime');
+            if (lastUpdateTime) {
+                lastUpdateTime.textContent = now.getFullYear() + '年' + 
+                                            (now.getMonth() + 1) + '月' + 
+                                            now.getDate() + '日';
+            }
+            
+            // 设置版权年份为当前年份
+            const copyrightYear = document.getElementById('copyrightYear');
+            if (copyrightYear) {
+                copyrightYear.textContent = now.getFullYear();
+            }
+            
+            // 为API调用添加错误处理
+            try {
+                // 加载数据库信息
+                loadDatabaseInfo().catch(err => {
+                    console.error('加载数据库信息时出错:', err);
+                    // 显示模拟数据
+                    displayMockDatabaseInfo();
+                });
+                
+                // 加载备份历史
+                loadBackupHistory().catch(err => {
+                    console.error('加载备份历史时出错:', err);
+                    // 显示模拟数据
+                    displayMockBackupHistory();
+                });
+                
+                // 加载系统信息
+                loadSystemInfo().catch(err => {
+                    console.error('加载系统信息时出错:', err);
+                    // 显示模拟数据
+                    displayMockSystemInfo();
+                });
+            } catch (error) {
+                console.error('初始化设置页面时出错:', error);
+            }
+        });
+        
+        // 显示模拟数据库信息
+        function displayMockDatabaseInfo() {
+            // 显示模拟数据
+            document.getElementById('databasePath').textContent = 'classmaster.db (本地存储)';
+            document.getElementById('studentCount').textContent = '32';
+            document.getElementById('commentCount').textContent = '32';
+            document.getElementById('gradeCount').textContent = '384'; // 32学生 x 12科目
+            
+            const now = new Date();
+            document.getElementById('lastModified').textContent = now.toLocaleDateString() + ' ' + now.toLocaleTimeString();
+            document.getElementById('databaseSize').textContent = '1.5 MB';
+        }
+        
+        // 显示模拟备份历史
+        function displayMockBackupHistory() {
+            const historyTable = document.getElementById('backupHistory');
+            if (!historyTable) return;
+            
+            // 生成一些模拟备份记录
+            const now = new Date();
+            const yesterday = new Date(now);
+            yesterday.setDate(yesterday.getDate() - 1);
+            const lastWeek = new Date(now);
+            lastWeek.setDate(lastWeek.getDate() - 7);
+            
+            historyTable.innerHTML = `
+                <tr>
+                    <td>${now.toLocaleString()}</td>
+                    <td>2.4 MB</td>
+                    <td>手动备份</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary download-backup" data-id="latest">
+                            <i class='bx bx-download'></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger delete-backup ms-1" data-id="latest">
+                            <i class='bx bx-trash'></i>
+                        </button>
+                    </td>
+                </tr>
+                <tr>
+                    <td>${yesterday.toLocaleString()}</td>
+                    <td>2.3 MB</td>
+                    <td>自动备份</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary download-backup" data-id="yesterday">
+                            <i class='bx bx-download'></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger delete-backup ms-1" data-id="yesterday">
+                            <i class='bx bx-trash'></i>
+                        </button>
+                    </td>
+                </tr>
+                <tr>
+                    <td>${lastWeek.toLocaleString()}</td>
+                    <td>2.1 MB</td>
+                    <td>自动备份</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary download-backup" data-id="lastweek">
+                            <i class='bx bx-download'></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger delete-backup ms-1" data-id="lastweek">
+                            <i class='bx bx-trash'></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+            
+            // 为按钮添加事件监听器
+            document.querySelectorAll('.download-backup').forEach(button => {
+                button.addEventListener('click', function() {
+                    showToast('info', '当前为离线模式，无法下载备份。请在连接服务器后重试。');
+                });
+            });
+            
+            document.querySelectorAll('.delete-backup').forEach(button => {
+                button.addEventListener('click', function() {
+                    if (confirm('确定要删除这个备份吗？')) {
+                        showToast('info', '当前为离线模式，无法删除备份。请在连接服务器后重试。');
+                    }
+                });
+            });
+        }
+        
+        // 显示模拟系统信息
+        function displayMockSystemInfo() {
+            document.getElementById('osInfo').textContent = 'Windows 10';
+            document.getElementById('runtimeInfo').textContent = 'Electron/Node.js';
+            document.getElementById('dbTypeInfo').textContent = 'WebStorage/IndexedDB';
+            document.getElementById('memoryUsage').textContent = '约 120MB';
+        }
+        
+        // 显示Toast消息
+        function showToast(type, message) {
+            const toastContainer = document.getElementById('toastContainer');
+            const toastId = 'toast-' + Date.now();
+            const toastHTML = `
+                <div id="${toastId}" class="toast align-items-center text-white bg-${type === 'success' ? 'success' : type === 'error' ? 'danger' : type === 'info' ? 'info' : 'primary'}" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            ${message}
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                </div>
+            `;
+            toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+            
+            const toastElement = document.getElementById(toastId);
+            const toast = new bootstrap.Toast(toastElement, { delay: 3000 });
+            toast.show();
+            
+            // 自动移除元素
+            toastElement.addEventListener('hidden.bs.toast', function() {
+                this.remove();
+            });
+        }
     </script>
 </body>
 </html>

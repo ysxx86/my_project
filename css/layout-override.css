@@ -1,0 +1,2 @@
+/* 布局调整覆盖样式 */ .status-bar { display: none !important; } .app-footer { display: none !important; } .app-header { top: 0 !important; } .app-main { min-height: 100vh !important; padding-bottom: 20px !important; } .content-area { height: calc(100vh - 90px) !important; } @media (max-width: 768px) { .content-area { height: auto !important; } }
+/* 布局调整覆盖样式 */
