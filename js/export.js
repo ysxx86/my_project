@@ -1,8 +1,14 @@
 // @charset UTF-8
 // 导出报告模块
 
+// 全局变量，防止重复初始化和重复上传
+let isTemplateUploaderInitialized = false;
+let isTemplateUploading = false;
+let templateContent = null;
+let templateFile = null;
+
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('初始化导出页面');
+    console.log('初始化导出页面开始...');
     
     // 初始化导出设置
     initExportSettings();
@@ -12,6 +18,25 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 初始化学生列表
     initStudentList();
+    
+    // 首先尝试获取模板上传按钮和文件输入元素
+    const uploadBtn = document.getElementById('uploadTemplateBtn');
+    const fileInput = document.getElementById('templateUpload');
+    console.log('模板上传按钮存在:', !!uploadBtn, '文件输入存在:', !!fileInput);
+    
+    // 检查是否已初始化
+    console.log('模板上传初始化状态:', isTemplateUploaderInitialized);
+    
+    // 只在没有初始化的情况下执行模板上传初始化
+    if (!isTemplateUploaderInitialized) {
+        console.log('即将初始化模板上传功能...');
+        initTemplateUpload();
+    } else {
+        console.log('模板上传已初始化，跳过');
+    }
+    
+    // 检查初始化后的状态
+    console.log('模板上传初始化后状态:', isTemplateUploaderInitialized);
     
     // 绑定设置相关的事件处理
     bindSettingsEvents();
@@ -26,6 +51,8 @@ document.addEventListener('DOMContentLoaded', function() {
             updatePreview();
         }
     });
+    
+    console.log('导出页面初始化完成');
 });
 
 // 初始化导出设置
@@ -562,51 +589,182 @@ function getSelectedStudents() {
     return selectedIds; // 直接返回ID列表，而不是学生对象列表
 }
 
-// 添加模板文件处理功能
-let templateContent = null;
-let templateFile = null;
-
-// 初始化时添加模板上传处理
+// 初始化文件上传处理
 function initTemplateUpload() {
-    const templateUpload = document.getElementById('templateUpload');
-    if (templateUpload) {
-        templateUpload.addEventListener('change', handleTemplateUpload);
+    // 防止重复初始化
+    if (isTemplateUploaderInitialized) {
+        console.log('模板上传已初始化，跳过');
+        return;
     }
-
-    // 处理自定义模板上传按钮点击
-    const uploadTemplateBtn = document.getElementById('uploadTemplateBtn');
-    if (uploadTemplateBtn) {
-        uploadTemplateBtn.addEventListener('click', function() {
-            if (templateUpload) {
-                templateUpload.click();
+    
+    console.log('开始初始化模板上传功能...');
+    
+    try {
+        // 获取元素引用
+        const uploadBtn = document.getElementById('uploadTemplateBtn');
+        const fileInput = document.getElementById('templateUpload');
+        
+        // 如果元素不存在，直接返回
+        if (!uploadBtn || !fileInput) {
+            console.warn('找不到上传按钮或文件输入元素，模板上传初始化失败');
+            return;
+        }
+        
+        // 先移除所有存在的点击事件（如果有的话）
+        if (typeof uploadBtn._clickEvent === 'function') {
+            console.log('检测到已存在的点击事件处理程序，移除它');
+            uploadBtn.removeEventListener('click', uploadBtn._clickEvent);
+            delete uploadBtn._clickEvent;
+        }
+        
+        // 移除所有现有的事件监听器（通过克隆节点）
+        const newUploadBtn = uploadBtn.cloneNode(true);
+        uploadBtn.parentNode.replaceChild(newUploadBtn, uploadBtn);
+        
+        const newFileInput = fileInput.cloneNode(true);
+        fileInput.parentNode.replaceChild(newFileInput, fileInput);
+        
+        // 重新获取引用
+        const freshUploadBtn = document.getElementById('uploadTemplateBtn');
+        const freshFileInput = document.getElementById('templateUpload');
+        
+        if (!freshUploadBtn || !freshFileInput) {
+            console.warn('克隆后找不到元素，模板上传初始化失败');
+            return;
+        }
+        
+        // 直接绑定点击事件，不使用事件委托
+        const handleUploadBtnClick = function(e) {
+            console.log('上传按钮被点击');
+            e.preventDefault();
+            e.stopPropagation(); // 阻止事件冒泡
+            
+            // 检查状态，防止重复触发
+            if (isTemplateUploading) {
+                console.log('上传已在进行中，忽略点击');
+                return false;
             }
-        });
+            
+            console.log('触发文件选择对话框');
+            isTemplateUploading = true;
+            
+            // 触发文件选择
+            freshFileInput.click();
+            
+            // 一秒后重置状态
+            setTimeout(() => {
+                isTemplateUploading = false;
+                console.log('重置上传状态，允许再次上传');
+            }, 1000);
+            
+            return false; // 阻止默认行为
+        };
+        
+        // 存储函数引用以便以后可以移除
+        freshUploadBtn._clickEvent = handleUploadBtnClick;
+        
+        // 确保只绑定一次事件 - 使用onclick而不是addEventListener
+        freshUploadBtn.onclick = handleUploadBtnClick;
+        console.log('成功绑定上传按钮点击事件');
+        
+        // 处理文件选择变更
+        const handleFileChange = function(e) {
+            console.log('文件选择变更');
+            if (this.files && this.files.length > 0) {
+                handleTemplateUpload(e);
+            } else {
+                console.log('未选择文件或取消了选择');
+                isTemplateUploading = false;
+            }
+            
+            // 重置文件输入，确保可以重新选择相同文件
+            setTimeout(() => {
+                this.value = '';
+                console.log('清除文件输入框的值，以便可以重新选择相同文件');
+            }, 100);
+        };
+        
+        // 确保只绑定一次事件 - 使用onchange而不是addEventListener
+        freshFileInput.onchange = handleFileChange;
+        console.log('成功绑定文件输入变更事件');
+        
+        // 标记为已初始化
+        isTemplateUploaderInitialized = true;
+        console.log('模板上传初始化完成');
+    } catch (error) {
+        console.error('初始化模板上传时出错:', error);
     }
 }
 
 // 处理模板文件上传
 async function handleTemplateUpload(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    
-    if (file.name.toLowerCase().endsWith('.docx')) {
+    try {
+        console.log('开始处理上传的文件...');
+        
+        // 防止重复处理
+        if (event.isHandled) {
+            console.log('该事件已被处理过，跳过');
+            return;
+        }
+        
+        // 标记事件已处理
+        event.isHandled = true;
+        
+        // 获取文件
+        const file = event.target.files && event.target.files[0];
+        if (!file) {
+            console.warn('未选择任何文件');
+            isTemplateUploading = false;
+            return;
+        }
+        
+        console.log('选择的文件:', file.name, '类型:', file.type, '大小:', file.size, 'bytes');
+        
+        // 验证文件类型
+        if (!file.name.toLowerCase().endsWith('.docx')) {
+            console.warn('文件类型不正确，要求.docx格式');
+            showNotification('请上传.docx格式的文件', 'error');
+            isTemplateUploading = false;
+            return;
+        }
+        
+        // 保存文件引用
         templateFile = file;
-        // 显示已上传的模板文件名
+        
+        // 更新UI显示已选择的模板
         const templateNameElement = document.getElementById('templateName');
         if (templateNameElement) {
             templateNameElement.textContent = file.name;
         }
         
-        // 更新自定义模板卡片状态
+        // 更新自定义模板状态
         const customTemplateCard = document.querySelector('.template-card[data-template="custom"]');
         if (customTemplateCard) {
             customTemplateCard.classList.remove('disabled');
             selectTemplate(customTemplateCard);
         }
         
+        // 显示已选择的模板信息
+        const uploadedTemplate = document.getElementById('uploadedTemplate');
+        if (uploadedTemplate) {
+            uploadedTemplate.classList.remove('d-none');
+        }
+        
+        // 隐藏默认模板信息
+        const defaultTemplate = document.getElementById('defaultTemplate');
+        if (defaultTemplate) {
+            defaultTemplate.classList.add('d-none');
+        }
+        
+        // 显示成功通知
         showNotification('模板上传成功！', 'success');
-    } else {
-        showNotification('请上传.docx格式的文件', 'error');
+        console.log('模板文件上传成功处理完成');
+    } catch (error) {
+        console.error('处理模板上传时出错:', error);
+        showNotification('模板上传处理失败:' + error.message, 'error');
+    } finally {
+        // 确保无论如何都重置上传状态
+        isTemplateUploading = false;
     }
 }
 
@@ -616,6 +774,11 @@ async function exportReports() {
         // 显示加载状态
         const exportBtn = document.getElementById('exportBtn');
         if (exportBtn) {
+            // 如果按钮已经禁用，说明正在导出，防止重复点击
+            if (exportBtn.disabled) {
+                return;
+            }
+            
             exportBtn.disabled = true;
             exportBtn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> 导出中...';
         }
@@ -663,10 +826,18 @@ async function exportReports() {
         const progressBar = document.getElementById('progressBar');
         const progressText = document.getElementById('progressText');
             
-            // 更新进度
+        // 更新进度
         updateProgress(10, '正在准备导出...');
         
         try {
+            // 防止重复请求
+            if (window.isExporting) {
+                console.log('已有导出请求正在进行中');
+                return;
+            }
+            
+            window.isExporting = true;
+            
             // 发送请求到服务器
             updateProgress(30, '正在生成报告...');
             console.log('正在向服务器发送请求...');
@@ -682,6 +853,9 @@ async function exportReports() {
                     settings: settings
                 })
             });
+            
+            // 请求完成，重置标志
+            window.isExporting = false;
             
             // 更新进度
             updateProgress(60, '正在处理响应...');
@@ -712,29 +886,18 @@ async function exportReports() {
                 const blob = await response.blob();
                 updateProgress(90, '正在下载文件...');
                 const url = window.URL.createObjectURL(blob);
-                let filename = 'student_reports.zip';
-                
-                // 尝试从Content-Disposition获取文件名
-                const contentDisposition = response.headers.get('Content-Disposition');
-                if (contentDisposition) {
-                    const filenameMatch = contentDisposition.match(/filename=([^;]+)/);
-                    if (filenameMatch && filenameMatch[1]) {
-                        filename = filenameMatch[1].replace(/["']/g, '');
-                    }
-                }
-                
-                // 创建下载链接
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = filename;
+                a.download = 'student_reports_' + new Date().toISOString().slice(0,10) + '.zip';
                 document.body.appendChild(a);
                 a.click();
                 
-                // 等待一秒后释放URL对象
+                // 清理
                 setTimeout(() => {
+                    document.body.removeChild(a);
                     window.URL.revokeObjectURL(url);
-                    a.remove();
-                }, 1000);
+                    window.isExporting = false; // 确保导出状态被重置
+                }, 100);
                 
                 updateProgress(100, '导出完成!');
                 
@@ -907,6 +1070,9 @@ function resetExportButton() {
         exportBtn.disabled = false;
         exportBtn.innerHTML = '<i class="bx bx-export"></i> 开始导出';
     }
+    
+    // 重置导出状态标志
+    window.isExporting = false;
 }
 
 // 从自定义模板生成文档
@@ -1690,6 +1856,8 @@ async function initTemplateSelection() {
 
 // 绑定所有设置相关的事件处理程序
 function bindSettingsEvents() {
+    console.log('绑定设置事件...');
+    
     // 绑定全选学生复选框事件
     const selectAllStudents = document.getElementById('selectAllStudents');
     if (selectAllStudents) {
@@ -1726,17 +1894,6 @@ function bindSettingsEvents() {
         });
     }
     
-    // 绑定模板上传按钮事件
-    const uploadTemplateBtn = document.getElementById('uploadTemplateBtn');
-    if (uploadTemplateBtn) {
-        uploadTemplateBtn.addEventListener('click', function() {
-            const templateUpload = document.getElementById('templateUpload');
-            if (templateUpload) {
-                templateUpload.click();
-            }
-        });
-    }
-    
     // 绑定预览中的导出按钮
     const exportFromPreviewBtn = document.getElementById('exportFromPreviewBtn');
     if (exportFromPreviewBtn) {
@@ -1751,4 +1908,6 @@ function bindSettingsEvents() {
             exportReports();
         });
     }
+    
+    console.log('设置事件绑定完成');
 }

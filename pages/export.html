@@ -309,7 +309,7 @@
                         </div>
                         
                         <div class="form-group row mb-3">
-                            <label for="fileNameFormat" class="col-sm-3 col-form-label">文件命名格式 <span class="text-danger">*</span></label>
+                            <label for="fileNameFormat" class="col-sm-3 col-form-label">命名格式 <span class="text-danger">*</span></label>
                             <div class="col-sm-9">
                                 <select class="form-control" id="fileNameFormat" name="fileNameFormat" required>
                                     <option value="id_name" selected>学号_姓名</option>
@@ -337,23 +337,26 @@
     </div>
     
     <!-- 预览模态框 -->
-    <div class="modal fade" id="previewModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
+    <div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">报告预览</h5>
+                    <h5 class="modal-title" id="previewModalLabel">报告预览</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="report-preview">
-                        <!-- 预览内容将由JavaScript动态生成 -->
+                    <div class="preview-content">
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-3">正在生成预览...</p>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
-                    <button type="button" class="btn btn-primary" id="exportFromPreviewBtn">
-                        <i class='bx bx-export'></i> 导出
-                    </button>
+                    <button type="button" class="btn btn-primary" id="exportFromPreviewBtn">导出所有</button>
                 </div>
             </div>
         </div>
@@ -413,16 +416,20 @@
         </div>
     </div>
     
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../js/libs/bootstrap.bundle.min.js"></script>
     <script src="../js/data.js"></script>
     <script src="../js/export.js"></script>
-    <script src="../js/template-upload.js"></script>
     <script>
-        // 加载docx库
+        // 加载docx库函数
         async function loadDocxLibraries() {
+            // 如果已经加载了PizZip和Docxtemplater，直接返回
+            if (typeof PizZip !== 'undefined' && typeof Docxtemplater !== 'undefined') {
+                return { PizZip, Docxtemplater };
+            }
+            
             if (typeof PizZip === 'undefined') {
                 const pizzipScript = document.createElement('script');
-                pizzipScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.4/pizzip.min.js';
+                pizzipScript.src = '../libs/pizzip.min.js';
                 document.head.appendChild(pizzipScript);
                 
                 await new Promise(resolve => pizzipScript.onload = resolve);
@@ -430,7 +437,7 @@
             
             if (typeof Docxtemplater === 'undefined') {
                 const docxtemplaterScript = document.createElement('script');
-                docxtemplaterScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.37.11/docxtemplater.js';
+                docxtemplaterScript.src = '../libs/docxtemplater.js';
                 document.head.appendChild(docxtemplaterScript);
                 
                 await new Promise(resolve => docxtemplaterScript.onload = resolve);
@@ -453,23 +460,6 @@
                 showNotification('加载Docx库失败，导出功能可能不可用', 'error');
             }
             
-            // 初始化导出设置
-            initExportSettings();
-            
-            // 初始化学生列表
-            initStudentList();
-            
-            // 初始化模板上传
-            initTemplateUpload();
-            
-            // 绑定导出按钮事件
-            document.getElementById('exportBtn').addEventListener('click', exportReports);
-            
-            // 绑定上传模板按钮事件
-            document.getElementById('uploadTemplateBtn').addEventListener('click', function() {
-                document.getElementById('templateUpload').click();
-            });
-            
             // 页面加载时检查可用模板并获取模板列表
             try {
                 // 检查默认模板是否存在
@@ -491,22 +481,20 @@
                                     <div class="card template-card" data-template-id="${template.id}">
                                         <div class="card-body">
                                             <h5 class="card-title">${template.name}</h5>
-                                            <p class="card-text">
-                                                <small class="text-muted">${template.type === 'system' ? '系统模板' : '自定义模板'}</small>
-                                            </p>
+                                            <p class="card-text text-muted">类型: ${template.type === 'system' ? '系统模板' : '自定义模板'}</p>
                                         </div>
                                     </div>
                                 `;
                                 templateContainer.appendChild(card);
                                 
-                                // 绑定点击事件
+                                // 添加点击事件
                                 const templateCard = card.querySelector('.template-card');
                                 templateCard.addEventListener('click', function() {
                                     selectTemplate(this);
                                 });
                             });
                             
-                            // 选中第一个模板
+                            // 默认选中第一个模板
                             const firstTemplate = templateContainer.querySelector('.template-card');
                             if (firstTemplate) {
                                 selectTemplate(firstTemplate);
@@ -518,7 +506,7 @@
                     }
                 }
             } catch (error) {
-                console.error('加载模板列表失败:', error);
+                console.error('获取模板列表失败:', error);
             }
         });
         
@@ -551,16 +539,6 @@
             const bsToast = new bootstrap.Toast(toast);
             bsToast.show();
         }
-        
-        // 绑定预览中的导出按钮
-        document.getElementById('exportFromPreviewBtn').addEventListener('click', function() {
-            // 关闭预览模态框
-            const previewModal = bootstrap.Modal.getInstance(document.getElementById('previewModal'));
-            previewModal.hide();
-            
-            // 触发导出
-            document.getElementById('exportBtn').click();
-        });
     </script>
     <!-- 添加模板使用说明 -->
     <div class="card mb-4">
