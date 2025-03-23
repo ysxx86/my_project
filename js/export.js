@@ -177,7 +177,7 @@ function setDefaultSemesterInfo(settings) {
     }
     
     // 保存更新后的设置
-    dataService.saveExportSettings(settings);
+            dataService.saveExportSettings(settings);
     
     // 更新预览
     updatePreview();
@@ -396,18 +396,18 @@ function updatePreview() {
     if (!previewContainer) return;
     
     try {
-        // 获取导出设置
-        const settings = dataService.getExportSettings();
-        
-        // 获取学生数据、评语数据和成绩数据
-        const students = dataService.getStudents();
+    // 获取导出设置
+    const settings = dataService.getExportSettings();
+    
+    // 获取学生数据、评语数据和成绩数据
+    const students = dataService.getStudents();
         if (!students || students.length === 0) {
-            previewContainer.innerHTML = '<div class="text-center p-5">暂无学生数据</div>';
-            return;
-        }
-        
-        // 使用第一个学生作为预览
-        const student = students[0];
+        previewContainer.innerHTML = '<div class="text-center p-5">暂无学生数据</div>';
+        return;
+    }
+    
+    // 使用第一个学生作为预览
+    const student = students[0];
         if (!student) {
             previewContainer.innerHTML = '<div class="text-center p-5">学生数据不完整</div>';
             return;
@@ -417,119 +417,119 @@ function updatePreview() {
         const studentId = student.id || '';
         const comment = studentId ? dataService.getCommentByStudentId(studentId) : null;
         const grade = studentId ? dataService.getGradeByStudentId(studentId) : null;
-        const subjects = dataService.getSubjects();
-        
-        // 创建预览内容
-        let previewHTML = `
-            <div class="report-header">
+    const subjects = dataService.getSubjects();
+    
+    // 创建预览内容
+    let previewHTML = `
+        <div class="report-header">
                 <div class="report-title">${settings.schoolName || '学校名称'}学生综合素质发展报告单</div>
                 <div class="report-subtitle">${settings.schoolYear || ''}学年 第${settings.semester || ''}学期</div>
-            </div>
-            
-            <div class="report-info">
+        </div>
+        
+        <div class="report-info">
                 <div><strong>班级：</strong>${settings.className || ''}</div>
                 <div><strong>姓名：</strong>${student.name || ''}</div>
                 <div><strong>学号：</strong>${studentId}</div>
                 <div><strong>日期：</strong>${settings.exportDate || ''}</div>
-            </div>
-        `;
-        
-        // 基本信息部分
-        if (settings.includeBasicInfo) {
-            previewHTML += `
-                <div class="report-section">
-                    <div class="report-section-title">基本信息</div>
-                    <div class="row">
+        </div>
+    `;
+    
+    // 基本信息部分
+    if (settings.includeBasicInfo) {
+        previewHTML += `
+            <div class="report-section">
+                <div class="report-section-title">基本信息</div>
+                <div class="row">
                         <div class="col-md-6"><strong>性别：</strong>${student.gender || ''}</div>
                         <div class="col-md-6"><strong>出生日期：</strong>${student.birthdate || ''}</div>
-                    </div>
-                    <div class="row mt-2">
+                </div>
+                <div class="row mt-2">
                         <div class="col-md-6"><strong>家长电话：</strong>${student.parentPhone || ''}</div>
                         <div class="col-md-6"><strong>家庭住址：</strong>${student.address || ''}</div>
-                    </div>
-                </div>
-            `;
-        }
-        
-        // 成绩部分
-        if (settings.includeGrades) {
-            previewHTML += `
-                <div class="report-section">
-                    <div class="report-section-title">学科成绩</div>
-                    <table class="report-table">
-                        <thead>
-                            <tr>
-                                ${subjects.map(subject => `<th>${subject}</th>`).join('')}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                ${subjects.map(subject => `<td>${grade && grade.grades[subject] ? grade.grades[subject] : '-'}</td>`).join('')}
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            `;
-        }
-        
-        // 评语部分
-        if (settings.includeComments) {
-            previewHTML += `
-                <div class="report-section">
-                    <div class="report-section-title">综合评语</div>
-                    <p>${comment ? comment.content : '暂无评语'}</p>
-                </div>
-            `;
-        }
-        
-        // 考勤部分（示例）
-        if (settings.includeAttendance) {
-            previewHTML += `
-                <div class="report-section">
-                    <div class="report-section-title">考勤情况</div>
-                    <div class="row">
-                        <div class="col-md-4"><strong>应到天数：</strong>90天</div>
-                        <div class="col-md-4"><strong>实到天数：</strong>88天</div>
-                        <div class="col-md-4"><strong>出勤率：</strong>97.8%</div>
-                    </div>
-                    <div class="row mt-2">
-                        <div class="col-md-4"><strong>请假：</strong>2天</div>
-                        <div class="col-md-4"><strong>迟到：</strong>1次</div>
-                        <div class="col-md-4"><strong>早退：</strong>0次</div>
-                    </div>
-                </div>
-            `;
-        }
-        
-        // 奖励部分（示例）
-        if (settings.includeAwards) {
-            previewHTML += `
-                <div class="report-section">
-                    <div class="report-section-title">获奖情况</div>
-                    <ul>
-                        <li>三好学生</li>
-                        <li>数学竞赛三等奖</li>
-                    </ul>
-                </div>
-            `;
-        }
-        
-        // 签名部分
-        previewHTML += `
-            <div class="report-section mt-5">
-                <div class="row">
-                    <div class="col-md-6 text-center">
-                        <div><strong>班主任签名：</strong>_______________</div>
-                    </div>
-                    <div class="col-md-6 text-center">
-                        <div><strong>家长签名：</strong>_______________</div>
-                    </div>
                 </div>
             </div>
         `;
-        
+    }
+    
+    // 成绩部分
+    if (settings.includeGrades) {
+        previewHTML += `
+            <div class="report-section">
+                <div class="report-section-title">学科成绩</div>
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            ${subjects.map(subject => `<th>${subject}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            ${subjects.map(subject => `<td>${grade && grade.grades[subject] ? grade.grades[subject] : '-'}</td>`).join('')}
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+    
+    // 评语部分
+    if (settings.includeComments) {
+        previewHTML += `
+            <div class="report-section">
+                <div class="report-section-title">综合评语</div>
+                <p>${comment ? comment.content : '暂无评语'}</p>
+            </div>
+        `;
+    }
+    
+    // 考勤部分（示例）
+    if (settings.includeAttendance) {
+        previewHTML += `
+            <div class="report-section">
+                <div class="report-section-title">考勤情况</div>
+                <div class="row">
+                    <div class="col-md-4"><strong>应到天数：</strong>90天</div>
+                    <div class="col-md-4"><strong>实到天数：</strong>88天</div>
+                    <div class="col-md-4"><strong>出勤率：</strong>97.8%</div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-md-4"><strong>请假：</strong>2天</div>
+                    <div class="col-md-4"><strong>迟到：</strong>1次</div>
+                    <div class="col-md-4"><strong>早退：</strong>0次</div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // 奖励部分（示例）
+    if (settings.includeAwards) {
+        previewHTML += `
+            <div class="report-section">
+                <div class="report-section-title">获奖情况</div>
+                <ul>
+                    <li>三好学生</li>
+                    <li>数学竞赛三等奖</li>
+                </ul>
+            </div>
+        `;
+    }
+    
+    // 签名部分
+    previewHTML += `
+        <div class="report-section mt-5">
+            <div class="row">
+                <div class="col-md-6 text-center">
+                    <div><strong>班主任签名：</strong>_______________</div>
+                </div>
+                <div class="col-md-6 text-center">
+                    <div><strong>家长签名：</strong>_______________</div>
+                </div>
+            </div>
+        </div>
+    `;
+    
         // 设置预览内容
-        previewContainer.innerHTML = previewHTML;
+    previewContainer.innerHTML = previewHTML;
     } catch (error) {
         console.error('生成预览时出错:', error);
         previewContainer.innerHTML = '<div class="text-center p-5 text-danger">生成预览时出错</div>';
@@ -641,25 +641,13 @@ async function exportReports() {
             return;
         }
         
-        // 获取所选模板
-        const template = document.querySelector('.template-card.selected');
-        if (!template) {
-            showNotification('请选择一个报告模板', 'warning');
-            resetExportButton();
-            return;
-        }
-        
-        const templateId = template.dataset.templateId;
-        console.log('选中的模板ID:', templateId);
-        if (!templateId) {
-            showNotification('无效的模板', 'error');
-            resetExportButton();
-            return;
-        }
+        // 直接使用泉州东海湾实验学校综合素质发展报告单作为模板ID
+        const templateId = '泉州东海湾实验学校综合素质发展报告单';
+        console.log('使用模板ID:', templateId);
                 
         // 收集导出设置
         const settings = {
-            schoolYear: getElementValue('schoolYear', '2023-2024'),
+            schoolYear: getElementValue('schoolYear', '2024-2025'),
             semester: getElementValue('semester', '第二学期'),
             fileNameFormat: getElementValue('fileNameFormat', 'id_name'),
             startDate: getElementValue('startDate', ''),
@@ -668,14 +656,6 @@ async function exportReports() {
             teacherName: getElementValue('teacherName', '')
         };
         console.log('导出设置:', settings);
-        
-        // 准备请求数据 - 确保studentIds是ID字符串列表
-        const requestData = {
-            studentIds: selectedStudentIds, // 直接使用ID列表
-            templateId: templateId,
-            settings: settings
-        };
-        console.log('发送请求数据:', requestData);
         
         // 显示进度模态窗口
         const progressModal = new bootstrap.Modal(document.getElementById('progressModal'));
@@ -696,7 +676,11 @@ async function exportReports() {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json, application/zip' // 接受JSON或ZIP文件
                 },
-                body: JSON.stringify(requestData)
+                body: JSON.stringify({
+                    studentIds: selectedStudentIds,
+                    templateId: templateId,
+                    settings: settings
+                })
             });
             
             // 更新进度
@@ -950,8 +934,8 @@ async function generateFromTemplate(templateFile, student, comment, grade, subje
         console.log('已准备模板数据:', Object.keys(data).length, '个字段');
         
         try {
-            // 使用PizZip加载文档
-            const zip = new PizZip(fileContent);
+        // 使用PizZip加载文档
+        const zip = new PizZip(fileContent);
             console.log('PizZip文档加载成功');
 
             // 安全检查: 确认文档文件存在
@@ -961,28 +945,28 @@ async function generateFromTemplate(templateFile, student, comment, grade, subje
             } else {
                 console.log('找到主文档 word/document.xml, 大小:', mainDocument.asText().length);
             }
-            
-            // 创建Docxtemplater实例
-            const doc = new Docxtemplater();
-            doc.loadZip(zip);
+        
+        // 创建Docxtemplater实例
+        const doc = new Docxtemplater();
+        doc.loadZip(zip);
             console.log('Docxtemplater成功加载ZIP文档');
-            
-            // 设置数据
-            doc.setData(data);
+        
+        // 设置数据
+        doc.setData(data);
             console.log('Docxtemplater成功设置数据');
-            
-            // 渲染文档
-            doc.render();
-            console.log('文档渲染完成');
-            
-            // 获取生成的文档
-            const out = doc.getZip().generate({
-                type: 'blob',
-                mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-            });
-            
+        
+        // 渲染文档
+        doc.render();
+        console.log('文档渲染完成');
+        
+        // 获取生成的文档
+        const out = doc.getZip().generate({
+            type: 'blob',
+            mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        });
+        
             console.log('成功生成输出文档，大小:', out.size, 'bytes');
-            return out;
+        return out;
         } catch (zipError) {
             console.error('模板处理失败:', zipError);
             
@@ -1069,7 +1053,7 @@ async function loadDocxTemplaterLibraries() {
             try {
                 const pizzipScript = document.createElement('script');
                 pizzipScript.src = '/vendor/pizzip.min.js';
-                await new Promise((resolve, reject) => {
+            await new Promise((resolve, reject) => {
                     pizzipScript.onload = () => {
                         console.log('PizZip库从本地加载成功');
                         resolve();
@@ -1087,16 +1071,16 @@ async function loadDocxTemplaterLibraries() {
                 const pizzipScript = document.createElement('script');
                 pizzipScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.4/pizzip.min.js';
                 await new Promise((resolve, reject) => {
-                    pizzipScript.onload = () => {
+                pizzipScript.onload = () => {
                         console.log('PizZip库从CDN加载成功');
-                        resolve();
-                    };
-                    pizzipScript.onerror = (err) => {
-                        console.error('从CDN加载PizZip库失败', err);
+                    resolve();
+                };
+                pizzipScript.onerror = (err) => {
+                    console.error('从CDN加载PizZip库失败', err);
                         reject(new Error('PizZip库加载失败，本地和CDN均不可用'));
-                    };
-                    document.head.appendChild(pizzipScript);
-                });
+                };
+                document.head.appendChild(pizzipScript);
+            });
             }
         }
         
@@ -1107,7 +1091,7 @@ async function loadDocxTemplaterLibraries() {
             try {
                 const docxtemplaterScript = document.createElement('script');
                 docxtemplaterScript.src = '/vendor/docxtemplater.js';
-                await new Promise((resolve, reject) => {
+            await new Promise((resolve, reject) => {
                     docxtemplaterScript.onload = () => {
                         console.log('Docxtemplater库从本地加载成功');
                         resolve();
@@ -1125,16 +1109,16 @@ async function loadDocxTemplaterLibraries() {
                 const docxtemplaterScript = document.createElement('script');
                 docxtemplaterScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.37.11/docxtemplater.js';
                 await new Promise((resolve, reject) => {
-                    docxtemplaterScript.onload = () => {
+                docxtemplaterScript.onload = () => {
                         console.log('Docxtemplater库从CDN加载成功');
-                        resolve();
-                    };
-                    docxtemplaterScript.onerror = (err) => {
-                        console.error('从CDN加载Docxtemplater库失败', err);
+                    resolve();
+                };
+                docxtemplaterScript.onerror = (err) => {
+                    console.error('从CDN加载Docxtemplater库失败', err);
                         reject(new Error('Docxtemplater库加载失败，本地和CDN均不可用'));
-                    };
-                    document.head.appendChild(docxtemplaterScript);
-                });
+                };
+                document.head.appendChild(docxtemplaterScript);
+            });
             }
         }
         
@@ -1672,67 +1656,35 @@ function bindExportSettingsEvents() {
 async function initTemplateSelection() {
     try {
         console.log('正在初始化模板选择');
-        // 先设置使用内置默认模板(不依赖于文件系统)作为回退选项
+        
+        // 设置默认使用泉州东海湾实验学校综合素质发展报告单模板
         const settings = dataService.getExportSettings();
-        settings.useDefaultTemplate = true; // 标记使用内置默认模板
-        settings.templateName = '默认模板';
+        settings.templateId = '泉州东海湾实验学校综合素质发展报告单';
+        settings.templateName = '泉州东海湾实验学校综合素质发展报告单';
+        settings.useDefaultTemplate = false;
         dataService.saveExportSettings(settings);
         
         // 显示模板信息
         const templateNameElement = document.getElementById('templateName');
         if (templateNameElement) {
-            templateNameElement.textContent = '默认模板 (内置)';
+            templateNameElement.textContent = '泉州东海湾实验学校综合素质发展报告单';
         }
         
-        // 尝试获取泉州东海湾实验学校模板
-        try {
-            // 获取模板列表
-            const response = await fetch('/api/templates');
-            if (response.ok) {
-                const data = await response.json();
-                if (data.status === 'ok' && data.templates && data.templates.length > 0) {
-                    // 检查是否有默认模板
-                    const defaultTemplate = data.templates.find(t => 
-                        t.name === '泉州东海湾实验学校综合素质发展报告单.docx' || 
-                        t.filename === '泉州东海湾实验学校综合素质发展报告单.docx' ||
-                        t.name === 'report_template.docx' ||
-                        t.filename === 'report_template.docx');
-                    
-                    if (defaultTemplate) {
-                        console.log('找到默认模板:', defaultTemplate.name);
-                        // 保存默认模板到设置
-                        settings.templateId = defaultTemplate.id;
-                        settings.templateName = defaultTemplate.name;
-                        settings.useDefaultTemplate = false; // 使用文件系统模板
-                        dataService.saveExportSettings(settings);
-                        
-                        // 显示已选模板信息
-                        if (templateNameElement) {
-                            templateNameElement.textContent = defaultTemplate.name;
-                        }
-                        const uploadedTemplate = document.getElementById('uploadedTemplate');
-                        if (uploadedTemplate) {
-                            uploadedTemplate.classList.remove('d-none');
-                        }
-                    } else {
-                        console.log('未找到指定默认模板，将使用内置模板');
-                    }
-                }
-            }
-        } catch (templateError) {
-            console.warn('获取模板列表失败，将使用内置默认模板:', templateError);
+        // 显示已选模板信息
+        const uploadedTemplate = document.getElementById('uploadedTemplate');
+        if (uploadedTemplate) {
+            uploadedTemplate.classList.remove('d-none');
         }
         
-        // 显示模板使用信息
+        // 显示默认模板信息
         const defaultTemplate = document.getElementById('defaultTemplate');
         if (defaultTemplate) {
             defaultTemplate.classList.remove('d-none');
-            defaultTemplate.querySelector('strong').textContent = settings.useDefaultTemplate ? 
-                '内置默认模板' : '泉州东海湾实验学校综合素质发展报告单';
+            defaultTemplate.querySelector('strong').textContent = '泉州东海湾实验学校综合素质发展报告单';
         }
     } catch (error) {
         console.error('初始化模板选择失败:', error);
-        showNotification('初始化模板选择失败，将使用内置默认模板', 'warning');
+        showNotification('初始化模板选择失败', 'warning');
     }
 }
 

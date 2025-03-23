@@ -49,7 +49,10 @@ const dataService = (function() {
         schoolName: '泉州东海湾实验学校',
         className: '六年级一班',
         teacherName: '肖老师',
-        exportDate: formatDate(new Date())
+        exportDate: formatDate(new Date()),
+        templateId: '泉州东海湾实验学校综合素质发展报告单',
+        templateName: '泉州东海湾实验学校综合素质发展报告单',
+        useDefaultTemplate: false
     };
     
     // 日期格式化函数

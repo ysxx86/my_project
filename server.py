@@ -1714,16 +1714,18 @@ def api_export_reports():
         
         # 验证请求数据
         student_ids = data.get('studentIds', [])
-        template_id = data.get('templateId', 'default')
+        template_id = data.get('templateId', '泉州东海湾实验学校综合素质发展报告单')
+        use_default_template = data.get('useDefaultTemplate', False)
         settings = data.get('settings', {})
         
         if not student_ids:
             return jsonify({'status': 'error', 'message': '未选择任何学生'})
             
         if not template_id:
-            template_id = 'default'
+            template_id = '泉州东海湾实验学校综合素质发展报告单'
+            logger.info(f"未指定模板ID，将使用默认模板: {template_id}")
             
-        logger.info(f"导出学生: {student_ids}, 模板ID: {template_id}, 设置: {settings}")
+        logger.info(f"导出学生: {student_ids}, 模板ID: {template_id}, 使用内置默认模板: {use_default_template}, 设置: {settings}")
             
         # 使用默认设置补充缺失的设置
         default_settings = {

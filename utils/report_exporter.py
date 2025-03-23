@@ -150,11 +150,9 @@ class ReportExporter:
         Returns:
             str: 模板文件的完整路径
         """
-        # 特别添加泉州东海湾实验学校模板路径
+        # 特别处理泉州东海湾实验学校模板
         if template_id == "泉州东海湾实验学校综合素质发展报告单":
-            template_path = os.path.join(self.templates_dir, "泉州东海湾实验学校综合素质发展报告单.docx")
-            if os.path.exists(template_path):
-                return template_path
+            return os.path.join(self.templates_dir, "泉州东海湾实验学校综合素质发展报告单.docx")
         
         if template_id == "default":
             return os.path.join(self.templates_dir, "default_template.docx")
