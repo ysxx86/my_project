@@ -38,7 +38,7 @@ def test_info_empty():
     expected = textwrap.dedent(
         """\
         <class 'pandas.core.frame.DataFrame'>
-        RangeIndex: 0 entries
+        Index: 0 entries
         Empty DataFrame\n"""
     )
     assert result == expected
@@ -117,7 +117,7 @@ def test_info_verbose_check_header_separator_body():
     assert len(lines) > 0
 
     for i, line in enumerate(lines):
-        if start <= i < start + size:
+        if i >= start and i < start + size:
             line_nr = f" {i - start} "
             assert line.startswith(line_nr)
 

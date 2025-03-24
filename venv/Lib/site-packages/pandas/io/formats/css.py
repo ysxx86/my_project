@@ -201,11 +201,11 @@ class CSSResolver:
 
     CSS_EXPANSIONS = {
         **{
-            (f"border-{prop}" if prop else "border"): _border_expander(prop)
+            "-".join(["border", prop] if prop else ["border"]): _border_expander(prop)
             for prop in ["", "top", "right", "bottom", "left"]
         },
         **{
-            f"border-{prop}": _side_expander(f"border-{{:s}}-{prop}")
+            "-".join(["border", prop]): _side_expander("border-{:s}-" + prop)
             for prop in ["color", "style", "width"]
         },
         **{

@@ -6,9 +6,8 @@ from typing import Any
 
 import numpy as np
 
-from pandas.compat._optional import import_optional_dependency
-
 import pandas as pd
+from pandas.core.interchange.column import PandasColumn
 from pandas.core.interchange.dataframe_protocol import (
     Buffer,
     Column,
@@ -25,11 +24,11 @@ _NP_DTYPES: dict[DtypeKind, dict[int, Any]] = {
     DtypeKind.INT: {8: np.int8, 16: np.int16, 32: np.int32, 64: np.int64},
     DtypeKind.UINT: {8: np.uint8, 16: np.uint16, 32: np.uint32, 64: np.uint64},
     DtypeKind.FLOAT: {32: np.float32, 64: np.float64},
-    DtypeKind.BOOL: {1: bool, 8: bool},
+    DtypeKind.BOOL: {8: bool},
 }
 
 
-def from_dataframe(df, allow_copy: bool = True) -> pd.DataFrame:
+def from_dataframe(df, allow_copy=True) -> pd.DataFrame:
     """
     Build a ``pd.DataFrame`` from any DataFrame supporting the interchange protocol.
 
@@ -54,7 +53,7 @@ def from_dataframe(df, allow_copy: bool = True) -> pd.DataFrame:
     return _from_dataframe(df.__dataframe__(allow_copy=allow_copy))
 
 
-def _from_dataframe(df: DataFrameXchg, allow_copy: bool = True):
+def _from_dataframe(df: DataFrameXchg, allow_copy=True):
     """
     Build a ``pd.DataFrame`` from the DataFrame interchange object.
 
@@ -156,9 +155,7 @@ def primitive_column_to_ndarray(col: Column) -> tuple[np.ndarray, Any]:
     buffers = col.get_buffers()
 
     data_buff, data_dtype = buffers["data"]
-    data = buffer_to_ndarray(
-        data_buff, data_dtype, offset=col.offset, length=col.size()
-    )
+    data = buffer_to_ndarray(data_buff, data_dtype, col.offset, col.size())
 
     data = set_nulls(data, col, buffers["validity"])
     return data, buffers
@@ -184,28 +181,17 @@ def categorical_column_to_series(col: Column) -> tuple[pd.Series, Any]:
         raise NotImplementedError("Non-dictionary categoricals not supported yet")
 
     cat_column = categorical["categories"]
-    if hasattr(cat_column, "_col"):
-        # Item "Column" of "Optional[Column]" has no attribute "_col"
-        # Item "None" of "Optional[Column]" has no attribute "_col"
-        categories = np.array(cat_column._col)  # type: ignore[union-attr]
-    else:
-        raise NotImplementedError(
-            "Interchanging categorical columns isn't supported yet, and our "
-            "fallback of using the `col._col` attribute (a ndarray) failed."
-        )
+    # for mypy/pyright
+    assert isinstance(cat_column, PandasColumn), "categories must be a PandasColumn"
+    categories = np.array(cat_column._col)
     buffers = col.get_buffers()
 
     codes_buff, codes_dtype = buffers["data"]
-    codes = buffer_to_ndarray(
-        codes_buff, codes_dtype, offset=col.offset, length=col.size()
-    )
+    codes = buffer_to_ndarray(codes_buff, codes_dtype, col.offset, col.size())
 
     # Doing module in order to not get ``IndexError`` for
     # out-of-bounds sentinel values in `codes`
-    if len(categories) > 0:
-        values = categories[codes % len(categories)]
-    else:
-        values = codes
+    values = categories[codes % len(categories)]
 
     cat = pd.Categorical(
         values, categories=categories, ordered=categorical["is_ordered"]
@@ -247,11 +233,8 @@ def string_column_to_ndarray(col: Column) -> tuple[np.ndarray, Any]:
     # Retrieve the data buffer containing the UTF-8 code units
     data_buff, protocol_data_dtype = buffers["data"]
     # We're going to reinterpret the buffer as uint8, so make sure we can do it safely
-    assert protocol_data_dtype[1] == 8
-    assert protocol_data_dtype[2] in (
-        ArrowCTypes.STRING,
-        ArrowCTypes.LARGE_STRING,
-    )  # format_str == utf-8
+    assert protocol_data_dtype[1] == 8  # bitwidth == 8
+    assert protocol_data_dtype[2] == ArrowCTypes.STRING  # format_str == utf-8
     # Convert the buffers to NumPy arrays. In order to go from STRING to
     # an equivalent ndarray, we claim that the buffer is uint8 (i.e., a byte array)
     data_dtype = (
@@ -261,7 +244,7 @@ def string_column_to_ndarray(col: Column) -> tuple[np.ndarray, Any]:
         Endianness.NATIVE,
     )
     # Specify zero offset as we don't want to chunk the string data
-    data = buffer_to_ndarray(data_buff, data_dtype, offset=0, length=data_buff.bufsize)
+    data = buffer_to_ndarray(data_buff, data_dtype, offset=0, length=col.size())
 
     # Retrieve the offsets buffer containing the index offsets demarcating
     # the beginning and the ending of each string
@@ -270,16 +253,14 @@ def string_column_to_ndarray(col: Column) -> tuple[np.ndarray, Any]:
     # meaning that it has more elements than in the data buffer, do `col.size() + 1`
     # here to pass a proper offsets buffer size
     offsets = buffer_to_ndarray(
-        offset_buff, offset_dtype, offset=col.offset, length=col.size() + 1
+        offset_buff, offset_dtype, col.offset, length=col.size() + 1
     )
 
     null_pos = None
     if null_kind in (ColumnNullType.USE_BITMASK, ColumnNullType.USE_BYTEMASK):
         assert buffers["validity"], "Validity buffers cannot be empty for masks"
         valid_buff, valid_dtype = buffers["validity"]
-        null_pos = buffer_to_ndarray(
-            valid_buff, valid_dtype, offset=col.offset, length=col.size()
-        )
+        null_pos = buffer_to_ndarray(valid_buff, valid_dtype, col.offset, col.size())
         if sentinel_val == 0:
             null_pos = ~null_pos
 
@@ -367,8 +348,8 @@ def datetime_column_to_ndarray(col: Column) -> tuple[np.ndarray, Any]:
             getattr(ArrowCTypes, f"UINT{dtype[1]}"),
             Endianness.NATIVE,
         ),
-        offset=col.offset,
-        length=col.size(),
+        col.offset,
+        col.size(),
     )
 
     data = parse_datetime_format_str(format_str, data)
@@ -379,9 +360,8 @@ def datetime_column_to_ndarray(col: Column) -> tuple[np.ndarray, Any]:
 def buffer_to_ndarray(
     buffer: Buffer,
     dtype: tuple[DtypeKind, int, str, str],
-    *,
-    length: int,
     offset: int = 0,
+    length: int | None = None,
 ) -> np.ndarray:
     """
     Build a NumPy array from the passed buffer.
@@ -418,25 +398,72 @@ def buffer_to_ndarray(
     # and size in the buffer plus the dtype on the column. Use DLPack as NumPy supports
     # it since https://github.com/numpy/numpy/pull/19083
     ctypes_type = np.ctypeslib.as_ctypes_type(column_dtype)
+    data_pointer = ctypes.cast(
+        buffer.ptr + (offset * bit_width // 8), ctypes.POINTER(ctypes_type)
+    )
 
     if bit_width == 1:
         assert length is not None, "`length` must be specified for a bit-mask buffer."
-        pa = import_optional_dependency("pyarrow")
-        arr = pa.BooleanArray.from_buffers(
-            pa.bool_(),
-            length,
-            [None, pa.foreign_buffer(buffer.ptr, length)],
-            offset=offset,
-        )
-        return np.asarray(arr)
+        arr = np.ctypeslib.as_array(data_pointer, shape=(buffer.bufsize,))
+        return bitmask_to_bool_ndarray(arr, length, first_byte_offset=offset % 8)
     else:
-        data_pointer = ctypes.cast(
-            buffer.ptr + (offset * bit_width // 8), ctypes.POINTER(ctypes_type)
-        )
         return np.ctypeslib.as_array(
-            data_pointer,
-            shape=(length,),
+            data_pointer, shape=(buffer.bufsize // (bit_width // 8),)
         )
+
+
+def bitmask_to_bool_ndarray(
+    bitmask: np.ndarray, mask_length: int, first_byte_offset: int = 0
+) -> np.ndarray:
+    """
+    Convert bit-mask to a boolean NumPy array.
+
+    Parameters
+    ----------
+    bitmask : np.ndarray[uint8]
+        NumPy array of uint8 dtype representing the bitmask.
+    mask_length : int
+        Number of elements in the mask to interpret.
+    first_byte_offset : int, default: 0
+        Number of elements to offset from the start of the first byte.
+
+    Returns
+    -------
+    np.ndarray[bool]
+    """
+    bytes_to_skip = first_byte_offset // 8
+    bitmask = bitmask[bytes_to_skip:]
+    first_byte_offset %= 8
+
+    bool_mask = np.zeros(mask_length, dtype=bool)
+
+    # Processing the first byte separately as it has its own offset
+    val = bitmask[0]
+    mask_idx = 0
+    bits_in_first_byte = min(8 - first_byte_offset, mask_length)
+    for j in range(bits_in_first_byte):
+        if val & (1 << (j + first_byte_offset)):
+            bool_mask[mask_idx] = True
+        mask_idx += 1
+
+    # `mask_length // 8` describes how many full bytes to process
+    for i in range((mask_length - bits_in_first_byte) // 8):
+        # doing `+ 1` as we already processed the first byte
+        val = bitmask[i + 1]
+        for j in range(8):
+            if val & (1 << j):
+                bool_mask[mask_idx] = True
+            mask_idx += 1
+
+    if len(bitmask) > 1:
+        # Processing reminder of last byte
+        val = bitmask[-1]
+        for j in range(len(bool_mask) - mask_idx):
+            if val & (1 << j):
+                bool_mask[mask_idx] = True
+            mask_idx += 1
+
+    return bool_mask
 
 
 def set_nulls(
@@ -474,9 +501,7 @@ def set_nulls(
     elif null_kind in (ColumnNullType.USE_BITMASK, ColumnNullType.USE_BYTEMASK):
         assert validity, "Expected to have a validity buffer for the mask"
         valid_buff, valid_dtype = validity
-        null_pos = buffer_to_ndarray(
-            valid_buff, valid_dtype, offset=col.offset, length=col.size()
-        )
+        null_pos = buffer_to_ndarray(valid_buff, valid_dtype, col.offset, col.size())
         if sentinel_val == 0:
             null_pos = ~null_pos
     elif null_kind in (ColumnNullType.NON_NULLABLE, ColumnNullType.USE_NAN):
