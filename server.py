@@ -1196,18 +1196,7 @@ def api_export_comments_pdf():
     app.logger.info(f"收到导出评语PDF请求，班级: {class_name}")
     
     try:
-        # 检查PDF导出功能是否可用
-        try:
-            from reportlab.lib import colors
-            app.logger.info("ReportLab库成功导入")
-        except ImportError as e:
-            app.logger.error(f"ReportLab库导入失败: {str(e)}")
-            return jsonify({
-                'status': 'error',
-                'message': 'PDF导出功能不可用，服务器缺少ReportLab库'
-            }), 400
-        
-        # 检查导出目录是否存在
+        # 确保exports目录存在且可写
         EXPORTS_FOLDER = 'exports'
         if not os.path.exists(EXPORTS_FOLDER):
             try:
@@ -1219,14 +1208,51 @@ def api_export_comments_pdf():
                     'status': 'error',
                     'message': f'创建导出目录失败: {str(e)}'
                 }), 400
-                
-        # 检查导出目录是否可写
-        if not os.access(EXPORTS_FOLDER, os.W_OK):
-            app.logger.error(f"导出目录不可写: {EXPORTS_FOLDER}")
+        
+        # 测试导出目录写入权限
+        try:
+            test_file = os.path.join(EXPORTS_FOLDER, "test_write.txt")
+            with open(test_file, 'w') as f:
+                f.write("Test write permission")
+            if os.path.exists(test_file):
+                os.remove(test_file)
+        except Exception as e:
+            app.logger.error(f"导出目录写入权限测试失败: {str(e)}")
             return jsonify({
                 'status': 'error',
-                'message': f'导出目录 {EXPORTS_FOLDER} 不可写，请检查权限'
+                'message': f'导出目录没有写入权限: {str(e)}'
             }), 400
+            
+        # 检查PDF导出功能是否可用
+        try:
+            from reportlab.lib import colors
+            app.logger.info("ReportLab库成功导入")
+        except ImportError as e:
+            app.logger.error(f"ReportLab库导入失败: {str(e)}")
+            return jsonify({
+                'status': 'error',
+                'message': 'PDF导出功能不可用，服务器缺少ReportLab库'
+            }), 400
+        
+        # 限制班级大小 - 如果未指定班级，检查学生总数
+        if not class_name:
+            try:
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                cursor.execute('SELECT COUNT(*) as count FROM students')
+                result = cursor.fetchone()
+                total_students = result['count'] if result else 0
+                conn.close()
+                
+                # 如果学生总数过多，要求用户选择特定班级
+                if total_students > 200:
+                    return jsonify({
+                        'status': 'error',
+                        'message': f'学生总数过多 ({total_students}人)，请选择特定班级后再导出'
+                    }), 400
+            except Exception as e:
+                app.logger.error(f"检查学生总数时出错: {str(e)}")
+                # 继续执行，不中断流程
         
         # 调用PDF导出函数
         app.logger.info("调用PDF导出函数")
@@ -1250,10 +1276,20 @@ def api_export_comments_pdf():
         # 正常处理字典类型的结果
         if result.get('status') == 'ok':
             app.logger.info(f"PDF导出成功: {result.get('file_path')}")
+            # 确保下载URL可用
+            if 'download_url' in result:
+                download_url = result['download_url']
+                # 如果URL不是以http开头，添加前缀
+                if not download_url.startswith('http'):
+                    # 获取服务器的URL前缀
+                    if request.host_url:
+                        base_url = request.host_url.rstrip('/')
+                        download_url = download_url.lstrip('/')
+                        result['download_url'] = f"{base_url}/{download_url}"
             return jsonify(result)
         else:
             app.logger.error(f"PDF导出失败: {result.get('message')}")
-            return jsonify(result), 400  # 使用400而不是500
+            return jsonify(result), 400
     except Exception as e:
         app.logger.error(f"导出评语PDF时发生错误: {str(e)}")
         app.logger.error(traceback.format_exc())
@@ -1263,9 +1299,29 @@ def api_export_comments_pdf():
         }), 400
 
 # 提供导出文件下载
-@app.route('/download/exports/<filename>', methods=['GET'])
+@app.route('/download/exports/<path:filename>', methods=['GET'])
 def download_export(filename):
-    return send_from_directory(EXPORTS_FOLDER, filename)
+    EXPORTS_FOLDER = 'exports'
+    app.logger.info(f"请求下载文件: {filename}, 从目录: {EXPORTS_FOLDER}")
+    
+    # 检查文件是否存在
+    file_path = os.path.join(EXPORTS_FOLDER, filename)
+    if not os.path.exists(file_path):
+        app.logger.error(f"请求的文件不存在: {file_path}")
+        return jsonify({
+            'status': 'error',
+            'message': '请求的文件不存在'
+        }), 404
+        
+    # 发送文件
+    try:
+        return send_from_directory(EXPORTS_FOLDER, filename, as_attachment=True)
+    except Exception as e:
+        app.logger.error(f"发送文件时出错: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'发送文件时出错: {str(e)}'
+        }), 500
 
 # 生成打印预览HTML
 @app.route('/api/preview-comments', methods=['GET'])

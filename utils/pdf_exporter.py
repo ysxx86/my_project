@@ -3,13 +3,14 @@
 
 """
 PDF导出模块：专门负责生成学生评语的PDF文件
-更加精简和稳健的实现
+更加精简和稳健的实现 - 修复评语对齐问题、添加首行缩进、自适应评语高度
 """
 
 import os
 import logging
 import sqlite3
 import traceback
+import time
 from datetime import datetime
 
 # 配置日志
@@ -33,7 +34,14 @@ except ImportError:
 # 数据库连接和导出目录配置
 DATABASE = 'students.db'
 EXPORTS_FOLDER = 'exports'
+
+# 确保导出目录存在
+if not os.path.exists(EXPORTS_FOLDER):
+    try:
 os.makedirs(EXPORTS_FOLDER, exist_ok=True)
+        logger.info(f"创建导出目录: {EXPORTS_FOLDER}")
+    except Exception as e:
+        logger.error(f"创建导出目录失败: {str(e)}")
 
 # 字体目录
 FONTS_FOLDER = 'utils/fonts'
@@ -110,6 +118,7 @@ def export_comments_to_pdf(class_name=None, output_file=None, school_name=None, 
     返回:
     - 包含状态和文件路径的字典
     """
+    start_time = time.time()
     logger.info(f"开始导出评语PDF，班级: {class_name}, 学校: {school_name}, 学年: {school_year}")
     
     # 检查PDF生成库是否可用
@@ -126,9 +135,18 @@ def export_comments_to_pdf(class_name=None, output_file=None, school_name=None, 
             os.makedirs(EXPORTS_FOLDER, exist_ok=True)
             logger.info(f"创建导出目录: {EXPORTS_FOLDER}")
             
-        if not os.access(EXPORTS_FOLDER, os.W_OK):
-            logger.error(f"导出目录不可写: {EXPORTS_FOLDER}")
-            return {'status': 'error', 'message': f'导出目录 {EXPORTS_FOLDER} 不可写，请检查权限'}
+        # 尝试创建测试文件验证写入权限
+        test_file = os.path.join(EXPORTS_FOLDER, "test_write.txt")
+        try:
+            with open(test_file, 'w') as f:
+                f.write("测试写入权限")
+            if os.path.exists(test_file):
+                os.remove(test_file)
+            logger.info("导出目录写入权限测试成功")
+        except Exception as e:
+            logger.error(f"导出目录写入权限测试失败: {str(e)}")
+            return {'status': 'error', 'message': f'导出目录没有写入权限: {str(e)}'}
+            
     except Exception as e:
         logger.error(f"创建导出目录时出错: {str(e)}")
         logger.error(traceback.format_exc())
@@ -145,8 +163,12 @@ def export_comments_to_pdf(class_name=None, output_file=None, school_name=None, 
     logger.info(f"导出文件路径: {file_path}")
     
     # 注册字体
+    try:
     font_name = register_fonts()
     logger.info(f"使用字体: {font_name}")
+    except Exception as e:
+        logger.error(f"注册字体时出错: {str(e)}")
+        return {'status': 'error', 'message': f'注册字体时出错: {str(e)}'}
     
     # 获取学生数据
     try:
@@ -172,7 +194,12 @@ def export_comments_to_pdf(class_name=None, output_file=None, school_name=None, 
             logger.warning("没有找到学生数据，无法生成PDF")
             return {'status': 'error', 'message': '没有找到学生数据，无法生成PDF文件'}
         
-        logger.info(f"成功获取 {len(students)} 名学生数据")
+        # 如果学生数量过多，考虑分批处理
+        total_students = len(students)
+        if total_students > 100:
+            logger.warning(f"学生数量较多 ({total_students})，PDF生成可能需要较长时间")
+        
+        logger.info(f"成功获取 {total_students} 名学生数据")
     except Exception as e:
         logger.error(f"查询学生数据时出错: {str(e)}")
         logger.error(traceback.format_exc())
@@ -188,14 +215,14 @@ def export_comments_to_pdf(class_name=None, output_file=None, school_name=None, 
                 students_by_class[class_name] = []
             students_by_class[class_name].append(dict(s))
         
-        # 创建简单的PDF文档 - 使用纵向A4纸张
+        # 创建横向A4文档 - 与打印预览保持一致
         doc = SimpleDocTemplate(
             file_path,
-            pagesize=A4,
-            rightMargin=20*mm,
-            leftMargin=20*mm,
-            topMargin=20*mm,
-            bottomMargin=20*mm
+            pagesize=landscape(A4),
+            rightMargin=10*mm,
+            leftMargin=10*mm,
+            topMargin=10*mm,
+            bottomMargin=10*mm
         )
         
         # 创建样式
@@ -204,123 +231,248 @@ def export_comments_to_pdf(class_name=None, output_file=None, school_name=None, 
         # 定义标题样式
         title_style = ParagraphStyle(
             'Title', 
-            parent=styles['Title'], 
+            parent=styles['Normal'], 
             fontName=font_name, 
-            fontSize=18, 
-            alignment=1,  # 居中
-            spaceAfter=10*mm
+            fontSize=14, 
+            alignment=0,  # 左对齐
+            spaceAfter=2*mm,
+            fontWeight='bold'
         )
         
         # 定义班级标题样式
         class_style = ParagraphStyle(
             'Class', 
-            parent=styles['Heading1'], 
-            fontName=font_name, 
-            fontSize=16, 
-            alignment=0,  # 左对齐
-            spaceAfter=5*mm
-        )
-        
-        # 定义学生名称样式
-        student_style = ParagraphStyle(
-            'Student', 
-            parent=styles['Heading2'], 
-            fontName=font_name, 
-            fontSize=14, 
-            alignment=0,  # 左对齐
-            spaceAfter=2*mm
-        )
-        
-        # 定义评语样式
-        comment_style = ParagraphStyle(
-            'Comment', 
             parent=styles['Normal'], 
             fontName=font_name, 
             fontSize=12, 
             alignment=0,  # 左对齐
-            firstLineIndent=5*mm,
-            spaceBefore=2*mm,
-            spaceAfter=5*mm
+            spaceBefore=1*mm,
+            spaceAfter=2*mm
         )
         
-        # 定义时间样式
-        time_style = ParagraphStyle(
-            'Time', 
+        # 定义页码样式
+        page_number_style = ParagraphStyle(
+            'PageNumber',
             parent=styles['Normal'], 
             fontName=font_name, 
-            fontSize=10, 
-            alignment=0,  # 左对齐
-            leftIndent=10*mm,
+            fontSize=9,
+            alignment=1,  # 居中
             textColor=colors.gray
         )
         
         # 创建文档内容
         story = []
         
-        # 添加文档标题
-        title = f"学生评语汇总 - {school_name} {school_year}" if school_name and school_year else "学生评语汇总"
-        story.append(Paragraph(title, title_style))
-        
         # 处理每个班级
         for class_name, class_students in students_by_class.items():
-            # 添加班级标题
-            story.append(Paragraph(f"班级：{class_name}", class_style))
+            # 创建标题和班级信息放在同一行
+            title_elements = [
+                [Paragraph("学生评语表", title_style), 
+                 Paragraph(f"班级：{class_name}", class_style)]
+            ]
+            title_table = Table(title_elements, colWidths=[100*mm, 150*mm])
+            title_table.setStyle(TableStyle([
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+                ('ALIGN', (1, 0), (1, 0), 'LEFT'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+                ('TOPPADDING', (0, 0), (-1, -1), 0),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+            ]))
+            story.append(title_table)
+            story.append(Spacer(1, 5*mm))
             
-            # 处理每个学生
-            for student in class_students:
-                try:
-                    # 安全获取学生数据
-                    name = str(student.get('name', '')) if student.get('name') is not None else '未知学生'
-                    gender = str(student.get('gender', '')) if student.get('gender') is not None else ''
-                    student_id = str(student.get('id', '')) if student.get('id') is not None else ''
-                    updated_at = str(student.get('updated_at', '')) if student.get('updated_at') is not None else '未更新'
+            # 每页显示6个学生卡片（3列2行）
+            cards_per_page = 6
+            
+            # 按每页6个学生分组
+            for page_start in range(0, len(class_students), cards_per_page):
+                page_students = class_students[page_start:page_start + cards_per_page]
+                
+                # 创建本页的学生卡片表格
+                student_cards = []
+                
+                # 每行3个学生卡片，计算每行的最大评语高度
+                for row_start in range(0, len(page_students), 3):
+                    row_students = page_students[row_start:row_start + 3]
                     
-                    # 处理评语，移除所有可能导致问题的字符
+                    # 预先计算所有评语，找出最大高度
+                    row_comments = []
+                    max_height = 0
+                    
+                    for student in row_students:
                     raw_comments = student.get('comments', '')
-                    if raw_comments is None or raw_comments == '':
-                        comments = '暂无评语'
-                    else:
-                        comments = str(raw_comments).replace('<', ' ').replace('>', ' ')
+                        comments = str(raw_comments).replace('<', ' ').replace('>', ' ') if raw_comments else '暂无评语'
+                        
+                        # 创建评语段落以测量高度
+                        comment_style = ParagraphStyle(
+                            'Comment',
+                            parent=styles['Normal'],
+                            fontName=font_name,
+                            fontSize=11,
+                            alignment=0,
+                            firstLineIndent=22,  # 设置首行缩进2个字符
+                            spaceBefore=2*mm,
+                            spaceAfter=2*mm,
+                            leading=14,  # 行间距
+                            wordWrap='CJK',  # 优化中文换行
+                            allowWidows=0,  # 防止孤行
+                            allowOrphans=0  # 防止孤行
+                        )
+                        
+                        # 评语的有效宽度应考虑到表格内边距
+                        effective_width = 70*mm  # 考虑到左右内边距
+                        p = Paragraph(comments, comment_style)
+                        w, h = p.wrap(effective_width, 500*mm)  # 给予充足高度以测量实际需要的高度
+                        if h > max_height:
+                            max_height = h
+                        
+                        row_comments.append((comments, p, h))
                     
-                    # 添加学生信息
-                    student_info = f"{name} ({gender}) - 学号: {student_id}"
-                    story.append(Paragraph(student_info, student_style))
+                    # 设置最小高度，确保短评语也有足够空间
+                    if max_height < 30*mm:
+                        max_height = 30*mm
                     
-                    # 添加评语
-                    story.append(Paragraph(comments, comment_style))
+                    # 为长评语增加额外空间，确保内容不会被截断
+                    max_height += 10*mm
                     
-                    # 添加更新时间
-                    story.append(Paragraph(f"更新时间: {updated_at}", time_style))
+                    # 现在用计算好的高度创建卡片
+                    row_cards = []
                     
-                    # 添加分隔空间
-                    story.append(Spacer(1, 5*mm))
+                    for i, student in enumerate(row_students):
+                        if i < len(row_comments):
+                            # 处理学生数据
+                            student_id = str(student.get('id', '未知ID'))
+                            student_name = str(student.get('name', '未知姓名'))
+                            student_gender = str(student.get('gender', '未知'))
+                            comments = row_comments[i][0]
+                            
+                            # 创建学生卡片内容
+                            student_info = f"{student_name} ({student_gender}) - 学号: {student_id}"
+                            
+                            # 学生信息样式
+                            student_info_style = ParagraphStyle(
+                                'StudentInfo',
+                                parent=styles['Normal'],
+                                fontName=font_name,
+                                fontSize=12,
+                                alignment=0,
+                                fontWeight='bold',
+                                spaceAfter=3*mm
+                            )
+                            
+                            # 创建卡片内容元素，仅包含学生信息和评语
+                            card_elements = [
+                                [Paragraph(student_info, student_info_style)],
+                                [Paragraph(comments, comment_style)]
+                            ]
+                            
+                            # 创建学生卡片表格，使用计算好的高度
+                            card_style = TableStyle([
+                                ('BOX', (0, 0), (-1, -1), 1, colors.black),
+                                ('VALIGN', (0, 0), (0, 0), 'TOP'),  # 信息顶部对齐
+                                ('VALIGN', (0, 1), (0, 1), 'TOP'),  # 评语顶部对齐
+                                ('LEFTPADDING', (0, 0), (-1, -1), 5*mm),
+                                ('RIGHTPADDING', (0, 0), (-1, -1), 5*mm),
+                                ('TOPPADDING', (0, 0), (-1, -1), 5*mm),
+                                ('BOTTOMPADDING', (0, 0), (-1, -1), 5*mm),
+                                # 添加线框颜色
+                                ('LINEAFTER', (0, 0), (-1, -1), 1, colors.black),
+                                ('LINEBEFORE', (0, 0), (-1, -1), 1, colors.black),
+                                ('LINEABOVE', (0, 0), (-1, -1), 1, colors.black),
+                                ('LINEBELOW', (0, 0), (-1, -1), 1, colors.black),
+                            ])
+                            
+                            # 使用自适应高度，确保所有卡片高度一致
+                            # 移除底部时间行，只保留标题和评语两行
+                            card_table = Table(card_elements, 
+                                              colWidths=[80*mm],
+                                              rowHeights=[10*mm, max_height],  # 只有两行：标题和评语
+                                              hAlign='CENTER',  # 水平居中对齐
+                                              splitByRow=1)  # 确保按行分割但不拆分行内容
+                            card_table.setStyle(card_style)
+                            row_cards.append(card_table)
                     
-                except Exception as e:
-                    logger.error(f"处理学生 {student.get('name')} 数据时出错: {str(e)}")
-                    # 添加错误信息
-                    error_style = ParagraphStyle('Error', parent=styles['Normal'], fontName=font_name, textColor=colors.red)
-                    story.append(Paragraph(f"处理该学生数据时出错: {str(e)}", error_style))
-                    story.append(Spacer(1, 5*mm))
+                    # 补齐行中不足的卡片（使用空白）
+                    while len(row_cards) < 3:
+                        # 创建一个空的卡片，保持与其他卡片相同大小
+                        empty_card = Table([[""], [""]], 
+                                          colWidths=[80*mm],
+                                          rowHeights=[10*mm, max_height],  # 只有两行
+                                          hAlign='CENTER')  # 水平居中对齐
+                        empty_card.setStyle(TableStyle([
+                            ('BOX', (0, 0), (-1, -1), 1, colors.white),  # 白色边框，实际上不可见
+                        ]))
+                        row_cards.append(empty_card)
+                    
+                    student_cards.append(row_cards)
+                
+                # 创建学生卡片网格
+                grid_style = TableStyle([
+                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),  # 顶部对齐
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),  # 居中对齐表格
+                    # 减少内边距，使卡片更紧凑
+                    ('LEFTPADDING', (0, 0), (-1, -1), 1.5*mm),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 1.5*mm),
+                    ('TOPPADDING', (0, 0), (-1, -1), 1.5*mm),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 1.5*mm),
+                ])
+                
+                # 使用固定宽度确保所有卡片对齐
+                student_grid = Table(student_cards, 
+                                    colWidths=[85*mm, 85*mm, 85*mm],
+                                    repeatRows=0)  # 首行不重复
+                student_grid.setStyle(grid_style)
+                story.append(student_grid)
+                
+                # 每页结束后添加分页符（除非是最后一页）
+                if page_start + cards_per_page < len(class_students):
+                    story.append(PageBreak())
             
-            # 在每个班级后添加分页符（除了最后一个班级）
+            # 每个班级结束后添加分页符（除非是最后一个班级）
             if class_name != list(students_by_class.keys())[-1]:
                 story.append(PageBreak())
         
-        # 构建PDF
-        doc.build(story)
+        # 添加页码
+        def add_page_number(canvas, doc):
+            canvas.saveState()
+            # 绘制页码
+            page_num = canvas.getPageNumber()
+            text = f"第 {page_num} 页"
+            canvas.setFont(font_name, 9)
+            canvas.setFillColor(colors.gray)
+            canvas.drawCentredString(doc.width/2 + doc.leftMargin, doc.bottomMargin - 5*mm, text)
+            canvas.restoreState()
+            
+        # 构建PDF文档
+        doc.build(story, onFirstPage=add_page_number, onLaterPages=add_page_number)
         
         # 检查文件是否成功生成
         if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
             logger.info(f"PDF文件成功生成: {file_path}")
+            
+            # 定时检查生成进度
+            current_time = time.time()
+            if current_time - start_time > 30:  # 如果已经运行超过30秒
+                logger.warning(f"PDF生成时间较长: {current_time - start_time:.2f}秒")
+            
+            # 生成URL
+            server_url = "http://127.0.0.1:8080"  # 默认本地地址
+            download_url = f"/download/exports/{filename}"
+            
+            # 返回结果
+            elapsed_time = time.time() - start_time
+            logger.info(f"PDF导出完成，用时: {elapsed_time:.2f}秒")
             return {
                 'status': 'ok',
-                'message': '评语导出成功',
                 'file_path': file_path,
-                'download_url': f'/download/exports/{filename}'
+                'download_url': download_url,
+                'filename': filename
             }
         else:
             return {'status': 'error', 'message': 'PDF文件生成失败，文件不存在或为空'}
     except Exception as e:
-        logger.error(f"生成PDF时出错: {str(e)}")
+        logger.error(f"生成PDF文件时出错: {str(e)}")
         logger.error(traceback.format_exc())
-        return {'status': 'error', 'message': f'生成PDF时出错: {str(e)}'} 
+        return {'status': 'error', 'message': f'生成PDF文件时出错: {str(e)}'} 

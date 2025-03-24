@@ -1006,54 +1006,28 @@ function showPrintPreview() {
 
 // 导出评语为PDF
 function exportComments() {
-    console.log('导出评语为PDF');
-    
     // 显示加载通知
-    showNotification('正在生成PDF...', 'info', 0);
+    showNotification('正在生成PDF，请稍候...', 'info', 0);
     
-    // 获取班级信息（可选）
-    const exportSettings = dataService.getExportSettings();
-    let className = exportSettings.className || '';
-    const schoolName = exportSettings.schoolName || '';
-    const schoolYear = exportSettings.schoolYear || '';
-    
-    console.log('导出设置：', { 班级: className, 学校: schoolName, 学年: schoolYear });
-    
-    // 构建请求URL - 使用URLSearchParams处理参数
+    // 获取过滤参数
     const params = new URLSearchParams();
     
-    // 添加班级参数
-    if (className && className.trim() !== '') {
-        try {
-            className = className.trim();
-            params.append('class', className);
-        } catch (e) {
-            console.error('处理班级名称时出错:', e);
-        }
-    }
-    
-    // 添加学校名称参数
-    if (schoolName && schoolName.trim() !== '') {
-        try {
-            params.append('school_name', schoolName.trim());
-        } catch (e) {
-            console.error('处理学校名称时出错:', e);
-        }
-    }
-    
-    // 添加学年参数
-    if (schoolYear && schoolYear.trim() !== '') {
-        try {
-            params.append('school_year', schoolYear.trim());
-        } catch (e) {
-            console.error('处理学年时出错:', e);
-        }
+    // 获取班级选择器
+    const classFilter = document.getElementById('commentClassFilter');
+    if (classFilter && classFilter.value) {
+        params.append('class', classFilter.value);
     }
     
     // 生成查询字符串
     const queryString = params.toString() ? `?${params.toString()}` : '';
     
     console.log('导出请求URL:', `/api/export-comments-pdf${queryString}`);
+    
+    // 设置超时控制
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+        controller.abort();
+    }, 60000); // 60秒超时
     
     // 显示长时间进度提示
     setTimeout(() => {
@@ -1069,8 +1043,11 @@ function exportComments() {
     }, 5000);
     
     // 调用导出API
-    fetch(`/api/export-comments-pdf${queryString}`)
+    fetch(`/api/export-comments-pdf${queryString}`, {
+        signal: controller.signal
+    })
         .then(response => {
+            clearTimeout(timeoutId); // 清除超时
             // 即使是错误状态码，也获取JSON响应
             return response.json().then(data => {
                 // 将响应状态码和数据一起返回
@@ -1101,6 +1078,7 @@ function exportComments() {
                 const downloadLink = document.createElement('a');
                 downloadLink.href = result.data.download_url;
                 downloadLink.download = result.data.download_url.split('/').pop();
+                downloadLink.target = '_blank'; // 在新标签页打开
                 document.body.appendChild(downloadLink);
                 downloadLink.click();
                 document.body.removeChild(downloadLink);
@@ -1153,8 +1131,25 @@ function exportComments() {
             }
         })
         .catch(error => {
+            clearTimeout(timeoutId); // 清除超时
             console.error('导出PDF时网络请求出错:', error);
-            showNotification('导出PDF时出错，请检查网络连接或查看控制台获取详细信息', 'error');
+            
+            // 关闭加载通知
+            const toastContainer = document.getElementById('toastContainer');
+            if (toastContainer) {
+                const toasts = toastContainer.querySelectorAll('.toast');
+                toasts.forEach(toast => {
+                    const bsToast = bootstrap.Toast.getInstance(toast);
+                    if (bsToast) bsToast.hide();
+                });
+            }
+            
+            // 处理超时错误
+            if (error.name === 'AbortError') {
+                showNotification('PDF生成超时，请选择较小的班级范围或稍后重试', 'error');
+            } else {
+                showNotification('导出PDF时出错，请检查网络连接或服务器状态', 'error');
+            }
         });
 }
 
