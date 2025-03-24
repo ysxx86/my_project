@@ -40,14 +40,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // 绑定删除学生确认按钮事件
-    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
-    if (confirmDeleteBtn) {
-        confirmDeleteBtn.addEventListener('click', function() {
-            deleteStudent();
-        });
-    }
-    
     // 绑定导入学生确认按钮事件
     const confirmImport = document.getElementById('confirmImport');
     if (confirmImport) {
@@ -115,11 +107,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const deleteStudentModal = document.getElementById('deleteStudentModal');
     if (deleteStudentModal) {
         deleteStudentModal.addEventListener('show.bs.modal', function(e) {
-            const button = e.relatedTarget;
-            const studentId = button.getAttribute('data-student-id');
-            const studentName = button.getAttribute('data-student-name');
-            document.getElementById('deleteStudentId').value = studentId;
-            document.getElementById('deleteStudentName').textContent = studentName;
+            // 确保relatedTarget存在再获取属性
+            if (e.relatedTarget) {
+                const button = e.relatedTarget;
+                const studentId = button.getAttribute('data-student-id');
+                const studentName = button.getAttribute('data-student-name');
+                document.getElementById('deleteStudentId').value = studentId;
+                document.getElementById('deleteStudentName').textContent = studentName;
+            }
+            // 如果是通过代码直接打开模态框，数据已经在deleteStudent函数中设置了
         });
     }
     
@@ -841,13 +837,42 @@ function saveEditedStudent() {
 }
 
 // 删除学生
-function deleteStudent() {
-    const studentId = document.getElementById('deleteStudentId').value;
-    const studentName = document.getElementById('deleteStudentName').textContent;
+function deleteStudent(studentId) {
+    // 如果直接传递了ID参数，使用该参数
+    if (!studentId) {
+        // 尝试从隐藏输入框获取ID
+        studentId = document.getElementById('deleteStudentId').value;
+    }
+    
+    // 获取学生姓名
+    let studentName = '';
+    const nameElement = document.getElementById('deleteStudentName');
+    if (nameElement) {
+        studentName = nameElement.textContent;
+    } else {
+        // 如果找不到显示姓名的元素，尝试从学生列表中查找
+        const students = JSON.parse(localStorage.getItem('students') || '[]');
+        const student = students.find(s => s.id === studentId || s.student_id === studentId);
+        studentName = student ? student.name : '未知学生';
+    }
     
     if (!studentId) {
         console.error('删除学生失败: 未找到学生ID');
         showNotification('删除学生失败: 未找到学生ID', 'error');
+        return;
+    }
+    
+    // 如果模态框已打开，则说明是点击确认删除按钮，继续执行删除操作
+    // 如果模态框未打开，则说明是直接从学生卡片上调用，需要显示确认对话框
+    const modalElement = document.getElementById('deleteStudentModal');
+    if (studentId && !modalElement.classList.contains('show')) {
+        // 设置模态框中的值
+        document.getElementById('deleteStudentId').value = studentId;
+        document.getElementById('deleteStudentName').textContent = studentName;
+        
+        // 显示确认删除模态框
+        const deleteModal = new bootstrap.Modal(modalElement);
+        deleteModal.show();
         return;
     }
     
@@ -858,16 +883,15 @@ function deleteStudent() {
         deleteBtn.disabled = true;
     }
     
-    // 从本地存储中删除
-    try {
-        const studentsData = localStorage.getItem('students');
-        if (studentsData) {
-            const students = JSON.parse(studentsData);
-            // 检查是否使用id或student_id作为键
-            const updatedStudents = students.filter(student => 
-                (student.student_id !== studentId && student.id !== studentId)
-            );
-            localStorage.setItem('students', JSON.stringify(updatedStudents));
+    // 首先尝试从服务器删除
+    fetch(`/api/students/${studentId}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'ok') {
+            // 服务器删除成功
+            showNotification(`成功删除学生: ${studentName}`, 'success');
             
             // 隐藏模态框
             const modal = bootstrap.Modal.getInstance(document.getElementById('deleteStudentModal'));
@@ -875,23 +899,54 @@ function deleteStudent() {
                 modal.hide();
             }
             
-            // 显示成功提示
-            showNotification(`学生 "${studentName}" 已从本地数据中删除`, 'success');
-            
             // 刷新学生列表
             loadStudentsFromServer();
-            return;
+        } else {
+            throw new Error(data.error || '删除失败');
         }
-    } catch (e) {
-        console.error('从本地存储删除学生时出错:', e);
-        showNotification('删除学生失败: ' + e.message, 'error');
-    } finally {
+    })
+    .catch(error => {
+        console.error('删除学生时出错:', error);
+        
+        // 从本地存储中删除
+        try {
+            const studentsData = localStorage.getItem('students');
+            if (studentsData) {
+                const students = JSON.parse(studentsData);
+                // 检查是否使用id或student_id作为键
+                const updatedStudents = students.filter(student => 
+                    (student.student_id !== studentId && student.id !== studentId)
+                );
+                localStorage.setItem('students', JSON.stringify(updatedStudents));
+                
+                // 隐藏模态框
+                const modal = bootstrap.Modal.getInstance(document.getElementById('deleteStudentModal'));
+                if (modal) {
+                    modal.hide();
+                }
+                
+                // 显示成功提示
+                showNotification(`学生 "${studentName}" 已从本地数据中删除`, 'success');
+                
+                // 刷新学生列表
+                loadStudentsFromServer();
+                return;
+            }
+            
+            // 如果没有本地数据，显示原始错误
+            showNotification('删除学生失败: ' + error.message, 'error');
+        } catch (e) {
+            console.error('从本地存储删除学生时出错:', e);
+            showNotification('删除学生失败: ' + e.message, 'error');
+        }
+    })
+    .finally(() => {
         // 恢复按钮状态
         if (deleteBtn) {
             deleteBtn.innerHTML = '确认删除';
             deleteBtn.disabled = false;
         }
-    }
+    });
 }
 
 // 检查服务器连接状态

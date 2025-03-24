@@ -826,7 +826,7 @@ async function exportReports() {
         const progressBar = document.getElementById('progressBar');
         const progressText = document.getElementById('progressText');
             
-        // 更新进度
+            // 更新进度
         updateProgress(10, '正在准备导出...');
         
         try {
@@ -1082,8 +1082,8 @@ async function generateFromTemplate(templateFile, student, comment, grade, subje
         console.log('开始处理模板文件:', templateFile.name, '大小:', templateFile.size, 'bytes');
         
         // 确保PizZip和Docxtemplater已加载
-        await loadDocxTemplaterLibraries();
-        console.log('模板库加载成功: PizZip =', typeof window.PizZip, ', Docxtemplater =', typeof window.Docxtemplater);
+        const { PizZip, Docxtemplater } = await loadDocxTemplaterLibraries();
+        console.log('模板库加载成功: PizZip =', typeof PizZip, ', Docxtemplater =', typeof Docxtemplater);
         
         // 读取模板文件
         const reader = new FileReader();
@@ -1100,51 +1100,62 @@ async function generateFromTemplate(templateFile, student, comment, grade, subje
         console.log('已准备模板数据:', Object.keys(data).length, '个字段');
         
         try {
-        // 使用PizZip加载文档
+            // 创建一个zip实例
         const zip = new PizZip(fileContent);
-            console.log('PizZip文档加载成功');
-
-            // 安全检查: 确认文档文件存在
-            const mainDocument = zip.file("word/document.xml");
-            if (!mainDocument) {
-                console.warn('警告: 无法在模板中找到主文档，模板可能已损坏');
-            } else {
-                console.log('找到主文档 word/document.xml, 大小:', mainDocument.asText().length);
-            }
         
-        // 创建Docxtemplater实例
-        const doc = new Docxtemplater();
-        doc.loadZip(zip);
-            console.log('Docxtemplater成功加载ZIP文档');
+            // 创建docxtemplater实例，使用正确的构造函数形式
+            const doc = new Docxtemplater(zip, {
+                paragraphLoop: true,
+                linebreaks: true
+            });
         
         // 设置数据
         doc.setData(data);
-            console.log('Docxtemplater成功设置数据');
         
         // 渲染文档
         doc.render();
-        console.log('文档渲染完成');
         
-        // 获取生成的文档
+            // 生成输出文件
         const out = doc.getZip().generate({
             type: 'blob',
-            mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                compression: 'DEFLATE'
         });
         
             console.log('成功生成输出文档，大小:', out.size, 'bytes');
         return out;
-        } catch (zipError) {
-            console.error('模板处理失败:', zipError);
+        } catch (err) {
+            console.error('渲染文档时出错:', err);
             
-            // 使用备选方案：创建一个新的简单文档而不使用模板
-            console.log('尝试使用备选方案生成简单文档...');
-            const blob = createSimpleDocument(student, comment, grade, subjects, settings);
-            return blob;
+            // 尝试使用window.docxtemplater (CDN版本可能是这个名称)
+            if (window.docxtemplater) {
+                console.log('尝试使用window.docxtemplater作为构造函数');
+                const zip = new PizZip(fileContent);
+                const doc = new window.docxtemplater(zip, {
+                    paragraphLoop: true,
+                    linebreaks: true
+                });
+                
+                doc.setData(data);
+                doc.render();
+                
+                const out = doc.getZip().generate({
+                    type: 'blob',
+                    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    compression: 'DEFLATE'
+                });
+                
+                console.log('使用window.docxtemplater成功生成输出文档，大小:', out.size, 'bytes');
+                return out;
+            }
+            
+            throw err;
         }
     } catch (error) {
         console.error('从模板生成文档时出错:', error);
-        // 返回一个简单的错误文档，至少保证能返回一些东西
-        return createErrorDocument(student, error);
+        showNotification('生成报告时出错: ' + error.message, 'error');
+        // 创建一个空的Word文档作为错误回退
+        return new Blob(['错误: ' + error.message], {type: 'text/plain'});
     }
 }
 
@@ -1201,103 +1212,132 @@ function createErrorDocument(student, error) {
     return new Blob([errorContent], { type: 'text/plain' });
 }
 
-// 动态加载PizZip和Docxtemplater库
+// 加载Docxtemplater库
 async function loadDocxTemplaterLibraries() {
     try {
-        // 首先尝试使用页面中已加载的库
-        if (window.PizZip && window.Docxtemplater) {
-            console.log('文档模板库已加载，直接使用');
-            return; // 如果已加载，直接返回
-        }
-        
-        console.log('开始加载文档模板库...');
-        
-        // 加载PizZip库（优先使用本地库）
-        if (!window.PizZip) {
-            console.log('加载PizZip库...');
-            // 首先尝试加载本地备份文件
+        // 优先使用window.loadDocxLibraries函数（在export.html中定义）
+        if (typeof window.loadDocxLibraries === 'function') {
+            console.log('使用页面预定义的loadDocxLibraries函数');
             try {
-                const pizzipScript = document.createElement('script');
-                pizzipScript.src = '/vendor/pizzip.min.js';
-            await new Promise((resolve, reject) => {
-                    pizzipScript.onload = () => {
-                        console.log('PizZip库从本地加载成功');
-                        resolve();
-                    };
-                    pizzipScript.onerror = (err) => {
-                        console.error('从本地加载PizZip库失败', err);
-                        reject(err);
-                    };
-                    document.head.appendChild(pizzipScript);
-                });
+                return await window.loadDocxLibraries();
             } catch (err) {
-                console.warn('本地PizZip加载失败，尝试从CDN加载', err);
-                
-                // 如果本地加载失败，尝试CDN
-                const pizzipScript = document.createElement('script');
-                pizzipScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.4/pizzip.min.js';
-                await new Promise((resolve, reject) => {
-                pizzipScript.onload = () => {
-                        console.log('PizZip库从CDN加载成功');
-                    resolve();
-                };
-                pizzipScript.onerror = (err) => {
-                    console.error('从CDN加载PizZip库失败', err);
-                        reject(new Error('PizZip库加载失败，本地和CDN均不可用'));
-                };
-                document.head.appendChild(pizzipScript);
-            });
+                console.warn('页面库加载失败，尝试自动加载:', err);
+                // 继续使用下面的加载逻辑
             }
         }
+
+        // 检查全局变量是否可用
+        const pizzip = window.PizZip || (typeof PizZip !== 'undefined' ? PizZip : null);
+        const docxLib = window.Docxtemplater || window.docxtemplater || 
+                      (typeof Docxtemplater !== 'undefined' ? Docxtemplater : null) || 
+                      (typeof docxtemplater !== 'undefined' ? docxtemplater : null);
         
-        // 加载Docxtemplater库（优先使用本地库）
-        if (!window.Docxtemplater) {
-            console.log('加载Docxtemplater库...');
-            // 首先尝试加载本地备份文件
-            try {
-                const docxtemplaterScript = document.createElement('script');
-                docxtemplaterScript.src = '/vendor/docxtemplater.js';
+        // 如果库已加载，直接使用
+        if (pizzip && docxLib) {
+            console.log('文档处理库已加载，直接使用');
+            // 确保全局对象存在
+            window.PizZip = pizzip;
+            window.Docxtemplater = docxLib;
+            return { PizZip: pizzip, Docxtemplater: docxLib };
+        }
+        
+        // 如果库不可用，尝试加载本地文件
+        console.warn('未检测到预加载的库，尝试加载本地库文件');
+        
+        // 加载PizZip
+        if (!pizzip) {
             await new Promise((resolve, reject) => {
-                    docxtemplaterScript.onload = () => {
-                        console.log('Docxtemplater库从本地加载成功');
-                        resolve();
-                    };
-                    docxtemplaterScript.onerror = (err) => {
-                        console.error('从本地加载Docxtemplater库失败', err);
-                        reject(err);
-                    };
-                    document.head.appendChild(docxtemplaterScript);
-                });
-            } catch (err) {
-                console.warn('本地Docxtemplater加载失败，尝试从CDN加载', err);
-                
-                // 如果本地加载失败，尝试CDN
-                const docxtemplaterScript = document.createElement('script');
-                docxtemplaterScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.37.11/docxtemplater.js';
-                await new Promise((resolve, reject) => {
-                docxtemplaterScript.onload = () => {
-                        console.log('Docxtemplater库从CDN加载成功');
+                console.log('正在加载本地PizZip库...');
+                const script = document.createElement('script');
+                script.src = '../libs/pizzip.min.js';
+                script.onload = () => {
+                    console.log('本地PizZip库加载成功');
+                    // 全局对象可能是 PizZip 而不是 PizZip，确保正确
+                    window.PizZip = typeof PizZip !== 'undefined' ? PizZip : null;
                     resolve();
                 };
-                docxtemplaterScript.onerror = (err) => {
-                    console.error('从CDN加载Docxtemplater库失败', err);
-                        reject(new Error('Docxtemplater库加载失败，本地和CDN均不可用'));
+                script.onerror = () => {
+                    console.error('本地PizZip库加载失败，尝试CDN');
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.4/pizzip.min.js';
+                    script.onload = () => {
+                        console.log('CDN PizZip库加载成功');
+                        window.PizZip = typeof PizZip !== 'undefined' ? PizZip : null;
+                        resolve();
+                    };
+                    script.onerror = (e) => {
+                        console.error('所有PizZip库源加载失败', e);
+                    reject(new Error('无法加载PizZip库'));
                 };
-                document.head.appendChild(docxtemplaterScript);
+                };
+                document.head.appendChild(script);
             });
-            }
         }
         
-        console.log('文档模板库加载完成');
-        
-        // 确认库已成功加载
-        if (!window.PizZip || !window.Docxtemplater) {
-            throw new Error('库加载后仍无法访问，可能出现异常');
+        // 加载Docxtemplater
+        if (!docxLib) {
+            await new Promise((resolve, reject) => {
+                console.log('正在加载本地Docxtemplater库...');
+                const script = document.createElement('script');
+                script.src = '../libs/docxtemplater.js';
+                script.onload = () => {
+                    console.log('本地Docxtemplater库加载成功');
+                    if (typeof window.docxtemplater !== 'undefined') {
+                        window.Docxtemplater = window.docxtemplater;
+                    } else if (typeof docxtemplater !== 'undefined') {
+                        window.Docxtemplater = docxtemplater;
+                    } else if (typeof Docxtemplater !== 'undefined') {
+                        window.Docxtemplater = Docxtemplater;
+                    }
+                    resolve();
+                };
+                script.onerror = () => {
+                    console.error('本地Docxtemplater库加载失败，尝试CDN');
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.37.11/docxtemplater.js';
+                    script.onload = () => {
+                        console.log('CDN Docxtemplater库加载成功');
+                        if (typeof window.docxtemplater !== 'undefined') {
+                            window.Docxtemplater = window.docxtemplater;
+                        } else if (typeof docxtemplater !== 'undefined') {
+                            window.Docxtemplater = docxtemplater;
+                        } else if (typeof Docxtemplater !== 'undefined') {
+                            window.Docxtemplater = Docxtemplater;
+                        }
+                        resolve();
+                    };
+                    script.onerror = (e) => {
+                        console.error('所有Docxtemplater库源加载失败', e);
+                    reject(new Error('无法加载Docxtemplater库'));
+                };
+                };
+                document.head.appendChild(script);
+            });
         }
+        
+        // 最终检查
+        const finalPizzip = window.PizZip || (typeof PizZip !== 'undefined' ? PizZip : null);
+        const finalDocxLib = window.Docxtemplater || window.docxtemplater || 
+                           (typeof Docxtemplater !== 'undefined' ? Docxtemplater : null) || 
+                           (typeof docxtemplater !== 'undefined' ? docxtemplater : null);
+        
+        if (!finalPizzip) {
+            throw new Error('加载PizZip库失败');
+        }
+        
+        if (!finalDocxLib) {
+            throw new Error('加载Docxtemplater库失败');
+        }
+        
+        console.log('文档处理库加载完成');
+        return { PizZip: finalPizzip, Docxtemplater: finalDocxLib };
     } catch (error) {
-        console.error('加载文档模板库时出错:', error);
-        showNotification('加载文档模板处理库失败，请稍后重试', 'error');
-        throw new Error('无法加载文档模板处理库: ' + error.message);
+        console.error('库加载过程中出错:', error);
+        // 确保在页面上显示友好的错误消息
+        if (typeof showNotification === 'function') {
+            showNotification('无法加载文档处理库: ' + error.message, 'error');
+        } else {
+            alert('导出功能暂时不可用: 无法加载文档处理库');
+        }
+        throw error;
     }
 }
 

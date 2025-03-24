@@ -7,134 +7,6 @@ document.addEventListener('DOMContentLoaded', function() {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
 
-    // 初始化登录模态框
-    const loginBtn = document.getElementById('loginBtn');
-    const loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
-    const registerBtn = document.getElementById('registerBtn');
-    const registerModal = new bootstrap.Modal(document.getElementById('registerModal'));
-
-    // 点击登录按钮显示登录模态框
-    if (loginBtn) {
-        loginBtn.addEventListener('click', function() {
-            loginModal.show();
-        });
-    }
-
-    // 点击注册按钮显示注册模态框
-    if (registerBtn) {
-        registerBtn.addEventListener('click', function() {
-            loginModal.hide();
-            registerModal.show();
-        });
-    }
-
-    // 处理登录表单提交
-    const loginForm = document.getElementById('loginForm');
-    if (loginForm) {
-        loginForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            
-            // 验证用户名和密码
-            if (!username || !password) {
-                showNotification('请输入用户名和密码', 'error');
-                return;
-            }
-            
-            // 验证用户
-            const user = dataService.validateUser(username, password);
-            if (user) {
-                // 登录成功
-                loginSuccess(user);
-                loginModal.hide();
-                showNotification(`欢迎回来，${user.teacherName}`);
-            } else {
-                showNotification('用户名或密码错误', 'error');
-            }
-        });
-    }
-
-    // 处理注册表单提交
-    const registerForm = document.getElementById('registerForm');
-    if (registerForm) {
-        registerForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const username = document.getElementById('regUsername').value;
-            const password = document.getElementById('regPassword').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
-            const teacherName = document.getElementById('teacherName').value;
-            const teacherClass = document.getElementById('teacherClass').value;
-            
-            // 验证表单数据
-            if (!username || !password || !confirmPassword || !teacherName || !teacherClass) {
-                showNotification('请填写所有必填字段', 'error');
-                return;
-            }
-            
-            // 验证密码是否匹配
-            if (password !== confirmPassword) {
-                showNotification('两次输入的密码不一致', 'error');
-                return;
-            }
-            
-            // 检查用户名是否已存在
-            const users = dataService.getUsers();
-            if (users.find(u => u.username === username)) {
-                showNotification('用户名已存在，请使用其他用户名', 'error');
-                return;
-            }
-            
-            // 创建新用户
-            const newUser = {
-                username,
-                password,
-                teacherName,
-                teacherClass
-            };
-            
-            // 添加用户
-            const success = dataService.addUser(newUser);
-            if (success) {
-                // 注册成功，自动登录
-                loginSuccess(newUser);
-                registerModal.hide();
-                showNotification('注册成功');
-            } else {
-                showNotification('注册失败，请稍后重试', 'error');
-            }
-        });
-    }
-
-    // 登录成功后更新用户信息
-    function loginSuccess(user) {
-        const userInfo = document.getElementById('userInfo');
-        if (userInfo) {
-            userInfo.innerHTML = `
-                <span>欢迎，${user.teacherName}</span>
-                <button class="btn btn-outline-danger btn-sm ms-2" id="logoutBtn">退出</button>
-            `;
-            
-            // 添加退出按钮事件
-            const logoutBtn = document.getElementById('logoutBtn');
-            if (logoutBtn) {
-                logoutBtn.addEventListener('click', function() {
-                    userInfo.innerHTML = `
-                        <span>未登录</span>
-                        <button class="btn btn-primary btn-sm ms-2" id="loginBtn">登录</button>
-                    `;
-                    // 重新绑定登录按钮事件
-                    const newLoginBtn = document.getElementById('loginBtn');
-                    if (newLoginBtn) {
-                        newLoginBtn.addEventListener('click', function() {
-                            loginModal.show();
-                        });
-                    }
-                });
-            }
-        }
-    }
-
     // 处理侧边栏和底部导航的点击事件
     const navLinks = document.querySelectorAll('.nav-link, .tab-item');
     navLinks.forEach(link => {
@@ -148,127 +20,148 @@ document.addEventListener('DOMContentLoaded', function() {
             const sidebarLink = document.querySelector(`.nav-link[href="#${targetId}"]`);
             const bottomTabLink = document.querySelector(`.tab-item[href="#${targetId}"]`);
             
-            // 添加null检查
+            // 添加活动状态
             if (sidebarLink) sidebarLink.classList.add('active');
             if (bottomTabLink) bottomTabLink.classList.add('active');
             
-            // 更新iframe内容
-            const iframeSrc = this.getAttribute('data-iframe');
-            if (iframeSrc) {
-                const targetPane = document.getElementById(targetId);
-                if (targetPane) {
-                    const iframe = targetPane.querySelector('iframe');
-                    if (iframe && iframe.getAttribute('src') !== iframeSrc) {
-                        iframe.setAttribute('src', iframeSrc);
-                    }
+            // 加载相应的页面
+            const iframe = document.querySelector(`#${targetId} iframe`);
+            if (iframe) {
+                const src = this.getAttribute('data-iframe');
+                if (src && iframe.src.indexOf(src) === -1) {
+                    iframe.src = src;
                 }
             }
         });
     });
 
-    // 处理iframe高度自适应
-    function adjustIframeHeight() {
-        const iframes = document.querySelectorAll('.content-iframe');
-        const contentArea = document.querySelector('.content-area');
-        if (contentArea && iframes.length > 0) {
-            const height = contentArea.offsetHeight;
-            iframes.forEach(iframe => {
-                iframe.style.height = `${height}px`;
-            });
-        }
-    }
+    // 监听iframe加载完成事件，调整高度
+    const iframes = document.querySelectorAll('.content-iframe');
+    iframes.forEach(iframe => {
+        iframe.addEventListener('load', function() {
+            adjustIframeHeight(this);
+        });
+    });
 
     // 初始调整iframe高度
-    adjustIframeHeight();
-
-    // 窗口大小改变时调整iframe高度
-    window.addEventListener('resize', adjustIframeHeight);
-
-    // 设置侧边栏切换
-    const sidebar = document.querySelector('.sidebar');
-    const toggleBtn = document.querySelector('.sidebar-toggle');
-    const content = document.querySelector('.content');
-    
-    if (toggleBtn && sidebar) {
-        toggleBtn.addEventListener('click', function() {
-            sidebar.classList.toggle('collapsed');
-            content.classList.toggle('expanded');
-            
-            // 记住侧边栏状态
-            const isCollapsed = sidebar.classList.contains('collapsed');
-            localStorage.setItem('sidebarCollapsed', isCollapsed);
+    window.addEventListener('resize', function() {
+        iframes.forEach(iframe => {
+            adjustIframeHeight(iframe);
         });
-        
-        // 恢复保存的侧边栏状态
-        const savedState = localStorage.getItem('sidebarCollapsed');
-        if (savedState === 'true') {
-            sidebar.classList.add('collapsed');
-            content.classList.add('expanded');
+    });
+
+    // 初始加载
+    setTimeout(function() {
+        iframes.forEach(iframe => {
+            adjustIframeHeight(iframe);
+        });
+    }, 500);
+
+    // 检查URL参数并打开相应的标签
+    const params = getUrlParams();
+    if (params.tab) {
+        const tabLink = document.querySelector(`.nav-link[href="#${params.tab}"]`);
+        if (tabLink) {
+            tabLink.click();
         }
     }
-    
-    // 根据当前页面设置活动菜单
+
+    // 设置活动菜单项
     setActiveMenuItem();
-    
-    // 设置页面标题
-    setPageTitle();
-    
-    // 全局处理模态框关闭前的焦点问题，避免aria-hidden警告
-    document.addEventListener('show.bs.modal', function(event) {
-        const modal = event.target;
-        
-        // 确保每个模态框只绑定一次事件
-        if (!modal.hasAttribute('data-focus-handler-added')) {
-            modal.setAttribute('data-focus-handler-added', 'true');
-            
-            // 添加模态框隐藏前的事件处理器
-            modal.addEventListener('hide.bs.modal', function() {
-                // 移除所有可聚焦元素的焦点，避免ARIA警告
-                const focusableElements = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
-                focusableElements.forEach(el => el.blur());
-                console.log('模态框即将关闭，已清除所有元素焦点');
-            });
-        }
-    });
 });
 
-// 全局函数：显示通知
+// 调整iframe高度
+function adjustIframeHeight(iframe) {
+    try {
+        const height = Math.max(
+            window.innerHeight - 120,
+            iframe.contentWindow.document.body.scrollHeight + 30
+        );
+        iframe.style.height = height + 'px';
+    } catch (e) {
+        // 可能因为跨域问题无法访问contentWindow
+        iframe.style.height = (window.innerHeight - 120) + 'px';
+    }
+}
+
+// 监听消息事件，用于iframe通信
+window.addEventListener('message', function(e) {
+    try {
+        // 添加数据验证
+        if (!e.data || typeof e.data !== 'string' || e.data.trim() === '') {
+            console.log('收到空消息或非字符串消息，已忽略');
+            return;
+        }
+        
+        const data = JSON.parse(e.data);
+        
+        // 处理各种消息类型
+        switch (data.type) {
+            case 'notification':
+                showNotification(data.message, data.messageType);
+                break;
+            case 'navigate':
+                // 导航到指定标签
+                const tabLink = document.querySelector(`.nav-link[href="#${data.tab}"]`);
+                if (tabLink) {
+                    tabLink.click();
+                }
+                break;
+            case 'height-update':
+                // 更新iframe高度
+                const iframe = document.querySelector(`#${data.source} iframe`);
+                if (iframe) {
+                    iframe.style.height = data.height + 'px';
+                }
+                break;
+            case 'refresh':
+                // 刷新指定iframe
+                const refreshFrame = document.querySelector(`#${data.target} iframe`);
+                if (refreshFrame) {
+                    refreshFrame.contentWindow.location.reload();
+                }
+                break;
+        }
+    } catch (err) {
+        // 提供更详细的错误信息
+        console.error('处理iframe消息时出错:', err);
+        if (e.data) {
+            console.log('问题消息内容:', typeof e.data === 'string' ? e.data.substring(0, 100) + '...' : typeof e.data);
+        }
+    }
+});
+
+// 显示通知
 function showNotification(message, type = 'success') {
     // 创建通知元素
     const notification = document.createElement('div');
-    notification.className = `notification notification-${type} fade-in`;
-    notification.innerHTML = `
-        <div class="notification-content">
-            <i class="bx ${type === 'success' ? 'bx-check-circle' : type === 'error' ? 'bx-x-circle' : 'bx-info-circle'}"></i>
-            <span>${message}</span>
-        </div>
-    `;
+    notification.className = `notification ${type}`;
+    notification.innerHTML = `<p>${message}</p>`;
     
-    // 添加到页面
+    // 添加到文档
     document.body.appendChild(notification);
     
-    // 3秒后自动移除
+    // 显示通知
+    setTimeout(() => notification.classList.add('show'), 10);
+    
+    // 自动关闭
     setTimeout(() => {
-        notification.style.opacity = '0';
-        setTimeout(() => {
-            document.body.removeChild(notification);
-        }, 300);
+        notification.classList.remove('show');
+        setTimeout(() => notification.remove(), 300);
     }, 3000);
 }
 
-// 全局函数：确认对话框
+// 确认操作
 function confirmAction(message, callback) {
     if (confirm(message)) {
         callback();
     }
 }
 
-// 全局函数：复制到剪贴板
+// 复制到剪贴板
 function copyToClipboard(text) {
     const textarea = document.createElement('textarea');
     textarea.value = text;
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
     document.body.appendChild(textarea);
     textarea.select();
     document.execCommand('copy');
@@ -276,43 +169,34 @@ function copyToClipboard(text) {
     showNotification('已复制到剪贴板');
 }
 
-// 全局函数：导出数据到Word
+// 导出到Word
 function exportToWord(data, template, filename) {
-    // 实际应用中应该发送到服务器处理
-    // 这里仅作为示例
-    showNotification(`正在导出 ${filename}...`, 'info');
-    setTimeout(() => {
-        showNotification(`${filename} 导出成功！`, 'success');
-    }, 1500);
+    // 实现导出Word的逻辑
+    // 这里需要根据具体情况实现
+    showNotification('导出成功');
 }
 
-// 全局函数：批量导出数据
+// 批量导出
 function batchExport(dataList, template) {
-    // 实际应用中应该发送到服务器处理
-    // 这里仅作为示例
-    showNotification(`正在批量导出 ${dataList.length} 个文件...`, 'info');
-    setTimeout(() => {
-        showNotification(`批量导出完成！`, 'success');
-    }, 2000);
+    // 实现批量导出的逻辑
+    // 这里需要根据具体情况实现
+    showNotification(`成功导出${dataList.length}条数据`);
 }
 
-// 全局函数：导入学生数据
+// 导入学生
 function importStudents(file) {
-    // 实际应用中应该读取文件内容并解析
-    // 这里仅作为示例
-    showNotification('正在导入学生数据...', 'info');
-    setTimeout(() => {
-        showNotification('学生数据导入成功！', 'success');
-    }, 1500);
+    // 实现导入学生的逻辑
+    // 这里需要根据具体情况实现
 }
 
-// 全局函数：生成随机ID
+// 生成唯一ID
 function generateId() {
-    return Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    return Date.now().toString(36) + Math.random().toString(36).substr(2);
 }
 
-// 全局函数：格式化日期
+// 格式化日期
 function formatDate(date) {
+    if (!date) return '';
     const d = new Date(date);
     const year = d.getFullYear();
     const month = (d.getMonth() + 1).toString().padStart(2, '0');
@@ -320,19 +204,19 @@ function formatDate(date) {
     return `${year}-${month}-${day}`;
 }
 
-// 全局函数：解析URL参数
+// 获取URL参数
 function getUrlParams() {
     const params = {};
-    const queryString = window.location.search.substring(1);
-    const pairs = queryString.split('&');
-    for (let i = 0; i < pairs.length; i++) {
-        const pair = pairs[i].split('=');
+    const query = window.location.search.substring(1);
+    const vars = query.split('&');
+    for (let i = 0; i < vars.length; i++) {
+        const pair = vars[i].split('=');
         params[decodeURIComponent(pair[0])] = decodeURIComponent(pair[1] || '');
     }
     return params;
 }
 
-// 全局函数：设置Cookie
+// 设置Cookie
 function setCookie(name, value, days) {
     let expires = '';
     if (days) {
@@ -340,14 +224,14 @@ function setCookie(name, value, days) {
         date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
         expires = '; expires=' + date.toUTCString();
     }
-    document.cookie = name + '=' + (value || '') + expires + '; path=/';
+    document.cookie = name + '=' + (value || '')  + expires + '; path=/';
 }
 
-// 全局函数：获取Cookie
+// 获取Cookie
 function getCookie(name) {
     const nameEQ = name + '=';
     const ca = document.cookie.split(';');
-    for (let i = 0; i < ca.length; i++) {
+    for(let i = 0; i < ca.length; i++) {
         let c = ca[i];
         while (c.charAt(0) === ' ') c = c.substring(1, c.length);
         if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
@@ -355,45 +239,38 @@ function getCookie(name) {
     return null;
 }
 
-// 全局函数：删除Cookie
+// 删除Cookie
 function eraseCookie(name) {
     document.cookie = name + '=; Max-Age=-99999999;';
 }
 
-// 全局函数：本地存储操作
-const storage = {
-    set: function(key, value) {
-        localStorage.setItem(key, JSON.stringify(value));
-    },
-    get: function(key) {
-        const value = localStorage.getItem(key);
-        return value ? JSON.parse(value) : null;
-    },
-    remove: function(key) {
-        localStorage.removeItem(key);
-    },
-    clear: function() {
-        localStorage.clear();
-    }
-};
+// 防抖函数
+function debounce(func, wait, immediate) {
+    let timeout;
+    return function() {
+        const context = this, args = arguments;
+        const later = function() {
+            timeout = null;
+            if (!immediate) func.apply(context, args);
+        };
+        const callNow = immediate && !timeout;
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+        if (callNow) func.apply(context, args);
+    };
+}
 
 // 设置活动菜单项
 function setActiveMenuItem() {
-    const currentPath = window.location.pathname;
-    const menuItems = document.querySelectorAll('.sidebar-menu a');
-    
-    menuItems.forEach(item => {
-        const href = item.getAttribute('href');
-        if (href && currentPath.endsWith(href)) {
-            item.classList.add('active');
-        }
-    });
+    const currentPath = window.location.hash || '#home';
+    const menuItem = document.querySelector(`.nav-link[href="${currentPath}"]`);
+    if (menuItem) {
+        document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
+        menuItem.classList.add('active');
+    }
 }
 
 // 设置页面标题
-function setPageTitle() {
-    const pageTitle = document.querySelector('.page-title');
-    if (pageTitle) {
-        document.title = pageTitle.textContent + ' - 班主任管理系统';
-    }
+function setPageTitle(title) {
+    document.title = title ? title + ' - 班主任管理系统' : '班主任管理系统';
 }
